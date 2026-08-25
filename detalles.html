@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en" class="h-100">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AllCursos</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+      crossorigin="anonymous"
+    />
+    <link rel="stylesheet" href="assets/css/style.css" />
+  </head>
+  <body class="d-flex flex-column h-100" id="page-container-1">
+    <header data-bs-theme="dark">
+      <nav
+        class="navbar navbar-expand-lg bg-body-tertiary fixed-top"
+        aria-label="Thirteenth navbar example"
+      >
+        <div class="container-fluid">
+          <button
+            class="navbar-toggler"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#navbarsExample11"
+            aria-controls="navbarsExample11"
+            aria-expanded="true"
+            aria-label="Toggle navigation"
+          >
+            <span class="navbar-toggler-icon"></span>
+          </button>
+          <div
+            class="navbar-collapse d-lg-flex justify-content-between collapse show"
+            id="navbarsExample11"
+          >
+            <ul class="navbar-nav fw-bold col-lg-6" id="menuDinamico">
+              <!-- Generado dinámicamente por navbar.js según haya o no sesión -->
+            </ul>
+            <div class="col-lg-4">
+              <form class="d-flex" role="search" id="formBuscar">
+                <input
+                  class="form-control me-2"
+                  type="search"
+                  placeholder="Buscar"
+                  aria-label="Search"
+                  name="terminoBusqueda"
+                  id="terminoBusqueda"
+                />
+                <button class="btn btn-outline-success" type="submit">
+                  Buscar
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+    <main>
+      <section class="py-3 text-center container">
+        <div class="container my-5">
+          <div id="contenedorDetalle"></div>
+        </div>
+      </section>
+    </main>
+    <footer class="text-white bg-black py-3 mt-auto">
+      <div class="container text-center">
+        <p class="mb-0">&copy; AllCursos 2026</p>
+      </div>
+    </footer>
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
+      crossorigin="anonymous"
+    ></script>
+
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/navbar.js"></script>
+    <script src="assets/js/detalles.js"></script>
+  </body>
+</html>

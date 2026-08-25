@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="es" class="h-100">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Alumnos por Curso - AllCursos</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    />
+  </head>
+  <body class="d-flex flex-column h-100 bg-light">
+    <header data-bs-theme="dark">
+      <nav class="navbar navbar-expand-lg bg-body-tertiary fixed-top">
+        <div class="container-fluid">
+          <button
+            class="navbar-toggler"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#navbarsExample11"
+          >
+            <span class="navbar-toggler-icon"></span>
+          </button>
+          <div
+            class="navbar-collapse d-lg-flex justify-content-between collapse show"
+            id="navbarsExample11"
+          >
+            <ul class="navbar-nav fw-bold col-lg-8" id="menuDinamico"></ul>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container my-5 pt-5">
+      <div
+        class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2"
+      >
+        <div>
+          <a
+            href="dashboard.html"
+            class="btn btn-outline-secondary btn-sm mb-2"
+          >
+            <i class="bi bi-arrow-left"></i> Volver al Panel
+          </a>
+          <h2 id="nombreCursoTitulo" class="fw-bold text-dark">
+            Cargando Alumnos del Curso...
+          </h2>
+        </div>
+      </div>
+
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-dark">
+                <tr>
+                  <th>#</th>
+                  <th>Alumno</th>
+                  <th>DNI</th>
+                  <th>Estado en el Curso</th>
+                  <th class="text-center">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tablaAlumnosInscritos">
+                <!-- Cargado dinámicamente -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- MODAL DE DETALLES DE CONTACTO (Bootstrap Nativo) -->
+    <div
+      class="modal fade"
+      id="modalContactoAlumno"
+      tabindex="-1"
+      aria-labelledby="modalContactoLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+          <div class="modal-header bg-dark text-white">
+            <h5 class="modal-title fw-bold" id="modalContactoLabel">
+              <i class="bi bi-card-heading me-2"></i>Ficha de Contacto
+            </h5>
+            <button
+              type="button"
+              class="btn-close btn-close-white"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body" id="cuerpoModalContacto">
+            <!-- Datos inyectados por JS -->
+          </div>
+          <div class="modal-footer bg-light">
+            <button
+              type="button"
+              class="btn btn-secondary w-100"
+              data-bs-dismiss="modal"
+            >
+              Cerrar Ficha
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="text-white bg-black py-3 mt-auto">
+      <div class="container text-center">
+        <p class="mb-0">&copy; AllCursos 2026</p>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/navbar.js"></script>
+    <script src="assets/js/alumnos_curso.js"></script>
+  </body>
+</html>
