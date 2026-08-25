@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="es" class="h-100">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mi Panel de Control - AllCursos</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    />
+  </head>
+  <body class="d-flex flex-column h-100 bg-light">
+    <header data-bs-theme="dark">
+      <nav class="navbar navbar-expand-lg bg-body-tertiary fixed-top">
+        <div class="container-fluid">
+          <button
+            class="navbar-toggler"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#navbarsExample11"
+          >
+            <span class="navbar-toggler-icon"></span>
+          </button>
+          <div
+            class="navbar-collapse d-lg-flex justify-content-between collapse show"
+            id="navbarsExample11"
+          >
+            <!-- Lista de navegación común -->
+            <ul class="navbar-nav fw-bold col-lg-8" id="menuDinamico">
+              <!-- El contenido de aquí adentro se va a generar solo por JavaScript en todas las páginas -->
+            </ul>
+
+            <div class="col-lg-4">
+              <form class="d-flex" role="search" id="formBuscar">
+                <input
+                  class="form-control me-2"
+                  type="search"
+                  placeholder="Buscar"
+                  name="terminoBusqueda"
+                  id="terminoBusqueda"
+                />
+                <button class="btn btn-outline-success" type="submit">
+                  Buscar
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container my-5 pt-5">
+      <div
+        class="p-4 mb-4 bg-white rounded-3 shadow-sm border-start border-primary border-4"
+      >
+        <h2 id="saludoUsuario">Cargando Panel...</h2>
+        <p class="text-muted mb-0">
+          Desde aquí puedes gestionar todas tus actividades en la plataforma.
+        </p>
+      </div>
+
+      <div id="dashCiudadano" class="d-none">
+        <div class="row">
+          <div class="col-md-4 mb-4">
+            <div class="card shadow-sm border-0">
+              <div class="card-body">
+                <h5 class="card-title fw-bold">
+                  <i class="bi bi-person-circle me-2"></i>Mis Datos
+                </h5>
+                <hr />
+                <div id="infoPerfilCiudadano"></div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-8 mb-4">
+            <div class="card shadow-sm border-0">
+              <div class="card-body">
+                <h5 class="card-title fw-bold">
+                  <i class="bi bi-journal-bookmark-fill me-2"></i>Mis Cursos
+                  Inscritos
+                </h5>
+                <div class="table-responsive mt-3">
+                  <table class="table table-hover align-middle">
+                    <thead class="table-dark">
+                      <tr>
+                        <th>Curso</th>
+                        <th>Institución</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tablaInscripcionesCiudadano"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="dashRepresentante" class="d-none">
+        <div class="row mb-4" id="metricasRepresentante"></div>
+
+        <div class="row">
+          <div class="col-md-12">
+            <div class="card shadow-sm border-0 mb-4">
+              <div class="card-body">
+                <div
+                  class="d-flex justify-content-between align-items-center flex-wrap gap-2"
+                >
+                  <h5 class="card-title fw-bold mb-0">
+                    <i class="bi bi-building-gear me-2"></i>Cursos Ofertados por
+                    tu Institución
+                  </h5>
+                  <button
+                    class="btn btn-primary btn-sm"
+                    data-bs-toggle="modal"
+                    data-bs-target="#modalNuevoCurso"
+                  >
+                    <i class="bi bi-plus-circle me-1"></i> Publicar Nuevo Curso
+                  </button>
+                </div>
+
+                <div class="table-responsive mt-3">
+                  <table class="table table-hover align-middle">
+                    <thead class="table-dark">
+                      <tr>
+                        <th>Curso</th>
+                        <th>Cupos</th>
+                        <th>Inscritos</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tablaCursosRepresentante"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- MODAL NUEVO CURSO (sólo representantes) -->
+    <div
+      class="modal fade"
+      id="modalNuevoCurso"
+      tabindex="-1"
+      aria-labelledby="modalNuevoCursoLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+          <div class="modal-header bg-dark text-white">
+            <h5 class="modal-title" id="modalNuevoCursoLabel">
+              Publicar Nuevo Curso
+            </h5>
+            <button
+              type="button"
+              class="btn-close btn-close-white"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body text-start">
+            <div id="msjNuevoCurso"></div>
+            <form id="formNuevoCurso">
+              <div class="row g-3">
+                <div class="col-12">
+                  <label for="cursoTitulo" class="form-label fw-semibold"
+                    >Título</label
+                  >
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="cursoTitulo"
+                    required
+                  />
+                </div>
+                <div class="col-12">
+                  <label for="cursoDescripcion" class="form-label fw-semibold"
+                    >Descripción</label
+                  >
+                  <textarea
+                    class="form-control"
+                    id="cursoDescripcion"
+                    rows="3"
+                    required
+                  ></textarea>
+                </div>
+                <div class="col-md-6">
+                  <label for="cursoCategoria" class="form-label fw-semibold"
+                    >Categoría</label
+                  >
+                  <select class="form-select" id="cursoCategoria" required>
+                    <option value="">Seleccionar...</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label for="cursoModalidad" class="form-label fw-semibold"
+                    >Modalidad</label
+                  >
+                  <select class="form-select" id="cursoModalidad" required>
+                    <option value="Presencial">Presencial</option>
+                    <option value="Virtual">Virtual</option>
+                    <option value="Híbrido">Híbrido</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label for="cursoCupoMaximo" class="form-label fw-semibold"
+                    >Cupo máximo</label
+                  >
+                  <input
+                    type="number"
+                    min="1"
+                    class="form-control"
+                    id="cursoCupoMaximo"
+                    required
+                  />
+                </div>
+                <div class="col-md-6">
+                  <label
+                    for="cursoDuracionHoras"
+                    class="form-label fw-semibold"
+                    >Duración (horas)</label
+                  >
+                  <input
+                    type="number"
+                    min="1"
+                    class="form-control"
+                    id="cursoDuracionHoras"
+                  />
+                </div>
+              </div>
+              <div class="mt-4 d-flex justify-content-end gap-2">
+                <button
+                  type="button"
+                  class="btn btn-secondary"
+                  data-bs-dismiss="modal"
+                >
+                  Cancelar
+                </button>
+                <button type="submit" class="btn btn-primary">
+                  Publicar Curso
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="text-white bg-black py-3 mt-auto">
+      <div class="container text-center">
+        <p class="mb-0">&copy; AllCursos 2026</p>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/navbar.js"></script>
+    <script src="assets/js/dashboard.js"></script>
+  </body>
+</html>
