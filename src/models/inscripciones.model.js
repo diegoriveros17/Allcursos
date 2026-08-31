@@ -18,6 +18,7 @@ export const inscripcionesModel = sequelize.define(
       ),
       defaultValue: "Inscripto",
     },
+    contacto_verificado: { type: DataTypes.BOOLEAN, defaultValue: false },
   },
   {
     tableName: "inscripciones",

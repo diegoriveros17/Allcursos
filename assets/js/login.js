@@ -150,6 +150,9 @@ if (formRegistro) {
       cargo: document.getElementById("cargo")
         ? document.getElementById("cargo").value.trim()
         : null,
+      canal_notificacion_preferido: document.getElementById("canalNotificacion")
+        ? document.getElementById("canalNotificacion").value
+        : "Email",
     };
 
     const { ok, data } = await apiFetch("/auth/register", {

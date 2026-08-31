@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   agregarCursos,
+  agregarRequisitosACurso,
   borrarCursos,
   editarCursos,
   verAlumnosPorCurso,
@@ -9,6 +10,7 @@ import {
   verTodosCursos,
 } from "../controllers/cursos.controllers.js";
 import { verificarRol, verificarToken } from "../middlewares/auth.middleware.js";
+import { uploadImagenCurso } from "../middlewares/upload.middleware.js";
 
 export const cursosRoutes = Router();
 
@@ -26,6 +28,7 @@ cursosRoutes.post(
   "/cursos",
   verificarToken,
   verificarRol("representante"),
+  uploadImagenCurso,
   agregarCursos,
 );
 cursosRoutes.get(
@@ -34,10 +37,17 @@ cursosRoutes.get(
   verificarRol("representante"),
   verAlumnosPorCurso,
 );
+cursosRoutes.post(
+  "/cursos/:id/requisitos",
+  verificarToken,
+  verificarRol("representante"),
+  agregarRequisitosACurso,
+);
 cursosRoutes.put(
   "/cursos/:id",
   verificarToken,
   verificarRol("representante"),
+  uploadImagenCurso,
   editarCursos,
 );
 cursosRoutes.delete(

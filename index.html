@@ -106,6 +106,26 @@
       <section class="py-3 text-center container" id="cursos">
         <div class="album py-5">
           <div class="container">
+            <div class="row g-2 justify-content-center mb-4">
+              <div class="col-auto">
+                <select class="form-select" id="filtroCategoria">
+                  <option value="">Todas las categorías</option>
+                </select>
+              </div>
+              <div class="col-auto">
+                <select class="form-select" id="filtroModalidad">
+                  <option value="">Todas las modalidades</option>
+                  <option value="Presencial">Presencial</option>
+                  <option value="Virtual">Virtual</option>
+                  <option value="Híbrido">Híbrido</option>
+                </select>
+              </div>
+              <div class="col-auto">
+                <button class="btn btn-outline-secondary" type="button" id="btnLimpiarFiltros">
+                  Limpiar filtros
+                </button>
+              </div>
+            </div>
             <div class="row g-3" id="cardCursos"></div>
           </div>
         </div>
@@ -113,7 +133,10 @@
     </main>
     <footer class="text-white bg-black py-3 mt-auto">
       <div class="container text-center">
-        <p class="mb-0">&copy; AllCursos 2026</p>
+        <p class="mb-1">&copy; AllCursos 2026</p>
+        <a href="verificar_certificado.html" class="text-white-50 small">
+          <i class="bi bi-patch-check"></i> Verificar un certificado
+        </a>
       </div>
     </footer>
     <script
@@ -124,5 +147,6 @@
     <script src="assets/js/api.js"></script>
     <script src="assets/js/navbar.js"></script>
     <script src="assets/js/app.js"></script>
+    <script src="assets/js/chatbot.js"></script>
   </body>
 </html>
