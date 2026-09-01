@@ -33,21 +33,6 @@
             <ul class="navbar-nav fw-bold col-lg-8" id="menuDinamico">
               <!-- El contenido de aquí adentro se va a generar solo por JavaScript en todas las páginas -->
             </ul>
-
-            <div class="col-lg-4">
-              <form class="d-flex" role="search" id="formBuscar">
-                <input
-                  class="form-control me-2"
-                  type="search"
-                  placeholder="Buscar"
-                  name="terminoBusqueda"
-                  id="terminoBusqueda"
-                />
-                <button class="btn btn-outline-success" type="submit">
-                  Buscar
-                </button>
-              </form>
-            </div>
           </div>
         </div>
       </nav>
@@ -55,12 +40,22 @@
 
     <main class="container my-5 pt-5">
       <div
-        class="p-4 mb-4 bg-white rounded-3 shadow-sm border-start border-primary border-4"
+        class="p-4 mb-4 bg-white rounded-3 shadow-sm border-start border-primary border-4 d-flex justify-content-between align-items-center flex-wrap gap-2"
       >
-        <h2 id="saludoUsuario">Cargando Panel...</h2>
-        <p class="text-muted mb-0">
-          Desde aquí puedes gestionar todas tus actividades en la plataforma.
-        </p>
+        <div>
+          <h2 id="saludoUsuario">Cargando Panel...</h2>
+          <p class="text-muted mb-0">
+            Desde aquí puedes gestionar todas tus actividades en la plataforma.
+          </p>
+        </div>
+        <button
+          class="btn btn-outline-dark"
+          type="button"
+          data-bs-toggle="modal"
+          data-bs-target="#modalMiCuenta"
+        >
+          <i class="bi bi-gear-fill me-1"></i> Mi Cuenta
+        </button>
       </div>
 
       <div id="dashCiudadano" class="d-none">
@@ -77,7 +72,7 @@
             </div>
           </div>
           <div class="col-md-8 mb-4">
-            <div class="card shadow-sm border-0">
+            <div class="card shadow-sm border-0 mb-4">
               <div class="card-body">
                 <h5 class="card-title fw-bold">
                   <i class="bi bi-journal-bookmark-fill me-2"></i>Mis Cursos
@@ -96,6 +91,27 @@
                     <tbody id="tablaInscripcionesCiudadano"></tbody>
                   </table>
                 </div>
+              </div>
+            </div>
+
+            <div class="card shadow-sm border-0 mb-4 d-none" id="cardListaEspera">
+              <div class="card-body">
+                <h5 class="card-title fw-bold">
+                  <i class="bi bi-hourglass-split me-2"></i>En Lista de Espera
+                </h5>
+                <ul class="list-group list-group-flush mt-2" id="listaEsperaCiudadano"></ul>
+              </div>
+            </div>
+
+            <div class="card shadow-sm border-0">
+              <div class="card-body">
+                <h5 class="card-title fw-bold">
+                  <i class="bi bi-clipboard2-check-fill me-2"></i>Encuestas Disponibles
+                </h5>
+                <p class="text-muted small">
+                  Contanos qué capacitaciones te interesan o cómo te fue en un curso que hiciste.
+                </p>
+                <div id="listaEncuestasCiudadano"></div>
               </div>
             </div>
           </div>
@@ -118,6 +134,7 @@
                   </h5>
                   <button
                     class="btn btn-primary btn-sm"
+                    id="btnAbrirNuevoCurso"
                     data-bs-toggle="modal"
                     data-bs-target="#modalNuevoCurso"
                   >
@@ -138,6 +155,30 @@
                     <tbody id="tablaCursosRepresentante"></tbody>
                   </table>
                 </div>
+              </div>
+            </div>
+
+            <div class="card shadow-sm border-0 mb-4">
+              <div class="card-body">
+                <div
+                  class="d-flex justify-content-between align-items-center flex-wrap gap-2"
+                >
+                  <h5 class="card-title fw-bold mb-0">
+                    <i class="bi bi-clipboard2-data-fill me-2"></i>Encuestas
+                  </h5>
+                  <button
+                    class="btn btn-outline-primary btn-sm"
+                    data-bs-toggle="modal"
+                    data-bs-target="#modalNuevaEncuesta"
+                  >
+                    <i class="bi bi-plus-circle me-1"></i> Nueva Encuesta
+                  </button>
+                </div>
+                <p class="text-muted small mb-2">
+                  Preguntá qué capacitaciones les interesan antes de lanzar un curso, o
+                  medí la satisfacción de un curso ya finalizado.
+                </p>
+                <div id="listaEncuestasRepresentante"></div>
               </div>
             </div>
           </div>
@@ -198,6 +239,12 @@
                   <select class="form-select" id="cursoCategoria" required>
                     <option value="">Seleccionar...</option>
                   </select>
+                  <input
+                    type="text"
+                    class="form-control mt-2 d-none"
+                    id="cursoCategoriaNueva"
+                    placeholder="Nombre de la nueva categoría"
+                  />
                 </div>
                 <div class="col-md-6">
                   <label for="cursoModalidad" class="form-label fw-semibold"
@@ -234,6 +281,45 @@
                     id="cursoDuracionHoras"
                   />
                 </div>
+                <div class="col-md-6">
+                  <label for="cursoFechaInicio" class="form-label fw-semibold"
+                    >Fecha de inicio (opcional)</label
+                  >
+                  <input type="date" class="form-control" id="cursoFechaInicio" />
+                </div>
+                <div class="col-md-6">
+                  <label for="cursoFechaFin" class="form-label fw-semibold"
+                    >Fecha de fin (opcional)</label
+                  >
+                  <input type="date" class="form-control" id="cursoFechaFin" />
+                  <div class="form-text">
+                    Al llegar esta fecha, las inscripciones de este curso se
+                    marcan como "Finalizado" automáticamente.
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <label for="cursoImagen" class="form-label fw-semibold"
+                    >Imagen del curso (opcional)</label
+                  >
+                  <input
+                    type="file"
+                    class="form-control"
+                    id="cursoImagen"
+                    accept="image/png, image/jpeg, image/webp"
+                  />
+                  <div class="form-text">JPG, PNG o WEBP. Máximo 3MB.</div>
+                  <div id="cursoImagenActualWrap" class="d-none mt-2">
+                    <span class="text-muted small">Imagen actual:</span><br>
+                    <img id="cursoImagenActualPreview" src="" alt="" style="height:60px;border-radius:6px;">
+                    <span class="text-muted small d-block">Subí una nueva sólo si querés reemplazarla.</span>
+                  </div>
+                </div>
+                <div class="col-12">
+                  <label class="form-label fw-semibold d-block"
+                    >Requisitos (opcional)</label
+                  >
+                  <div id="cursoRequisitos" class="d-flex flex-wrap gap-3"></div>
+                </div>
               </div>
               <div class="mt-4 d-flex justify-content-end gap-2">
                 <button
@@ -243,7 +329,7 @@
                 >
                   Cancelar
                 </button>
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-primary" id="btnSubmitCurso">
                   Publicar Curso
                 </button>
               </div>
@@ -253,9 +339,227 @@
       </div>
     </div>
 
+    <!-- MODAL NUEVA ENCUESTA (sólo representantes) -->
+    <div
+      class="modal fade"
+      id="modalNuevaEncuesta"
+      tabindex="-1"
+      aria-labelledby="modalNuevaEncuestaLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+          <div class="modal-header bg-dark text-white">
+            <h5 class="modal-title" id="modalNuevaEncuestaLabel">Nueva Encuesta</h5>
+            <button
+              type="button"
+              class="btn-close btn-close-white"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body text-start">
+            <div id="msjNuevaEncuesta"></div>
+            <form id="formNuevaEncuesta">
+              <div class="row g-3">
+                <div class="col-12">
+                  <label class="form-label fw-semibold d-block">Tipo de encuesta</label>
+                  <div class="btn-group w-100" role="group">
+                    <input type="radio" class="btn-check" name="tipoEncuesta" id="tipoInteres" value="Interes" checked>
+                    <label class="btn btn-outline-primary" for="tipoInteres">Interés (antes de lanzar un curso)</label>
+                    <input type="radio" class="btn-check" name="tipoEncuesta" id="tipoSatisfaccion" value="Satisfaccion">
+                    <label class="btn btn-outline-primary" for="tipoSatisfaccion">Satisfacción (sobre un curso ya dictado)</label>
+                  </div>
+                </div>
+                <div class="col-12">
+                  <label for="encuestaTitulo" class="form-label fw-semibold"
+                    >Pregunta / Título</label
+                  >
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="encuestaTitulo"
+                    placeholder="Ej: ¿Qué capacitación te gustaría que dictemos?"
+                    required
+                  />
+                </div>
+                <div class="col-md-6 d-none" id="grupoEncuestaCategoria">
+                  <label for="encuestaCategoria" class="form-label fw-semibold"
+                    >Categoría de interés (opcional)</label
+                  >
+                  <select class="form-select" id="encuestaCategoria">
+                    <option value="">Cualquiera</option>
+                  </select>
+                </div>
+                <div class="col-md-6 d-none" id="grupoEncuestaCurso">
+                  <label for="encuestaCurso" class="form-label fw-semibold"
+                    >Curso a evaluar</label
+                  >
+                  <select class="form-select" id="encuestaCurso">
+                    <option value="">Seleccionar...</option>
+                  </select>
+                </div>
+              </div>
+              <div class="mt-4 d-flex justify-content-end gap-2">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                  Cancelar
+                </button>
+                <button type="submit" class="btn btn-primary">Publicar Encuesta</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL RESULTADOS DE ENCUESTA -->
+    <div
+      class="modal fade"
+      id="modalResultadosEncuesta"
+      tabindex="-1"
+      aria-labelledby="modalResultadosEncuestaLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+          <div class="modal-header bg-dark text-white">
+            <h5 class="modal-title" id="modalResultadosEncuestaLabel">Resultados</h5>
+            <button
+              type="button"
+              class="btn-close btn-close-white"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body text-start" id="cuerpoResultadosEncuesta"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL MI CUENTA -->
+    <div
+      class="modal fade"
+      id="modalMiCuenta"
+      tabindex="-1"
+      aria-labelledby="modalMiCuentaLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+          <div class="modal-header bg-dark text-white">
+            <h5 class="modal-title" id="modalMiCuentaLabel">Mi Cuenta</h5>
+            <button
+              type="button"
+              class="btn-close btn-close-white"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body text-start">
+            <ul class="nav nav-tabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabDatos" type="button">
+                  Mis Datos
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabPassword" type="button">
+                  Contraseña
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link text-danger" data-bs-toggle="tab" data-bs-target="#tabEliminar" type="button">
+                  Eliminar cuenta
+                </button>
+              </li>
+            </ul>
+
+            <div class="tab-content pt-4">
+              <!-- TAB: DATOS -->
+              <div class="tab-pane fade show active" id="tabDatos">
+                <div id="msjCuentaDatos"></div>
+                <form id="formCuentaDatos">
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label for="cuentaNombre" class="form-label fw-semibold">Nombre</label>
+                      <input type="text" class="form-control" id="cuentaNombre" required>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="cuentaApellido" class="form-label fw-semibold">Apellido</label>
+                      <input type="text" class="form-control" id="cuentaApellido" required>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="cuentaTelefono" class="form-label fw-semibold">Teléfono</label>
+                      <input type="tel" class="form-control" id="cuentaTelefono">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="cuentaEmail" class="form-label fw-semibold">Email de acceso</label>
+                      <input type="email" class="form-control" id="cuentaEmail" required>
+                    </div>
+                    <div class="col-md-6 d-none" id="grupoCuentaInstitucion">
+                      <label for="cuentaInstitucionNombre" class="form-label fw-semibold">Nombre de la institución</label>
+                      <input type="text" class="form-control" id="cuentaInstitucionNombre">
+                    </div>
+                    <div class="col-md-6 d-none" id="grupoCuentaCuit">
+                      <label for="cuentaInstitucionCuit" class="form-label fw-semibold">CUIT</label>
+                      <input type="text" class="form-control" id="cuentaInstitucionCuit">
+                    </div>
+                  </div>
+                  <div class="mt-4 d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                  </div>
+                </form>
+              </div>
+
+              <!-- TAB: CONTRASEÑA -->
+              <div class="tab-pane fade" id="tabPassword">
+                <div id="msjCuentaPassword"></div>
+                <form id="formCuentaPassword">
+                  <div class="row g-3">
+                    <div class="col-12">
+                      <label for="cuentaPasswordActual" class="form-label fw-semibold">Contraseña actual</label>
+                      <input type="password" class="form-control" id="cuentaPasswordActual" required>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="cuentaPasswordNueva" class="form-label fw-semibold">Nueva contraseña</label>
+                      <input type="password" class="form-control" id="cuentaPasswordNueva" required minlength="4">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="cuentaPasswordConfirmar" class="form-label fw-semibold">Confirmar nueva contraseña</label>
+                      <input type="password" class="form-control" id="cuentaPasswordConfirmar" required minlength="4">
+                    </div>
+                  </div>
+                  <div class="mt-4 d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary">Cambiar Contraseña</button>
+                  </div>
+                </form>
+              </div>
+
+              <!-- TAB: ELIMINAR CUENTA -->
+              <div class="tab-pane fade" id="tabEliminar">
+                <div class="alert alert-warning">
+                  Al eliminar tu cuenta, se desactivará tu acceso a la plataforma. Esta acción no se puede deshacer desde acá.
+                </div>
+                <div id="msjCuentaEliminar"></div>
+                <form id="formCuentaEliminar">
+                  <div class="mb-3">
+                    <label for="cuentaPasswordEliminar" class="form-label fw-semibold">Confirmá tu contraseña para continuar</label>
+                    <input type="password" class="form-control" id="cuentaPasswordEliminar" required>
+                  </div>
+                  <div class="d-flex justify-content-end">
+                    <button type="submit" class="btn btn-danger">Eliminar mi cuenta</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <footer class="text-white bg-black py-3 mt-auto">
       <div class="container text-center">
-        <p class="mb-0">&copy; AllCursos 2026</p>
+        <p class="mb-1">&copy; AllCursos 2026</p>
+        <a href="verificar_certificado.html" class="text-white-50 small">
+          <i class="bi bi-patch-check"></i> Verificar un certificado
+        </a>
       </div>
     </footer>
 
@@ -263,5 +567,6 @@
     <script src="assets/js/api.js"></script>
     <script src="assets/js/navbar.js"></script>
     <script src="assets/js/dashboard.js"></script>
+    <script src="assets/js/chatbot.js"></script>
   </body>
 </html>

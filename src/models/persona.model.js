@@ -23,6 +23,14 @@ export const personasModel = sequelize.define(
       allowNull: false,
       unique: true
     },
+    dni_verificado: {
+      type: DataTypes.ENUM("Verificado", "No_verificado", "Sin_verificar"),
+      defaultValue: "Sin_verificar",
+    },
+    telefono: {
+      type: DataTypes.STRING(30),
+      allowNull: true
+    },
     fecha_nacimiento: {
       type: DataTypes.DATEONLY,
       allowNull: true

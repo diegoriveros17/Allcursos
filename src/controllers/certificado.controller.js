@@ -143,10 +143,72 @@ export const descargarCertificado = async (req, res) => {
       align: "center",
     });
 
+    const urlVerificacion = `${process.env.FRONTEND_URL || "http://localhost:3000"}/verificar_certificado.html?codigo=${certificado.codigo_verificacion}`;
+    doc
+      .fontSize(9)
+      .fillColor("#888888")
+      .text(`Verificá este certificado en: ${urlVerificacion}`, { align: "center" });
+
     doc.end();
   } catch (error) {
     return res
       .status(500)
       .json({ mensaje: "Error al generar el certificado", error: error.message });
+  }
+};
+
+// Verificación pública (sin login): cualquiera con el código puede
+// confirmar que un certificado es legítimo, sin exponer datos sensibles.
+export const verificarCertificadoPublico = async (req, res) => {
+  try {
+    const { codigo } = req.params;
+    const certificado = await certificadosModel.findOne({
+      where: { codigo_verificacion: codigo },
+      include: [
+        {
+          model: inscripcionesModel,
+          as: "inscripcion",
+          include: [
+            {
+              model: usuariosModel,
+              as: "usuario",
+              include: [{ model: personasModel, as: "persona" }],
+            },
+            {
+              model: cursosModel,
+              as: "curso",
+              include: [{ model: institucionesModel, as: "institucion" }],
+            },
+          ],
+        },
+      ],
+    });
+
+    if (!certificado) {
+      return res.status(404).json({
+        valido: false,
+        mensaje: "No se encontró ningún certificado con ese código.",
+      });
+    }
+
+    const persona = certificado.inscripcion.usuario.persona;
+    const curso = certificado.inscripcion.curso;
+
+    return res.status(200).json({
+      valido: true,
+      mensaje: "Certificado válido.",
+      certificado: {
+        nombreCompleto: `${persona.nombre} ${persona.apellido}`,
+        curso: curso.titulo,
+        institucion: curso.institucion.nombre,
+        duracion_horas: curso.duracion_horas,
+        fecha_emision: certificado.fecha_emision,
+        codigo_verificacion: certificado.codigo_verificacion,
+      },
+    });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ mensaje: "Error al verificar el certificado", error: error.message });
   }
 };

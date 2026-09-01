@@ -8,6 +8,9 @@ import { inscripcionesModel } from "../models/inscripciones.model.js";
 import { usuariosModel } from "../models/usuario.model.js";
 import { personasModel } from "../models/persona.model.js";
 import { representanteInstituModel } from "../models/representante_institucion.model.js";
+import { requisitosModel } from "../models/requisito.model.js";
+import { cursoRequisitoModel } from "../models/curso_requisito.model.js";
+import { notificarNuevoCurso } from "../utils/notificaciones.service.js";
 
 // Devuelve el institucion_id del representante autenticado, ya sea que
 // venga en el token o consultando la tabla intermedia como respaldo.
@@ -46,6 +49,13 @@ const conCuposDisponibles = async (cursos) => {
   return cursos;
 };
 
+const incluirRequisitos = {
+  model: requisitosModel,
+  as: "requisitos",
+  attributes: ["id", "descripcion"],
+  through: { attributes: ["es_obligatorio"] },
+};
+
 export const agregarCursos = async (req, res) => {
   try {
     const {
@@ -56,6 +66,8 @@ export const agregarCursos = async (req, res) => {
       direccion_dictado_id,
       modalidad,
       cupo_maximo,
+      fecha_inicio,
+      fecha_fin,
       link_difusion_original,
     } = req.body;
     const errores = [];
@@ -66,6 +78,9 @@ export const agregarCursos = async (req, res) => {
     if (!categoria_id) errores.push("Ingresa la categoría");
     if (!modalidad) errores.push("Modalidad obligatoria");
     if (!cupo_maximo) errores.push("Agrega el cupo maximo");
+    if (fecha_inicio && fecha_fin && new Date(fecha_fin) < new Date(fecha_inicio)) {
+      errores.push("La fecha de fin no puede ser anterior a la fecha de inicio");
+    }
 
     // El curso siempre pertenece a la institución del representante logueado,
     // nunca se confía en un institucion_id enviado desde el cliente.
@@ -80,17 +95,56 @@ export const agregarCursos = async (req, res) => {
     if (errores.length > 0) {
       return res.status(400).json({ errores });
     }
+
+    // Si vino un archivo (multer), guardamos la ruta pública para servirlo
+    const imagen_url = req.file ? `/uploads/cursos/${req.file.filename}` : null;
+
     const curso = await cursosModel.create({
       titulo,
       descripcion,
-      duracion_horas,
+      duracion_horas: duracion_horas || null,
       categoria_id,
       direccion_dictado_id: direccion_dictado_id || null,
       modalidad,
       cupo_maximo,
+      fecha_inicio: fecha_inicio || null,
+      fecha_fin: fecha_fin || null,
       link_difusion_original: link_difusion_original || null,
+      imagen_url,
       institucion_id,
     });
+
+    // Requisitos opcionales: req.body.requisitos puede venir como JSON string
+    // (form-data) o array (JSON puro) de ids, o de {requisito_id, es_obligatorio}
+    if (req.body.requisitos) {
+      let listaRequisitos = req.body.requisitos;
+      if (typeof listaRequisitos === "string") {
+        try {
+          listaRequisitos = JSON.parse(listaRequisitos);
+        } catch {
+          listaRequisitos = [];
+        }
+      }
+      if (Array.isArray(listaRequisitos) && listaRequisitos.length > 0) {
+        const filas = listaRequisitos.map((r) =>
+          typeof r === "object"
+            ? {
+                curso_id: curso.id,
+                requisito_id: r.requisito_id,
+                es_obligatorio: r.es_obligatorio !== false,
+              }
+            : { curso_id: curso.id, requisito_id: r, es_obligatorio: true },
+        );
+        await cursoRequisitoModel.bulkCreate(filas);
+      }
+    }
+
+    // Se dispara en segundo plano: no hace falta que el representante espere
+    // a que se les mande el mail a todos los ciudadanos para recibir su respuesta.
+    notificarNuevoCurso(curso).catch((e) =>
+      console.error("Error notificando nuevo curso:", e.message),
+    );
+
     return res
       .status(201)
       .json({ mensaje: "Curso agregado correctamente", curso });
@@ -105,10 +159,11 @@ export const agregarCursos = async (req, res) => {
 // Listado público de cursos, con filtros opcionales por categoría, institución y texto libre
 export const verTodosCursos = async (req, res) => {
   try {
-    const { categoria_id, institucion_id, q } = req.query;
+    const { categoria_id, institucion_id, modalidad, q } = req.query;
     const where = {};
     if (categoria_id) where.categoria_id = categoria_id;
     if (institucion_id) where.institucion_id = institucion_id;
+    if (modalidad) where.modalidad = modalidad;
     if (q) {
       where[Op.or] = [
         { titulo: { [Op.like]: `%${q}%` } },
@@ -159,6 +214,7 @@ export const verMisCursos = async (req, res) => {
       where: { institucion_id },
       include: [
         { model: categoriasModel, as: "categoria", attributes: ["id", "nombre"] },
+        incluirRequisitos,
       ],
       order: [["created_at", "DESC"]],
     });
@@ -199,18 +255,55 @@ export const editarCursos = async (req, res) => {
       req.usuario,
     );
     // No permitimos cambiar el curso de institución desde este endpoint
-    const { institucion_id: _ignorar, ...datos } = req.body;
-    const [actualizarCursos] = await cursosModel.update(datos, {
+    const { institucion_id: _ignorar, requisitos, ...datos } = req.body;
+
+    // Un campo de fecha/número vacío ("") desde un <form> no es lo mismo que
+    // "no lo toques": lo interpretamos como "vaciar ese campo" (null), para
+    // no romper la validación de tipos de Sequelize.
+    ["fecha_inicio", "fecha_fin", "duracion_horas", "direccion_dictado_id"].forEach(
+      (campo) => {
+        if (datos[campo] === "") datos[campo] = null;
+      },
+    );
+
+    const curso = await cursosModel.findOne({
       where: { id: req.params.id, institucion_id },
     });
-    if (actualizarCursos) {
-      const updateCurso = await cursosModel.findByPk(req.params.id);
-      return res.status(200).json({ mensaje: "curso actualizado", updateCurso });
-    } else {
+    if (!curso) {
       return res
         .status(404)
         .json({ mensaje: "curso no encontrado en tu institución" });
     }
+
+    if (req.file) datos.imagen_url = `/uploads/cursos/${req.file.filename}`;
+    await curso.update(datos);
+
+    // Si vino la lista de requisitos, la reemplazamos completa (permite
+    // tanto agregar como sacar requisitos al editar).
+    if (requisitos !== undefined) {
+      let listaRequisitos = requisitos;
+      if (typeof listaRequisitos === "string") {
+        try {
+          listaRequisitos = JSON.parse(listaRequisitos);
+        } catch {
+          listaRequisitos = [];
+        }
+      }
+      await cursoRequisitoModel.destroy({ where: { curso_id: curso.id } });
+      if (Array.isArray(listaRequisitos) && listaRequisitos.length > 0) {
+        const filas = listaRequisitos.map((r) => ({
+          curso_id: curso.id,
+          requisito_id: r,
+          es_obligatorio: true,
+        }));
+        await cursoRequisitoModel.bulkCreate(filas);
+      }
+    }
+
+    const updateCurso = await cursosModel.findByPk(curso.id, {
+      include: [incluirRequisitos],
+    });
+    return res.status(200).json({ mensaje: "curso actualizado", updateCurso });
   } catch (error) {
     return res
       .status(500)
@@ -233,6 +326,7 @@ export const verPorIdCursos = async (req, res) => {
           as: "direccion_dictado",
           attributes: ["id", "calle", "numero", "barrio", "ciudad", "provincia"],
         },
+        incluirRequisitos,
       ],
     });
     if (curso) {
@@ -265,6 +359,7 @@ export const verAlumnosPorCurso = async (req, res) => {
 
     const inscripciones = await inscripcionesModel.findAll({
       where: { curso_id: curso.id },
+      attributes: ["id", "estado", "fecha_inscripcion", "contacto_verificado"],
       include: [
         {
           model: usuariosModel,
@@ -274,7 +369,7 @@ export const verAlumnosPorCurso = async (req, res) => {
             {
               model: personasModel,
               as: "persona",
-              attributes: ["nombre", "apellido", "dni", "fecha_nacimiento"],
+              attributes: ["nombre", "apellido", "dni", "telefono", "dni_verificado", "fecha_nacimiento"],
             },
           ],
         },
@@ -291,5 +386,42 @@ export const verAlumnosPorCurso = async (req, res) => {
     return res
       .status(500)
       .json({ mensaje: "Error al obtener los alumnos", error: error.message });
+  }
+};
+
+// Agregar requisitos a un curso ya existente (sólo el representante dueño)
+export const agregarRequisitosACurso = async (req, res) => {
+  try {
+    const institucion_id = await obtenerInstitucionDeRepresentante(req.usuario);
+    const curso = await cursosModel.findOne({
+      where: { id: req.params.id, institucion_id },
+    });
+    if (!curso)
+      return res
+        .status(404)
+        .json({ mensaje: "curso no encontrado en tu institución" });
+
+    const { requisitos } = req.body; // [{ requisito_id, es_obligatorio }]
+    if (!Array.isArray(requisitos) || requisitos.length === 0)
+      return res.status(400).json({ mensaje: "Debes enviar al menos un requisito" });
+
+    const filas = requisitos.map((r) => ({
+      curso_id: curso.id,
+      requisito_id: r.requisito_id,
+      es_obligatorio: r.es_obligatorio !== false,
+    }));
+    await cursoRequisitoModel.bulkCreate(filas, { ignoreDuplicates: true });
+
+    const cursoActualizado = await cursosModel.findByPk(curso.id, {
+      include: [incluirRequisitos],
+    });
+    return res.status(200).json({
+      mensaje: "Requisitos agregados",
+      requisitos: cursoActualizado.requisitos,
+    });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ mensaje: "Error al agregar requisitos", error: error.message });
   }
 };

@@ -1,15 +1,18 @@
 // assets/js/app.js
 const contenedor = document.querySelector("#cardCursos");
 
+const IMAGEN_POR_DEFECTO = "assets/img/curso_programacion.webp";
+
 const tarjetaCurso = (curso) => {
   const institucion = curso.institucion ? curso.institucion.nombre : "Institución";
   const categoria = curso.categoria ? curso.categoria.nombre : "";
   const cupos = curso.cupos_disponibles;
   const sinCupos = cupos === 0;
+  const imagen = curso.imagen_url ? curso.imagen_url : IMAGEN_POR_DEFECTO;
 
   return `<div class="col col-lg-4 col-md-6 col-sm-6">
                 <div class="card h-100" style="max-width: 24rem;">
-                  <img src="assets/img/curso_programacion.webp" class="card-img-top" alt="${curso.titulo}" style="height: 14rem; object-fit: cover;"/>
+                  <img src="${imagen}" class="card-img-top" alt="${curso.titulo}" style="height: 14rem; object-fit: cover;"/>
                   <div class="card-body d-flex flex-column">
                     <div>
                         <span class="badge bg-secondary mb-2">${institucion}</span>
@@ -21,6 +24,13 @@ const tarjetaCurso = (curso) => {
                         <p class="text-start text-muted small m-0 p-0">
                         <b>Modalidad: </b> ${curso.modalidad}
                         </p>
+                        ${
+                          curso.fecha_inicio
+                            ? `<p class="text-start text-muted small m-0 p-0">
+                                <b>Inicia: </b> ${new Date(curso.fecha_inicio + "T00:00:00").toLocaleDateString("es-AR")}
+                               </p>`
+                            : ""
+                        }
                         <p class="text-start text-muted small m-0 p-0">
                         <b>Vacantes disponibles: </b> ${sinCupos ? "Sin vacantes" : cupos}
                         </p>
@@ -50,7 +60,7 @@ const mostrarMensaje = (mensaje) => {
 
 const cargarCursos = (listaCursos) => {
   if (!listaCursos.length) {
-    mostrarMensaje("No se encontraron cursos");
+    mostrarMensaje("No se encontraron cursos con esos filtros");
     return;
   }
   contenedor.innerHTML = listaCursos.map(tarjetaCurso).join("");
@@ -71,24 +81,60 @@ async function iniciarListadoCursos() {
 
 document.addEventListener("DOMContentLoaded", iniciarListadoCursos);
 
+// --- Filtros: búsqueda de texto + categoría + modalidad, combinados ---
+const inputBusqueda = document.getElementById("terminoBusqueda");
+const selectFiltroCategoria = document.getElementById("filtroCategoria");
+const selectFiltroModalidad = document.getElementById("filtroModalidad");
+const btnLimpiarFiltros = document.getElementById("btnLimpiarFiltros");
 const formBuscarCurso = document.querySelector("#formBuscar");
-if (formBuscarCurso) {
-  formBuscarCurso.addEventListener("submit", (e) => e.preventDefault());
-  formBuscarCurso.addEventListener("input", (e) => {
-    const terminoBusqueda = e.target.value.toUpperCase();
-    const cursoFiltrado = cursosCache.filter((curso) => {
-      const titulo = curso.titulo.toUpperCase().includes(terminoBusqueda);
-      const institucion = (curso.institucion?.nombre || "")
-        .toUpperCase()
-        .includes(terminoBusqueda);
-      const categoria = (curso.categoria?.nombre || "")
-        .toUpperCase()
-        .includes(terminoBusqueda);
-      return titulo || institucion || categoria;
-    });
-    cargarCursos(cursoFiltrado);
+
+async function cargarCategoriasEnFiltro() {
+  if (!selectFiltroCategoria) return;
+  const { ok, data } = await apiFetch("/categorias", { auth: false });
+  if (!ok) return;
+  (data.categorias || []).forEach((cat) => {
+    const option = document.createElement("option");
+    option.value = cat.id;
+    option.textContent = cat.nombre;
+    selectFiltroCategoria.appendChild(option);
   });
 }
+
+function aplicarFiltros() {
+  const terminoBusqueda = (inputBusqueda?.value || "").toUpperCase();
+  const categoriaId = selectFiltroCategoria?.value || "";
+  const modalidad = selectFiltroModalidad?.value || "";
+
+  const cursosFiltrados = cursosCache.filter((curso) => {
+    const coincideTexto =
+      !terminoBusqueda ||
+      curso.titulo.toUpperCase().includes(terminoBusqueda) ||
+      (curso.institucion?.nombre || "").toUpperCase().includes(terminoBusqueda) ||
+      (curso.categoria?.nombre || "").toUpperCase().includes(terminoBusqueda);
+
+    const coincideCategoria = !categoriaId || String(curso.categoria_id) === categoriaId;
+    const coincideModalidad = !modalidad || curso.modalidad === modalidad;
+
+    return coincideTexto && coincideCategoria && coincideModalidad;
+  });
+
+  cargarCursos(cursosFiltrados);
+}
+
+if (formBuscarCurso) {
+  formBuscarCurso.addEventListener("submit", (e) => e.preventDefault());
+  inputBusqueda?.addEventListener("input", aplicarFiltros);
+}
+selectFiltroCategoria?.addEventListener("change", aplicarFiltros);
+selectFiltroModalidad?.addEventListener("change", aplicarFiltros);
+btnLimpiarFiltros?.addEventListener("click", () => {
+  if (inputBusqueda) inputBusqueda.value = "";
+  if (selectFiltroCategoria) selectFiltroCategoria.value = "";
+  if (selectFiltroModalidad) selectFiltroModalidad.value = "";
+  cargarCursos(cursosCache);
+});
+
+document.addEventListener("DOMContentLoaded", cargarCategoriasEnFiltro);
 
 window.addEventListener("DOMContentLoaded", () => {
   const contenedorFade = document.getElementById("page-container-1");

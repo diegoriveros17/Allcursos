@@ -15,6 +15,10 @@ export const usuariosModel = sequelize.define(
     },
     password_hash: { type: DataTypes.STRING(255), allowNull: false },
     acepta_notificaciones: { type: DataTypes.BOOLEAN, defaultValue: false },
+    canal_notificacion_preferido: {
+      type: DataTypes.ENUM("Email", "WhatsApp", "Ambos"),
+      defaultValue: "Email",
+    },
     activo: { type: DataTypes.BOOLEAN, defaultValue: true },
   },
   {

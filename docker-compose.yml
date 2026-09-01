@@ -1,0 +1,57 @@
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: allcursos
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-allcursos_password}
+    ports:
+      - "3307:3306" # 3307 en tu máquina, para no chocar con un MySQL local
+    volumes:
+      - db_data:/var/lib/mysql
+      # Todo lo que esté acá se importa SOLO la primera vez que se crea el
+      # volumen (si ya existía uno viejo y querés reimportar, hacé
+      # "docker compose down -v" antes de levantar de nuevo).
+      - ./allcursos_completo.sql:/docker-entrypoint-initdb.d/allcursos_completo.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_PASSWORD:-allcursos_password}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      DB_NAME: allcursos
+      DB_USER: root
+      DB_PASSWORD: ${DB_PASSWORD:-allcursos_password}
+      DB_HOST: db
+      DB_DIALECT: mysql
+      PORT: 3000
+      NODE_ENV: production
+      OPEN_BROWSER: "false"
+      JWT_SECRET: ${JWT_SECRET:-cambiar_este_valor_por_uno_seguro}
+      JWT_EXPIRES_IN: 7d
+      FRONTEND_URL: http://localhost:3000
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-AllCursos <no-responder@allcursos.local>}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-3-5-haiku-latest}
+      DNI_API_URL: ${DNI_API_URL:-}
+      DNI_API_KEY: ${DNI_API_KEY:-}
+    volumes:
+      # Las imágenes subidas sobreviven a un rebuild del contenedor
+      - uploads_data:/app/uploads
+
+volumes:
+  db_data:
+  uploads_data:

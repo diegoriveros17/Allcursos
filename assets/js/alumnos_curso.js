@@ -18,7 +18,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   if (!ok) {
     document.getElementById("nombreCursoTitulo").innerText = "No se pudo cargar el curso";
-    tablaBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">${data.mensaje || "Error al cargar los alumnos"}</td></tr>`;
+    tablaBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">${data.mensaje || "Error al cargar los alumnos"}</td></tr>`;
     return;
   }
 
@@ -28,7 +28,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const inscripciones = data.inscripciones || [];
 
   if (inscripciones.length === 0) {
-    tablaBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-muted">No hay alumnos registrados en este curso todavía.</td></tr>`;
+    tablaBody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted">No hay alumnos registrados en este curso todavía.</td></tr>`;
     return;
   }
 
@@ -44,6 +44,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       nombre: persona.nombre,
       apellido: persona.apellido,
       dni: persona.dni,
+      telefono: persona.telefono,
+      dni_verificado: persona.dni_verificado,
+      contacto_verificado: ins.contacto_verificado,
       email: ins.usuario.email_login,
       estado: ins.estado,
     };
@@ -57,11 +60,23 @@ document.addEventListener("DOMContentLoaded", async () => {
             ? "bg-warning text-dark"
             : "bg-primary";
 
+    const badgeDni =
+      persona.dni_verificado === "Verificado"
+        ? `<span class="badge bg-success" title="El DNI fue verificado contra un padrón externo"><i class="bi bi-patch-check-fill"></i></span>`
+        : persona.dni_verificado === "No_verificado"
+          ? `<span class="badge bg-danger" title="El DNI no pudo confirmarse en el padrón consultado"><i class="bi bi-exclamation-triangle-fill"></i></span>`
+          : `<span class="badge bg-secondary" title="Todavía no hay un servicio de verificación de DNI conectado"><i class="bi bi-question-circle"></i></span>`;
+
+    const badgeContacto = ins.contacto_verificado
+      ? `<span class="badge bg-success" title="Confirmó un código enviado a su email/teléfono"><i class="bi bi-shield-check"></i> Verificado</span>`
+      : `<span class="badge bg-light text-dark border" title="Se inscribió con una cuenta ya existente, sin verificación adicional">Sin verificar</span>`;
+
     tablaBody.innerHTML += `
         <tr>
           <td class="fw-bold">${index + 1}</td>
           <td>${persona.nombre} ${persona.apellido}</td>
-          <td>${persona.dni}</td>
+          <td>${persona.dni} ${badgeDni}</td>
+          <td>${badgeContacto}</td>
           <td><span class="badge ${badgeClase}">${ins.estado}</span></td>
           <td class="text-center">
             <div class="btn-group">
@@ -98,6 +113,14 @@ function mostrarModalContacto(inscripcionId) {
         <span><i class="bi bi-envelope-fill text-muted me-2"></i>Email</span>
         <a href="mailto:${alumno.email}" class="text-decoration-none fw-semibold">${alumno.email}</a>
       </li>
+      ${
+        alumno.telefono
+          ? `<li class="list-group-item d-flex justify-content-between align-items-center">
+               <span><i class="bi bi-telephone-fill text-muted me-2"></i>Teléfono</span>
+               <a href="tel:${alumno.telefono}" class="text-decoration-none fw-semibold">${alumno.telefono}</a>
+             </li>`
+          : ""
+      }
       <li class="list-group-item d-flex justify-content-between align-items-center">
         <span><i class="bi bi-info-circle-fill text-muted me-2"></i>Condición</span>
         <span class="fw-semibold">${alumno.estado}</span>

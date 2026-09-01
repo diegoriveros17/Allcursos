@@ -1,8 +1,7 @@
 // assets/js/api.js
 // Punto único de comunicación con el backend. Como el frontend ahora se
 // sirve desde el mismo servidor Express, usamos el mismo origen.
-const API_URL = `http://localhost:3000/api`;
-// console.log(`${window.location.origin}/api`)
+const API_URL = `${window.location.origin}/api`;
 
 function obtenerToken() {
   return localStorage.getItem("token");
@@ -56,6 +55,40 @@ async function apiFetch(ruta, { method = "GET", body, auth = true } = {}) {
   if (respuesta.status === 401 && token) {
     cerrarSesion();
   }
+
+  return { ok: respuesta.ok, status: respuesta.status, data };
+}
+
+// Igual que apiFetch, pero para enviar FormData (por ejemplo, con una imagen).
+// No se setea "Content-Type": el navegador arma el boundary automáticamente.
+async function apiFetchForm(ruta, { method = "POST", formData } = {}) {
+  const headers = {};
+  const token = obtenerToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  let respuesta;
+  try {
+    respuesta = await fetch(`${API_URL}${ruta}`, {
+      method,
+      headers,
+      body: formData,
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      data: { mensaje: "No se pudo conectar con el servidor backend." },
+    };
+  }
+
+  let data = {};
+  try {
+    data = await respuesta.json();
+  } catch (error) {
+    data = {};
+  }
+
+  if (respuesta.status === 401 && token) cerrarSesion();
 
   return { ok: respuesta.ok, status: respuesta.status, data };
 }
