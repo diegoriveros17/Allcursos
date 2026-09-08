@@ -1,7 +1,7 @@
 // assets/js/api.js
 // Punto único de comunicación con el backend. Como el frontend ahora se
 // sirve desde el mismo servidor Express, usamos el mismo origen.
-const API_URL = `${window.location.origin}/api`;
+const API_URL = "http://localhost:3000/api";
 
 function obtenerToken() {
   return localStorage.getItem("token");
