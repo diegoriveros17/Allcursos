@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+
 html {
   scroll-behavior: smooth !important;
 }
@@ -69,4 +71,321 @@ body.fade-out {
 section,
 [cursos] {
   scroll-margin-top: 70px; /* Ajustá estos px según el alto de tu barra de navegación */
+}
+
+/* ==========================================================================
+   DESIGN SYSTEM — InfoCursos
+   Tokens, tipografía, navbar, botones, cards, formularios e ilustraciones.
+   ========================================================================== */
+:root {
+  --brand-primary: #6366f1;
+  --brand-primary-dark: #4f46e5;
+  --brand-accent: #ffd700;
+  --brand-navy: #0f172a;
+  --brand-navy-2: #1e293b;
+  --surface-light: #ffffff;
+  --surface-muted: #f8fafc;
+  --text-dark: #0f172a;
+  --text-light: #f8fafc;
+  --text-muted-light: #94a3b8;
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --shadow-soft: 0 10px 30px -8px rgba(15, 23, 42, 0.35);
+  --shadow-strong: 0 25px 50px -12px rgba(15, 23, 42, 0.55);
+  --font-heading: "Poppins", "Segoe UI", sans-serif;
+  --font-body: "Inter", "Segoe UI", sans-serif;
+}
+
+body {
+  font-family: var(--font-body);
+}
+
+h1, h2, h3, h4, h5, h6,
+.navbar-brand,
+.card-title,
+.modal-title {
+  font-family: var(--font-heading);
+}
+
+/* Fondo general oscuro con un toque moderno (aplica a toda la app) */
+body {
+  background: linear-gradient(160deg, #0f172a 0%, #1e293b 55%, #111827 100%) !important;
+  background-attachment: fixed;
+  color: var(--text-light);
+  min-height: 100vh;
+  position: relative;
+}
+
+/* Blobs decorativos e ilustrativos, sutiles, detrás de todo el contenido */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(90px);
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.35;
+}
+body::before {
+  width: 420px;
+  height: 420px;
+  top: -120px;
+  right: -100px;
+  background: radial-gradient(circle, var(--brand-primary) 0%, transparent 70%);
+}
+body::after {
+  width: 380px;
+  height: 380px;
+  bottom: -140px;
+  left: -120px;
+  background: radial-gradient(circle, var(--brand-accent) 0%, transparent 70%);
+  opacity: 0.15;
+}
+
+/* Superficies claras (paneles internos, modales, tarjetas Bootstrap) siempre
+   mantienen texto oscuro legible, sin importar el color global del body */
+.bg-white,
+.bg-light:not(body),
+.bg-body-tertiary {
+  color: var(--text-dark);
+}
+
+/* ============ NAVBAR ============ */
+header[data-bs-theme="dark"] .navbar {
+  background: rgba(15, 23, 42, 0.82) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+  padding-top: 0.55rem;
+  padding-bottom: 0.55rem;
+}
+
+.navbar-brand.brand-infocursos {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 700;
+  font-size: 1.3rem;
+  color: var(--text-light) !important;
+  letter-spacing: 0.2px;
+  margin-right: 1.5rem;
+}
+.navbar-brand.brand-infocursos .brand-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--brand-primary), var(--brand-primary-dark));
+  color: #fff;
+  box-shadow: 0 6px 16px -4px rgba(99, 102, 241, 0.6);
+}
+.navbar-brand.brand-infocursos .brand-accent {
+  color: var(--brand-accent);
+}
+
+.navbar-nav .nav-link {
+  position: relative;
+  font-weight: 500;
+  padding: 0.5rem 0.9rem !important;
+  transition: color 0.2s ease;
+}
+.navbar-nav .nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0.9rem;
+  right: 0.9rem;
+  bottom: 0.15rem;
+  height: 2px;
+  background: var(--brand-accent);
+  transform: scaleX(0);
+  transition: transform 0.25s ease;
+  transform-origin: left;
+}
+.navbar-nav .nav-link:hover::after {
+  transform: scaleX(1);
+}
+.navbar-nav .nav-link:hover {
+  color: var(--brand-accent) !important;
+}
+.navbar-nav #btnNotificaciones {
+  color: var(--text-light);
+  font-size: 1.05rem;
+}
+
+/* ============ BOTONES ============ */
+.btn {
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--brand-primary), var(--brand-primary-dark));
+  border: none;
+}
+.btn-primary:hover,
+.btn-primary:focus {
+  background: linear-gradient(135deg, var(--brand-primary-dark), var(--brand-primary));
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px -6px rgba(99, 102, 241, 0.55);
+}
+.btn-lg {
+  border-radius: var(--radius-md);
+}
+.btn:active {
+  transform: translateY(0);
+}
+
+/* ============ CARDS (cursos, paneles) ============ */
+.card {
+  border-radius: var(--radius-md);
+  border: 0;
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  overflow: hidden;
+}
+#cardCursos .card:hover,
+.album .card:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-strong);
+}
+.card-img-top {
+  transition: transform 0.4s ease;
+}
+#cardCursos .card:hover .card-img-top {
+  transform: scale(1.06);
+}
+.badge {
+  border-radius: 50px;
+  font-weight: 600;
+  padding: 0.4em 0.85em;
+  letter-spacing: 0.2px;
+}
+
+/* Acento de color a la izquierda ya usado en el panel */
+.border-primary.border-4 {
+  border-color: var(--brand-primary) !important;
+}
+
+/* ============ FORMULARIOS / TARJETAS DE AUTENTICACIÓN ============ */
+#formLogin,
+#formRegistro,
+#formSolicitarCodigo,
+#formConfirmarCodigo {
+  background: rgba(30, 41, 59, 0.75) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-strong);
+}
+#formRegistro .form-label,
+#formSolicitarCodigo h3,
+#formConfirmarCodigo h3 {
+  color: var(--text-light);
+}
+
+/* Campos de entrada (inputs) oscuros pero legibles */
+.form-control,
+.form-select {
+  background-color: rgba(15, 23, 42, 0.6) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: var(--text-light) !important;
+  border-radius: var(--radius-sm);
+}
+
+.form-control:focus,
+.form-select:focus {
+  background-color: rgba(15, 23, 42, 0.9) !important;
+  border-color: var(--brand-primary) !important;
+  box-shadow: 0 0 0 0.25rem rgba(99, 102, 241, 0.25) !important;
+  color: var(--text-light) !important;
+}
+
+/* Dentro de superficies claras (cards, modales) los inputs vuelven a verse claros */
+.card .form-control,
+.card .form-select,
+.modal-content .form-control,
+.modal-content .form-select,
+.bg-white .form-control,
+.bg-white .form-select {
+  background-color: #fff !important;
+  border: 1px solid #ced4da !important;
+  color: var(--text-dark) !important;
+}
+.card .form-control:focus,
+.card .form-select:focus,
+.modal-content .form-control:focus,
+.modal-content .form-select:focus {
+  background-color: #fff !important;
+  color: var(--text-dark) !important;
+}
+
+/* Etiquetas flotantes adaptadas al tema oscuro */
+.form-floating > label {
+  color: var(--text-muted-light) !important;
+}
+
+/* Corrección para que el texto del placeholder no desaparezca o contraste mal */
+.form-control::placeholder {
+  color: #64748b;
+}
+
+/* Botón principal estilizado */
+#btnLogin {
+  background-color: var(--brand-primary);
+  border-color: var(--brand-primary);
+  font-weight: 600;
+  transition: all 0.2s ease-in-out;
+}
+
+#btnLogin:hover {
+  background-color: var(--brand-primary-dark);
+  border-color: var(--brand-primary-dark);
+  transform: translateY(-1px);
+}
+
+/* Enlaces secundarios */
+a.small {
+  color: #818cf8;
+}
+
+a.small:hover {
+  color: #a5b4fc;
+}
+
+/* ============ SECCIÓN DE CURSOS / HERO ============ */
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  font-weight: 700;
+  margin-bottom: 1.75rem;
+}
+.section-heading i {
+  color: var(--brand-accent);
+}
+
+/* ============ FOOTER ============ */
+footer.bg-black {
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.65)) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ============ RESPONSIVE ============ */
+@media (max-width: 991.98px) {
+  header[data-bs-theme="dark"] .navbar {
+    padding: 0.75rem 1rem;
+  }
+  .navbar-collapse {
+    background: rgba(15, 23, 42, 0.95);
+    border-radius: var(--radius-md);
+    margin-top: 0.75rem;
+    padding: 0.75rem 1rem;
+  }
 }

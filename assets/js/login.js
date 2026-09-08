@@ -1,3 +1,5 @@
+//const doc = require("pdfkit");
+
 // --- 1. GUARDIÁN DE ACCESO: REDIRECCIÓN SI YA INICIÓ SESIÓN ---
 if (obtenerSesion()) {
   window.location.href = "index.html";
@@ -176,4 +178,20 @@ if (formRegistro) {
         <div class="alert alert-danger mt-2">${data.mensaje || "No se pudo completar el registro"}</div>`;
     }
   });
+}
+const passwordInput = document.getElementById("password")
+const togglePassword = document.getElementById("togglePassword")
+const iconEye = document.getElementById("iconEye")
+if (togglePassword && passwordInput && iconEye) {
+  togglePassword.addEventListener("click", () => {
+    const type = passwordInput.getAttribute("type") === "password" ? "text": "password";
+    passwordInput.setAttribute("type",type)
+    if (type === 'password') {
+      iconEye.classList.remove('bi-eye-slash');
+      iconEye.classList.add('bi-eye');
+    } else {
+      iconEye.classList.remove('bi-eye');
+      iconEye.classList.add('bi-eye-slash');
+    }
+  })
 }
