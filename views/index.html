@@ -17,8 +17,8 @@
     <link rel="stylesheet" href="assets/css/style.css" />
   </head>
   <body class="d-flex flex-column h-100" id="page-container-1">
-    <header data-bs-theme="dark">
-      <nav class="navbar navbar-expand-lg bg-body-tertiary fixed-top">
+    <header data-bs-theme="light">
+      <nav class="navbar navbar-expand-lg bg-body-tertiary fixed-top border-bottom shadow-sm">
         <div class="container-fluid">
           <button
             class="navbar-toggler"
@@ -33,71 +33,31 @@
             id="navbarsExample11"
           >
             <!-- Lista de navegación común -->
-            <ul class="navbar-nav fw-bold col-lg-8" id="menuDinamico">
+            <ul class="navbar-nav col-lg-8" id="menuDinamico">
               <!-- El contenido de aquí adentro se va a generar solo por JavaScript en todas las páginas -->
             </ul>
-
-            <div class="col-lg-4">
-              <form class="d-flex" role="search" id="formBuscar">
-                <input
-                  class="form-control me-2"
-                  type="search"
-                  placeholder="Buscar"
-                  name="terminoBusqueda"
-                  id="terminoBusqueda"
-                />
-                <button class="btn btn-outline-success" type="submit">
-                  Buscar
-                </button>
-              </form>
-            </div>
           </div>
         </div>
       </nav>
     </header>
 
     <main>
-      <section>
-        <div
-          id="carouselExample"
-          class="carousel slide carousel-fade"
-          data-bs-ride="carousel"
-        >
-          <div class="carousel-inner">
-            <!-- Item Activo -->
-            <div class="carousel-item active">
-              <!-- Tu imagen limpia de fondo -->
-              <img
-                src="assets/img/infocursos1.png"
-                class="d-block w-100"
-                alt="InfoCursos"
-              />
-
-              <!-- Capa contenedora alineada con Flexbox nativo de Bootstrap -->
-              <div class="carousel-caption d-flex align-items-center">
-                <div class="container">
-                  <div class="row">
-                    <!-- Limitamos el ancho del texto a 6 columnas en pantallas grandes -->
-                    <div class="col-lg-6 col-md-8 col-12 text-start text-white">
-                      <h1 class="display-3 fw-bold mb-3 text-uppercase">
-                        ¡BIENVENIDO A
-                      </h1>
-                      <h1
-                        class="display-3 fw-bold mb-3 text-uppercase text-warning"
-                      >
-                        INFOCURSOS!
-                      </h1>
-                      <p class="lead display-6 fw-bolder mb-4">
-                        Conoce las últimas ofertas de cursos de formación
-                        profesional, disponibles.
-                      </p>
-                      <a href="#cursos" class="btn btn-outline-gold btn-lg"
-                        >Explora los Cursos Disponibles</a
-                      >
-                    </div>
-                  </div>
-                </div>
-              </div>
+      <!-- Banner simple, sin imagen de fondo: liviano y sobrio -->
+      <section class="hero-banner text-white">
+        <div class="container py-5 mt-4">
+          <div class="row">
+            <div class="col-lg-7">
+              <span class="badge mb-3 px-3 py-2" style="background-color: rgba(255,255,255,.15); letter-spacing: .04em;">
+                PLATAFORMA DE CAPACITACIÓN
+              </span>
+              <h1 class="fw-bold mb-3" style="font-size: clamp(1.9rem, 3.4vw, 2.6rem);">
+                Formación profesional, al alcance de todos
+              </h1>
+              <p class="mb-4 text-white-50" style="max-width: 34rem;">
+                Encontrá cursos de instituciones de tu ciudad, inscribite en minutos
+                y descargá tu certificado al finalizar.
+              </p>
+              <a href="#cursos" class="btn btn-outline-gold">Explorar cursos disponibles</a>
             </div>
           </div>
         </div>
@@ -106,13 +66,25 @@
       <section class="py-3 text-center container" id="cursos">
         <div class="album py-5">
           <div class="container">
+            <!-- Buscador + filtros, todos juntos -->
             <div class="row g-2 justify-content-center mb-4">
-              <div class="col-auto">
+              <div class="col-12 col-md-4">
+                <div class="input-group">
+                  <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                  <input
+                    class="form-control"
+                    type="search"
+                    placeholder="Buscar por título, institución o categoría..."
+                    id="terminoBusqueda"
+                  />
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
                 <select class="form-select" id="filtroCategoria">
                   <option value="">Todas las categorías</option>
                 </select>
               </div>
-              <div class="col-auto">
+              <div class="col-6 col-md-3">
                 <select class="form-select" id="filtroModalidad">
                   <option value="">Todas las modalidades</option>
                   <option value="Presencial">Presencial</option>
@@ -120,23 +92,21 @@
                   <option value="Híbrido">Híbrido</option>
                 </select>
               </div>
-              <div class="col-auto">
-                <button class="btn btn-outline-secondary" type="button" id="btnLimpiarFiltros">
-                  Limpiar filtros
+              <div class="col-6 col-md-auto">
+                <button class="btn btn-outline-secondary w-100" type="button" id="btnLimpiarFiltros">
+                  Limpiar
                 </button>
               </div>
             </div>
+
             <div class="row g-3" id="cardCursos"></div>
           </div>
         </div>
       </section>
     </main>
-    <footer class="text-white bg-black py-3 mt-auto">
+    <footer class="bg-white border-top py-4 mt-auto">
       <div class="container text-center">
-        <p class="mb-1">&copy; AllCursos 2026</p>
-        <a href="verificar_certificado.html" class="text-white-50 small">
-          <i class="bi bi-patch-check"></i> Verificar un certificado
-        </a>
+        <p class="mb-0 fw-semibold text-dark">&copy; AllCursos 2026</p>
       </div>
     </footer>
     <script

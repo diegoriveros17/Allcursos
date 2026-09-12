@@ -20,6 +20,14 @@ export const usuariosModel = sequelize.define(
       defaultValue: "Email",
     },
     activo: { type: DataTypes.BOOLEAN, defaultValue: true },
+    estado_aprobacion: {
+      type: DataTypes.ENUM("pendiente", "aprobado", "rechazado"),
+      defaultValue: "aprobado",
+    },
+    email_verificado: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
   },
   {
     tableName: "usuarios",

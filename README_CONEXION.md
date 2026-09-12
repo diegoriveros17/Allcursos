@@ -352,101 +352,102 @@ DNI_API_KEY=
 
 ---
 
-# v4 — Seguridad, Docker, fechas de curso, certificados públicos, filtros y notificaciones
+# Rediseño visual + Me gusta / Compartir / Recomendar + QR en certificado
 
-Esta tanda no la pediste vos puntualmente: son mejoras que sugerí como
-experto y que armamos juntos a partir de esa charla. Están pensadas para que
-la plataforma esté un escalón más cerca de producción real.
-
-## 1. Instalación de esta versión
+## 1. Migración pendiente
 
 ```bash
-npm install   # trae helmet, express-rate-limit, node-cron y sharp
-
-# Si usás allcursos_completo.sql para instalar desde cero, ya incluye
-# fecha_inicio/fecha_fin de cursos — no hace falta nada más.
-# Si ya tenías la base de la v3, corré:
-mysql -u root -p allcursos < migracion_v4.sql
+mysql -u root -p allcursos < migracion_likes.sql
 ```
+
+Agrega `cursos.likes_count` (contador de "me gusta", arranca en 0).
 
 ## 2. Qué se agregó
 
-### a) Seguridad básica
-- `helmet`: cabeceras HTTP de seguridad por defecto.
-- Rate limiting (`express-rate-limit`): máximo 15 intentos cada 15 minutos en
-  login/registro/recuperación de contraseña/verificación de contacto (frena
-  fuerza bruta y spam de códigos), y un límite general de 300 requests cada
-  15 minutos para el resto de la API.
-- CORS: en desarrollo queda abierto (para no trabar pruebas con Postman,
-  etc.), pero si ponés `NODE_ENV=production` en el `.env`, sólo acepta
-  pedidos desde la URL que pusiste en `FRONTEND_URL`.
+- **Rediseño visual sobrio**: nueva paleta institucional en `assets/css/style.css`
+  (aprovecha que Bootstrap 5.3 usa variables CSS, así que recolorea toda la
+  plataforma sin tocar cada página), navbar blanco con sombra en las 9
+  vistas, footers unificados, hero del inicio más sobrio.
+- **QR en el certificado**: además del código de texto, el PDF ahora incluye
+  un QR (abajo a la derecha) que lleva directo a
+  `verificar_certificado.html?codigo=...`. Nueva ruta pública
+  `GET /api/certificados/verificar/:codigo` (sin login) y la página en sí.
+- **"Me gusta"**: contador simple por curso, sin necesidad de cuenta
+  (`POST` / `DELETE /api/cursos/:id/like`). El navegador recuerda en
+  `localStorage` qué cursos ya likeó, para no mostrar el botón repetido.
+  Limitación honesta: al no requerir login, no es a prueba de trampas (se
+  puede volver a votar borrando el localStorage) — para un contador de
+  interés general es un trade-off razonable.
+- **Compartir**: Web Share API (nativa en celulares, abre el selector del
+  sistema — ahí aparece Instagram si está instalada) + botones directos de
+  WhatsApp, Facebook y X, más "copiar link". Instagram no tiene una URL
+  pública de "compartir en el feed" (Meta no lo permite fuera de su app),
+  por eso se cubre a través del selector nativo del sistema operativo.
+- **Recomendar por email**: `POST /api/cursos/:id/recomendar` con el email
+  de un amigo, reutiliza el servicio de email ya existente.
 
-### b) Docker (soluciona el problema que tuviste con la importación de la base)
-Agregué `Dockerfile`, `docker-compose.yml` y `.dockerignore`. Con Docker
-instalado, levantar todo el proyecto —base de datos ya importada incluida—
-es un solo comando:
+## 3. Pendiente / sugerido para más adelante
+
+- Mostrar el contador de likes también en las tarjetas del listado del
+  inicio (hoy sólo está en el detalle del curso).
+- Si en algún momento quieren que el "me gusta" sea confiable (no anónimo),
+  la solución es exigir login y guardar el voto ligado al `usuario_id`.
+
+---
+
+# Rediseño UX: toasts, likes con cuenta, foto de perfil, página de configuración
+
+## 1. Migración pendiente
 
 ```bash
-docker compose up --build
+mysql -u root -p allcursos < migracion_likes_v2.sql
 ```
 
-Esto levanta un MySQL limpio e importa `allcursos_completo.sql`
-**automáticamente la primera vez** (no hace falta ningún paso manual de
-importación), y el backend en `http://localhost:3000`. Si en algún momento
-querés reiniciar la base desde cero: `docker compose down -v` (el `-v` borra
-también los datos) y volvés a levantar con `docker compose up --build`.
+Agrega la tabla `curso_likes` (un like por usuario y curso, ligado a la
+cuenta) y la columna `personas.avatar_url` (foto de perfil). Si ya habías
+corrido `migracion_likes.sql` de la vuelta anterior, no pasa nada: esa
+columna `likes_count` se sigue usando, ahora respaldada por la tabla real
+en vez de incrementarse sin control.
 
-Esto es exactamente lo que te hubiese evitado el dolor de cabeza con las
-versiones de la base que se perdieron: la base vive dentro de un volumen de
-Docker versionado junto con el proyecto, así que "se rompió mi base" deja de
-ser un problema — se recrea con un comando.
+## 2. Qué se cambió
 
-### c) Fechas de inicio y fin de curso + auto-finalización
-- Al crear o editar un curso, el representante ahora puede cargar fecha de
-  inicio y fecha de fin (ambas opcionales).
-- Un proceso corre todos los días a las 3 AM (y una vez al iniciar el
-  servidor) y marca automáticamente como "Finalizado" las inscripciones de
-  cursos cuya fecha de fin ya pasó — ya no hace falta que el representante
-  lo haga manualmente alumno por alumno, y el certificado se habilita solo.
+- **"Me gusta" ahora requiere cuenta**: el contador sigue siendo visible
+  para cualquiera (con o sin sesión), pero para votar hay que estar
+  logueado como ciudadano. Ya no es anónimo: un usuario sólo puede votar
+  una vez por curso (antes se podía "hacer trampa" borrando el
+  `localStorage`).
+- **Se reemplazaron todos los `alert()`/`confirm()` nativos** del
+  navegador por un sistema de toasts y un modal de confirmación propio
+  (`mostrarToast()` / `confirmarAccion()` en `api.js`, disponibles en toda
+  la plataforma). Quedan prolijos, no bloquean la página, y no rompen el
+  estilo visual con la ventanita gris del navegador.
+- **Tipografía**: se sacó el `fw-bold` que estaba aplicado a todo el menú
+  de navegación en las 9 páginas (era la causa de que la tipografía se
+  viera "toda en negrita").
+- **"Verificar Certificado" se movió al navbar** (visible tanto logueado
+  como no logueado), sacándolo de los footers.
+- **Hero del inicio simplificado**: ya no hay una imagen gigante de fondo,
+  ahora es un banner compacto con degradé sobrio.
+- **Buscador reubicado**: se sacó del navbar (quedaba mal ahí) y ahora
+  está junto a los filtros de categoría y modalidad, arriba del listado de
+  cursos (que también se agregaron en este mismo cambio).
+- **Nueva página `configuracion.html` ("Mi Cuenta")**: reemplaza el modal
+  que estaba en el dashboard. Incluye:
+  - **Foto de perfil**: se sube al elegir el archivo (usa Cloudinary si
+    está configurado, igual que las imágenes de los cursos).
+  - Editar nombre, apellido, teléfono, email (y datos de la institución si
+    sos representante).
+  - Cambiar contraseña.
+  - Eliminar cuenta.
+  - El botón "Mi Cuenta" del dashboard y el avatar del navbar llevan
+    directo ahí.
 
-### d) Verificación pública de certificados
-Nueva página `verificar_certificado.html` (accesible desde el pie de página
-del inicio y del dashboard): cualquiera puede pegar el código que figura al
-pie de un certificado y confirmar que es legítimo, sin necesidad de iniciar
-sesión. El PDF del certificado ahora incluye el link directo a esta página
-con el código ya cargado.
+## 3. Nota sobre "reducir modales"
 
-### e) Filtros de búsqueda en el inicio
-Se agregaron selectores de categoría y modalidad junto al buscador de texto
-del inicio, combinables entre sí (por ejemplo: "Tecnología" + "Virtual" +
-texto libre, todos a la vez).
-
-### f) Centro de notificaciones (campanita)
-En el navbar, para cualquier usuario logueado, aparece una campanita con un
-contador y un desplegable con sus últimas notificaciones (nuevos cursos,
-resultado de la lista de espera, etc.), usando el endpoint que ya existía
-(`GET /api/notificaciones/mias`) pero que hasta ahora no tenía ninguna
-pantalla.
-
-### g) Imágenes de cursos optimizadas
-Las imágenes que sube el representante ahora se redimensionan (máximo 1200px
-de ancho) y se comprimen a `.webp` automáticamente con `sharp` antes de
-guardarse, para que no ocupen varios MB innecesariamente.
-
-## 3. Variables de entorno nuevas
-
-```env
-NODE_ENV=development   # poné "production" en el servidor real, para que
-                        # CORS se restrinja a FRONTEND_URL
-```
-
-## 4. Nota sobre lo que quedó pendiente de la lista de sugerencias
-
-De la lista completa que charlamos, esta tanda no incluyó (quedan para más
-adelante si querés seguir iterando): panel de administrador con aprobación
-de instituciones, verificación de email en el registro inicial, storage
-externo para imágenes (Cloudinary/S3 — hoy siguen en disco local, lo cual
-es un problema sólo si en algún momento lo despliegan en un hosting con
-sistema de archivos efímero), tests automatizados, migraciones versionadas
-con una herramienta dedicada, validación con `zod`, integración de
-Mercado Pago, y el panel público de cada institución.
+Se sacó el modal más grande y de uso menos frecuente (la configuración de
+la cuenta, que ahora es su propia página). Los modales que quedan
+(publicar/editar curso, encuestas, contacto de un alumno, recomendar un
+curso) son todos de uso puntual y acotado — abrir un formulario corto
+sin salir de donde estás —, que es exactamente el caso de uso para el que
+un modal tiene sentido. Si en algún momento alguno de esos también se
+siente pesado, se puede migrar a su propia página con el mismo criterio.

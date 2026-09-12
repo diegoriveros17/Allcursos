@@ -14,8 +14,8 @@
     />
   </head>
   <body class="d-flex flex-column h-100 bg-light">
-    <header data-bs-theme="dark">
-      <nav class="navbar navbar-expand-lg bg-body-tertiary fixed-top">
+    <header data-bs-theme="light">
+      <nav class="navbar navbar-expand-lg bg-body-tertiary fixed-top border-bottom shadow-sm">
         <div class="container-fluid">
           <button
             class="navbar-toggler"
@@ -30,7 +30,7 @@
             id="navbarsExample11"
           >
             <!-- Lista de navegación común -->
-            <ul class="navbar-nav fw-bold col-lg-8" id="menuDinamico">
+            <ul class="navbar-nav col-lg-8" id="menuDinamico">
               <!-- El contenido de aquí adentro se va a generar solo por JavaScript en todas las páginas -->
             </ul>
           </div>
@@ -48,14 +48,9 @@
             Desde aquí puedes gestionar todas tus actividades en la plataforma.
           </p>
         </div>
-        <button
-          class="btn btn-outline-dark"
-          type="button"
-          data-bs-toggle="modal"
-          data-bs-target="#modalMiCuenta"
-        >
+        <a href="configuracion.html" class="btn btn-outline-dark">
           <i class="bi bi-gear-fill me-1"></i> Mi Cuenta
-        </button>
+        </a>
       </div>
 
       <div id="dashCiudadano" class="d-none">
@@ -119,6 +114,7 @@
       </div>
 
       <div id="dashRepresentante" class="d-none">
+        <div id="alertaEstadoRepresentante" class="mb-4 d-none"></div>
         <div class="row mb-4" id="metricasRepresentante"></div>
 
         <div class="row">
@@ -129,8 +125,7 @@
                   class="d-flex justify-content-between align-items-center flex-wrap gap-2"
                 >
                   <h5 class="card-title fw-bold mb-0">
-                    <i class="bi bi-building-gear me-2"></i>Cursos Ofertados por
-                    tu Institución
+                    <i class="bi bi-building-gear me-2"></i>Cursos Ofertados por tu Institución
                   </h5>
                   <button
                     class="btn btn-primary btn-sm"
@@ -282,22 +277,6 @@
                   />
                 </div>
                 <div class="col-md-6">
-                  <label for="cursoFechaInicio" class="form-label fw-semibold"
-                    >Fecha de inicio (opcional)</label
-                  >
-                  <input type="date" class="form-control" id="cursoFechaInicio" />
-                </div>
-                <div class="col-md-6">
-                  <label for="cursoFechaFin" class="form-label fw-semibold"
-                    >Fecha de fin (opcional)</label
-                  >
-                  <input type="date" class="form-control" id="cursoFechaFin" />
-                  <div class="form-text">
-                    Al llegar esta fecha, las inscripciones de este curso se
-                    marcan como "Finalizado" automáticamente.
-                  </div>
-                </div>
-                <div class="col-md-6">
                   <label for="cursoImagen" class="form-label fw-semibold"
                     >Imagen del curso (opcional)</label
                   >
@@ -434,132 +413,9 @@
       </div>
     </div>
 
-    <!-- MODAL MI CUENTA -->
-    <div
-      class="modal fade"
-      id="modalMiCuenta"
-      tabindex="-1"
-      aria-labelledby="modalMiCuentaLabel"
-      aria-hidden="true"
-    >
-      <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content">
-          <div class="modal-header bg-dark text-white">
-            <h5 class="modal-title" id="modalMiCuentaLabel">Mi Cuenta</h5>
-            <button
-              type="button"
-              class="btn-close btn-close-white"
-              data-bs-dismiss="modal"
-            ></button>
-          </div>
-          <div class="modal-body text-start">
-            <ul class="nav nav-tabs" role="tablist">
-              <li class="nav-item" role="presentation">
-                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabDatos" type="button">
-                  Mis Datos
-                </button>
-              </li>
-              <li class="nav-item" role="presentation">
-                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabPassword" type="button">
-                  Contraseña
-                </button>
-              </li>
-              <li class="nav-item" role="presentation">
-                <button class="nav-link text-danger" data-bs-toggle="tab" data-bs-target="#tabEliminar" type="button">
-                  Eliminar cuenta
-                </button>
-              </li>
-            </ul>
-
-            <div class="tab-content pt-4">
-              <!-- TAB: DATOS -->
-              <div class="tab-pane fade show active" id="tabDatos">
-                <div id="msjCuentaDatos"></div>
-                <form id="formCuentaDatos">
-                  <div class="row g-3">
-                    <div class="col-md-6">
-                      <label for="cuentaNombre" class="form-label fw-semibold">Nombre</label>
-                      <input type="text" class="form-control" id="cuentaNombre" required>
-                    </div>
-                    <div class="col-md-6">
-                      <label for="cuentaApellido" class="form-label fw-semibold">Apellido</label>
-                      <input type="text" class="form-control" id="cuentaApellido" required>
-                    </div>
-                    <div class="col-md-6">
-                      <label for="cuentaTelefono" class="form-label fw-semibold">Teléfono</label>
-                      <input type="tel" class="form-control" id="cuentaTelefono">
-                    </div>
-                    <div class="col-md-6">
-                      <label for="cuentaEmail" class="form-label fw-semibold">Email de acceso</label>
-                      <input type="email" class="form-control" id="cuentaEmail" required>
-                    </div>
-                    <div class="col-md-6 d-none" id="grupoCuentaInstitucion">
-                      <label for="cuentaInstitucionNombre" class="form-label fw-semibold">Nombre de la institución</label>
-                      <input type="text" class="form-control" id="cuentaInstitucionNombre">
-                    </div>
-                    <div class="col-md-6 d-none" id="grupoCuentaCuit">
-                      <label for="cuentaInstitucionCuit" class="form-label fw-semibold">CUIT</label>
-                      <input type="text" class="form-control" id="cuentaInstitucionCuit">
-                    </div>
-                  </div>
-                  <div class="mt-4 d-flex justify-content-end">
-                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
-                  </div>
-                </form>
-              </div>
-
-              <!-- TAB: CONTRASEÑA -->
-              <div class="tab-pane fade" id="tabPassword">
-                <div id="msjCuentaPassword"></div>
-                <form id="formCuentaPassword">
-                  <div class="row g-3">
-                    <div class="col-12">
-                      <label for="cuentaPasswordActual" class="form-label fw-semibold">Contraseña actual</label>
-                      <input type="password" class="form-control" id="cuentaPasswordActual" required>
-                    </div>
-                    <div class="col-md-6">
-                      <label for="cuentaPasswordNueva" class="form-label fw-semibold">Nueva contraseña</label>
-                      <input type="password" class="form-control" id="cuentaPasswordNueva" required minlength="4">
-                    </div>
-                    <div class="col-md-6">
-                      <label for="cuentaPasswordConfirmar" class="form-label fw-semibold">Confirmar nueva contraseña</label>
-                      <input type="password" class="form-control" id="cuentaPasswordConfirmar" required minlength="4">
-                    </div>
-                  </div>
-                  <div class="mt-4 d-flex justify-content-end">
-                    <button type="submit" class="btn btn-primary">Cambiar Contraseña</button>
-                  </div>
-                </form>
-              </div>
-
-              <!-- TAB: ELIMINAR CUENTA -->
-              <div class="tab-pane fade" id="tabEliminar">
-                <div class="alert alert-warning">
-                  Al eliminar tu cuenta, se desactivará tu acceso a la plataforma. Esta acción no se puede deshacer desde acá.
-                </div>
-                <div id="msjCuentaEliminar"></div>
-                <form id="formCuentaEliminar">
-                  <div class="mb-3">
-                    <label for="cuentaPasswordEliminar" class="form-label fw-semibold">Confirmá tu contraseña para continuar</label>
-                    <input type="password" class="form-control" id="cuentaPasswordEliminar" required>
-                  </div>
-                  <div class="d-flex justify-content-end">
-                    <button type="submit" class="btn btn-danger">Eliminar mi cuenta</button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <footer class="text-white bg-black py-3 mt-auto">
+    <footer class="bg-white border-top py-4 mt-auto">
       <div class="container text-center">
-        <p class="mb-1">&copy; AllCursos 2026</p>
-        <a href="verificar_certificado.html" class="text-white-50 small">
-          <i class="bi bi-patch-check"></i> Verificar un certificado
-        </a>
+        <p class="mb-0 fw-semibold text-dark">&copy; AllCursos 2026</p>
       </div>
     </footer>
 

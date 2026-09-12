@@ -1,7 +1,5 @@
 // assets/js/verificar_certificado.js
 document.addEventListener("DOMContentLoaded", () => {
-  // Si vino con ?codigo=XXXX en la URL (por ejemplo, un QR en el PDF),
-  // completamos y verificamos automáticamente.
   const parametros = new URLSearchParams(window.location.search);
   const codigoURL = parametros.get("codigo");
   if (codigoURL) {
@@ -18,7 +16,7 @@ document.getElementById("formVerificarCertificado").addEventListener("submit", a
 
 async function verificarCodigo(codigo) {
   const contenedor = document.getElementById("resultadoVerificacion");
-  contenedor.innerHTML = `<div class="text-center py-3"><div class="spinner-border text-primary" role="status"></div></div>`;
+  contenedor.innerHTML = `<div class="text-center py-3"><div class="spinner-border" role="status" style="color: var(--brand-primary);"></div></div>`;
 
   const { ok, data } = await apiFetch(`/certificados/verificar/${encodeURIComponent(codigo)}`, {
     auth: false,

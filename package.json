@@ -19,21 +19,22 @@
   },
   "homepage": "https://github.com/diego-riveros-17/Practica_profesional#readme",
   "dependencies": {
+    "@google/genai": "^2.19.0",
     "bcryptjs": "^2.4.3",
+    "cloudinary": "^2.11.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "express-rate-limit": "^7.4.1",
-    "helmet": "^8.0.0",
+    "express-rate-limit": "^8.7.0",
+    "express-validator": "^7.3.1",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "mysql2": "^3.23.3",
-    "node-cron": "^3.0.3",
     "nodemailer": "^6.9.15",
     "pdfkit": "^0.15.0",
-    "sequelize": "^6.37.8",
-    "sharp": "^0.33.5",
-    "express-validator": "^7.3.1"
+    "qrcode": "^1.5.4",
+    "sequelize": "^6.37.8"
   },
   "devDependencies": {
     "nodemon": "^3.1.14",

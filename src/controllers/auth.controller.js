@@ -13,12 +13,14 @@ import {
   tokensRecuperacionModel,
 } from "../models/index.js";
 import { enviarEmail } from "../utils/email.service.js";
+import { verificacionValida } from "./verificacion.controller.js";
 
 const generarToken = (usuario) => {
   const payload = {
     id: usuario.id,
     persona_id: usuario.persona_id,
     rol: usuario.rol.nombre,
+    estado_aprobacion: usuario.estado_aprobacion || "aprobado",
   };
   // Si es representante, adjuntamos su institución para no tener que buscarla en cada request
   if (
@@ -39,9 +41,12 @@ const usuarioPublico = (usuario) => ({
   apellido: usuario.persona.apellido,
   dni: usuario.persona.dni,
   telefono: usuario.persona.telefono,
+  avatar_url: usuario.persona.avatar_url,
   email_login: usuario.email_login,
   rol: usuario.rol.nombre,
   canal_notificacion_preferido: usuario.canal_notificacion_preferido,
+  estado_aprobacion: usuario.estado_aprobacion || "aprobado",
+  email_verificado: usuario.email_verificado || false,
   institucion_id:
     usuario.representaciones && usuario.representaciones.length > 0
       ? usuario.representaciones[0].institucion_id
@@ -51,8 +56,11 @@ const usuarioPublico = (usuario) => ({
     usuario.representaciones.length > 0 &&
     usuario.representaciones[0].institucion
       ? {
+          id: usuario.representaciones[0].institucion.id,
           nombre: usuario.representaciones[0].institucion.nombre,
           cuit: usuario.representaciones[0].institucion.cuit,
+          estado_aprobacion:
+            usuario.representaciones[0].institucion.estado_aprobacion,
         }
       : null,
 });
@@ -78,6 +86,16 @@ export const login = async (req, res) => {
 
     if (!usuario.activo)
       return res.status(403).json({ mensaje: "El usuario está inactivo" });
+
+    if (
+      usuario.rol.nombre === "representante" &&
+      usuario.estado_aprobacion === "rechazado"
+    ) {
+      return res.status(403).json({
+        mensaje:
+          "Tu solicitud de representante fue rechazada por la administración. Comunícate con soporte.",
+      });
+    }
 
     const passwordValida = await bcrypt.compare(
       password,
@@ -121,6 +139,7 @@ export const register = async (req, res) => {
       cargo,
       // Preferencia de cómo quiere recibir avisos de nuevos cursos (ciudadano)
       canal_notificacion_preferido,
+      verificacion_id,
     } = req.body;
 
     const correo = email || email_login;
@@ -137,9 +156,23 @@ export const register = async (req, res) => {
       errores.push("El DNI es obligatorio para ciudadanos");
     if (rol === "representante" && !institucionNombre)
       errores.push("El nombre de la institución es obligatorio");
+    if (!verificacion_id)
+      errores.push("Debes verificar tu email antes de registrarte");
+
     if (errores.length > 0) {
       await t.rollback();
       return res.status(400).json({ mensaje: errores.join(". "), errores });
+    }
+
+    // Confirmamos que el email haya sido verificado con el código de 6 dígitos
+    const esValida = await verificacionValida(verificacion_id, correo);
+    if (!esValida) {
+      await t.rollback();
+      return res.status(400).json({
+        mensaje:
+          "El código de verificación de correo no es válido o ha expirado. Por favor solicita uno nuevo.",
+        requiereVerificacion: true,
+      });
     }
 
     const existeEmail = await usuariosModel.findOne({
@@ -205,6 +238,8 @@ export const register = async (req, res) => {
     )
       ? canal_notificacion_preferido
       : "Email";
+    const estadoAprobacion = rol === "representante" ? "pendiente" : "aprobado";
+
     const usuario = await usuariosModel.create(
       {
         persona_id: persona.id,
@@ -213,6 +248,8 @@ export const register = async (req, res) => {
         password_hash: passwordHash,
         acepta_notificaciones: rol === "ciudadano",
         canal_notificacion_preferido: canalValido,
+        estado_aprobacion: estadoAprobacion,
+        email_verificado: true,
       },
       { transaction: t },
     );
@@ -220,7 +257,11 @@ export const register = async (req, res) => {
     // Si se registra como representante, creamos su institución y el vínculo
     if (rol === "representante") {
       const institucion = await institucionesModel.create(
-        { nombre: institucionNombre, cuit: cuit || null },
+        {
+          nombre: institucionNombre,
+          cuit: cuit || null,
+          estado_aprobacion: "pendiente",
+        },
         { transaction: t },
       );
       await representanteInstituModel.create(
@@ -235,12 +276,16 @@ export const register = async (req, res) => {
 
     await t.commit();
     return res.status(201).json({
-      mensaje: "Usuario registrado con éxito",
+      mensaje:
+        rol === "representante"
+          ? "Registro completado con éxito. Tu cuenta de representante e institución quedó en estado 'pendiente' a la espera de la aprobación de un administrador."
+          : "Usuario registrado con éxito",
       usuario: {
         id: usuario.id,
         persona_id: persona.id,
         email_login: usuario.email_login,
         rol,
+        estado_aprobacion: estadoAprobacion,
       },
     });
   } catch (error) {
@@ -401,6 +446,7 @@ export const actualizarPerfil = async (req, res) => {
       nombre,
       apellido,
       telefono: telefono || null,
+      ...(req.avatar_url ? { avatar_url: req.avatar_url } : {}),
     });
 
     if (

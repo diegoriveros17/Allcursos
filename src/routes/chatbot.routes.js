@@ -1,7 +1,9 @@
 import { Router } from "express";
 import { chatear } from "../controllers/chatbot.controller.js";
+import { chatbotLimiter } from "../middlewares/rateLimit.middleware.js";
 
 export const chatbotRoutes = Router();
 
-// Pública: cualquiera (con o sin sesión) puede consultarle al chatbot
-chatbotRoutes.post("/chatbot", chatear);
+// Pública con rate limit: evita abuso de cuota de Gemini API
+chatbotRoutes.post("/chatbot", chatbotLimiter, chatear);
+

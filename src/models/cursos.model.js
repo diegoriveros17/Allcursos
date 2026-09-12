@@ -26,14 +26,6 @@ export const cursosModel = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: false
     },
-    fecha_inicio: {
-      type: DataTypes.DATEONLY,
-      allowNull: true
-    },
-    fecha_fin: {
-      type: DataTypes.DATEONLY,
-      allowNull: true
-    },
     modalidad: {
       type: DataTypes.ENUM("Presencial", "Virtual", "Híbrido"),
       allowNull: false,
@@ -45,6 +37,11 @@ export const cursosModel = sequelize.define(
     imagen_url: {
       type: DataTypes.STRING(255),
       allowNull: true
+    },
+    likes_count: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
     },
     institucion_id: {
       type: DataTypes.INTEGER,

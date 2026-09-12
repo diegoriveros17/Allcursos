@@ -137,14 +137,19 @@ function mostrarModalContacto(inscripcionId) {
 }
 
 async function marcarFinalizado(inscripcionId) {
-  if (!confirm("¿Marcar a este alumno como Finalizado? Podrá descargar su certificado.")) return;
+  const confirmado = await confirmarAccion(
+    "¿Marcar a este alumno como Finalizado? Podrá descargar su certificado.",
+    { titulo: "Finalizar cursada", textoConfirmar: "Sí, finalizar", peligroso: false },
+  );
+  if (!confirmado) return;
   const { ok, data } = await apiFetch(`/inscripciones/${inscripcionId}`, {
     method: "PUT",
     body: { estado: "Finalizado" },
   });
   if (ok) {
-    window.location.reload();
+    mostrarToast("El alumno fue marcado como Finalizado", "exito");
+    setTimeout(() => window.location.reload(), 900);
   } else {
-    alert(data.mensaje || "No se pudo actualizar el estado");
+    mostrarToast(data.mensaje || "No se pudo actualizar el estado", "error");
   }
 }

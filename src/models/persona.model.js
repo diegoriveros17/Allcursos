@@ -31,6 +31,10 @@ export const personasModel = sequelize.define(
       type: DataTypes.STRING(30),
       allowNull: true
     },
+    avatar_url: {
+      type: DataTypes.STRING(500),
+      allowNull: true
+    },
     fecha_nacimiento: {
       type: DataTypes.DATEONLY,
       allowNull: true

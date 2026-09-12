@@ -17,9 +17,9 @@
     />
   </head>
   <body class="d-flex flex-column h-100" id="page-container-1">
-    <header data-bs-theme="dark">
+    <header data-bs-theme="light">
       <nav
-        class="navbar navbar-expand-lg bg-body-tertiary fixed-top"
+        class="navbar navbar-expand-lg bg-body-tertiary fixed-top border-bottom shadow-sm"
         aria-label="Thirteenth navbar example"
       >
         <div class="container-fluid">
@@ -38,7 +38,7 @@
             class="navbar-collapse d-lg-flex justify-content-between collapse show"
             id="navbarsExample11"
           >
-            <ul class="navbar-nav fw-bold col-lg-6" id="menuDinamico">
+            <ul class="navbar-nav col-lg-6" id="menuDinamico">
               <!-- Generado dinámicamente por navbar.js según haya o no sesión -->
             </ul>
             <div class="col-lg-4">
@@ -67,9 +67,49 @@
         </div>
       </section>
     </main>
-    <footer class="text-white bg-black py-3 mt-auto">
+
+    <!-- MODAL REPORTAR CURSO -->
+    <div class="modal fade" id="modalReportarCurso" tabindex="-1" aria-labelledby="modalReportarLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-danger text-white">
+            <h5 class="modal-title" id="modalReportarLabel"><i class="bi bi-flag-fill me-2"></i>Reportar este curso</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body text-start">
+            <div id="msjReporte"></div>
+            <form id="formReportarCurso">
+              <div class="mb-3">
+                <label for="reporteMotivo" class="form-label fw-semibold">Motivo del reporte</label>
+                <select class="form-select" id="reporteMotivo" required>
+                  <option value="">Selecciona un motivo...</option>
+                  <option value="Contenido engañoso">Contenido engañoso</option>
+                  <option value="Spam o publicidad">Spam o publicidad</option>
+                  <option value="Datos de contacto falsos">Datos de contacto falsos</option>
+                  <option value="Discriminatorio o inapropiado">Discriminatorio o inapropiado</option>
+                  <option value="Otro">Otro motivo</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label for="reporteDescripcion" class="form-label fw-semibold">Descripción del problema</label>
+                <textarea class="form-control" id="reporteDescripcion" rows="3" placeholder="Explica detalladamente qué problema encontraste..." required></textarea>
+              </div>
+              <div class="mb-3" id="campoEmailReporte">
+                <label for="reporteEmail" class="form-label fw-semibold">Tu email de contacto (opcional)</label>
+                <input type="email" class="form-control" id="reporteEmail" placeholder="tu@email.com">
+              </div>
+              <div class="d-flex justify-content-end gap-2">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-danger" id="btnEnviarReporte">Enviar Reporte</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    <footer class="bg-white border-top py-4 mt-auto">
       <div class="container text-center">
-        <p class="mb-0">&copy; AllCursos 2026</p>
+        <p class="mb-0 fw-semibold text-dark">&copy; AllCursos 2026</p>
       </div>
     </footer>
     <script

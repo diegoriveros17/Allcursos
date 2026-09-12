@@ -3,5 +3,5 @@ import { verificarCertificadoPublico } from "../controllers/certificado.controll
 
 export const certificadosRoutes = Router();
 
-// Pública: cualquiera con el código puede validar que un certificado es real
+// Pública: cualquiera con el código (o el QR del PDF) puede validar un certificado
 certificadosRoutes.get("/certificados/verificar/:codigo", verificarCertificadoPublico);

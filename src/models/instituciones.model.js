@@ -9,6 +9,10 @@ export const institucionesModel = sequelize.define(
     nombre: { type: DataTypes.STRING(150), allowNull: false },
     cuit: { type: DataTypes.STRING(20), allowNull: true, unique: true },
     direccion_id: { type: DataTypes.INTEGER, allowNull: true },
+    estado_aprobacion: {
+      type: DataTypes.ENUM("pendiente", "aprobado", "rechazado"),
+      defaultValue: "pendiente",
+    },
   },
   {
     tableName: "instituciones",

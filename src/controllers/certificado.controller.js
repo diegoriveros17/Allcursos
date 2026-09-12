@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import PDFDocument from "pdfkit";
+import QRCode from "qrcode";
 import { inscripcionesModel } from "../models/inscripciones.model.js";
 import { usuariosModel } from "../models/usuario.model.js";
 import { personasModel } from "../models/persona.model.js";
@@ -143,11 +144,35 @@ export const descargarCertificado = async (req, res) => {
       align: "center",
     });
 
+    // QR que lleva directo a la página pública de verificación, con el
+    // código ya cargado. Así, quien reciba el certificado (un empleador,
+    // por ejemplo) puede confirmar su autenticidad escaneándolo con el
+    // celular, sin tener que tipear el código a mano.
     const urlVerificacion = `${process.env.FRONTEND_URL || "http://localhost:3000"}/verificar_certificado.html?codigo=${certificado.codigo_verificacion}`;
-    doc
-      .fontSize(9)
-      .fillColor("#888888")
-      .text(`Verificá este certificado en: ${urlVerificacion}`, { align: "center" });
+    try {
+      const qrDataUrl = await QRCode.toDataURL(urlVerificacion, {
+        margin: 1,
+        width: 220,
+        color: { dark: "#1f2937", light: "#ffffffff" },
+      });
+      const qrBuffer = Buffer.from(qrDataUrl.split(",")[1], "base64");
+      const qrTamaño = 90;
+      doc.image(
+        qrBuffer,
+        doc.page.width - qrTamaño - 55,
+        doc.page.height - qrTamaño - 55,
+        { width: qrTamaño, height: qrTamaño },
+      );
+      doc
+        .fontSize(7)
+        .fillColor("#888888")
+        .text("Escaneá para verificar", doc.page.width - qrTamaño - 55, doc.page.height - 55 + 4, {
+          width: qrTamaño,
+          align: "center",
+        });
+    } catch (errorQR) {
+      console.error("No se pudo generar el QR del certificado:", errorQR.message);
+    }
 
     doc.end();
   } catch (error) {
@@ -157,8 +182,9 @@ export const descargarCertificado = async (req, res) => {
   }
 };
 
-// Verificación pública (sin login): cualquiera con el código puede
-// confirmar que un certificado es legítimo, sin exponer datos sensibles.
+// Verificación pública (sin login): cualquiera con el código (o el QR)
+// puede confirmar que un certificado es legítimo, sin exponer datos
+// sensibles de más.
 export const verificarCertificadoPublico = async (req, res) => {
   try {
     const { codigo } = req.params;

@@ -3,11 +3,10 @@ import cors from "cors";
 import helmet from "helmet";
 import dotenv from "dotenv";
 import path from "path";
+import bcrypt from "bcryptjs";
 import { fileURLToPath } from "url";
 import { startDB } from "./src/config/database.js";
-import { rolesModel } from "./src/models/index.js";
-import { authLimiter, apiLimiter } from "./src/middlewares/rateLimit.middleware.js";
-import { iniciarTareasProgramadas } from "./src/utils/cron.service.js";
+import { rolesModel, usuariosModel, personasModel } from "./src/models/index.js";
 import { authRouter } from "./src/routes/auth.route.js";
 import { usuariosRoutes } from "./src/routes/usuario.route.js";
 import { personasRoutes } from "./src/routes/persona.route.js";
@@ -26,48 +25,56 @@ import { mediosContactoRoutes } from "./src/routes/medio_contacto.routes.js";
 import { verificacionRoutes } from "./src/routes/verificacion.routes.js";
 import { chatbotRoutes } from "./src/routes/chatbot.routes.js";
 import { certificadosRoutes } from "./src/routes/certificado.routes.js";
+import { adminRoutes } from "./src/routes/admin.routes.js";
+import { apiGeneralLimiter } from "./src/middlewares/rateLimit.middleware.js";
 
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-app.use(helmet({
-    // Desactivado porque bloquearía cargar Bootstrap/íconos desde jsdelivr
-    // y las imágenes propias; si más adelante agregan una CSP a medida,
-    // se puede configurar acá.
-    contentSecurityPolicy: false,
-    crossOriginResourcePolicy: { policy: "cross-origin" },
-}));
 
-// En producción sólo se acepta el origen configurado en FRONTEND_URL; en
-// desarrollo se deja abierto para no trabar pruebas locales (Postman, etc).
-const origenesPermitidos =
-    process.env.NODE_ENV === "production" && process.env.FRONTEND_URL
-        ? [process.env.FRONTEND_URL]
-        : true;
-app.use(cors({ origin: origenesPermitidos }));
+// Seguridad: Cabeceras HTTP con Helmet
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // Permite cargar CDNs externas (Bootstrap, Bootstrap Icons) y Cloudinary
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  }),
+);
+
+// Seguridad: Restricción de CORS
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(",").map((o) => o.trim())
+  : null;
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Permite peticiones locales, mismo origen o sin origen (como curl / apps móviles)
+      if (!origin || !allowedOrigins || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error("Acceso bloqueado por política de CORS"));
+    },
+    credentials: true,
+  }),
+);
 
 app.use(express.json());
 
-// Frena intentos de fuerza bruta contra login/registro/recuperación
-app.use(
-    ["/api/auth/login", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/verificaciones"],
-    authLimiter,
-);
-// Límite general, más permisivo, para el resto de la API
-app.use("/api", apiLimiter);
-
-// Nunca servir el código fuente del backend ni archivos de configuración como estáticos
-app.use(["/src", "/package.json", "/package-lock.json"], (req, res) =>
-    res.status(404).end(),
-);
+// Limitador de tasa de peticiones general para la API
+app.use("/api", apiGeneralLimiter);
 
 app.get("/api/health", (req, res) =>
-    res.json({ ok: true, mensaje: "API funcionando" }),
+  res.json({ ok: true, mensaje: "API funcionando" }),
 );
+
+// Archivos multimedia locales (fallback de subidas)
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+// Endpoints de la API
 app.use("/api/auth", authRouter);
+app.use("/api/admin", adminRoutes);
 app.use("/api", usuariosRoutes);
 app.use("/api", personasRoutes);
 app.use("/api", rolesRoutes);
@@ -86,50 +93,100 @@ app.use("/api", verificacionRoutes);
 app.use("/api", chatbotRoutes);
 app.use("/api", certificadosRoutes);
 
-// Frontend estático (index.html, dashboard.html, assets/, etc.)
-app.use(express.static(__dirname));
+// Frontend estático seguro: solo se sirve la carpeta de recursos (assets) y las vistas (views)
+app.use("/assets", express.static(path.join(__dirname, "assets")));
+app.use(express.static(path.join(__dirname, "views")));
 
-app.use((req, res) => res.status(404).json({ mensaje: "Ruta no encontrada" }));
+// Ruta raíz que sirve index.html
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "views", "index.html"));
+});
+
+// Manejador de 404 para la API y rutas desconocidas
+app.use((req, res) => {
+  if (req.accepts("html")) {
+    return res.status(404).sendFile(path.join(__dirname, "views", "index.html"));
+  }
+  return res.status(404).json({ mensaje: "Ruta no encontrada" });
+});
+
 const PORT = process.env.PORT || 3000;
-async function inicializarRoles() {
-    const n = await rolesModel.count();
-    if (n === 0)
-        await rolesModel.bulkCreate([
-            { nombre: "ciudadano" },
-            { nombre: "representante" },
-            { nombre: "administrador" },
-        ]);
-}
-async function main() {
-    if (!process.env.JWT_SECRET) {
-        console.warn(
-            "ADVERTENCIA: falta JWT_SECRET en el .env, el login no funcionará correctamente.",
-        );
-    }
-    await startDB();
-    await inicializarRoles();
-    iniciarTareasProgramadas();
-    app.listen(PORT, async () => {
-        const url = `http://localhost:${PORT}`;
-        console.log(`Servidor corriendo en ${url}`);
 
-        // Abre el navegador automáticamente (como hacía "Go Live"), salvo que
-        // se desactive explícitamente con OPEN_BROWSER=false en el .env.
-        // Si el paquete "open" no está instalado todavía, no rompe el server:
-        // sólo hay que abrir la URL de arriba a mano.
-        if (process.env.OPEN_BROWSER !== "false") {
-            try {
-                const { default: open } = await import("open");
-                await open(url);
-            } catch {
-                console.log(
-                    `(Para abrir el navegador automáticamente, corré "npm install" para instalar la dependencia "open")`,
-                );
-            }
-        }
-    });
+async function inicializarRoles() {
+  const n = await rolesModel.count();
+  if (n === 0) {
+    await rolesModel.bulkCreate([
+      { nombre: "ciudadano" },
+      { nombre: "representante" },
+      { nombre: "administrador" },
+    ]);
+  }
 }
+
+// Crea una cuenta de administrador por defecto si no existe ninguna en el sistema
+async function inicializarAdmin() {
+  const rolAdmin = await rolesModel.findOne({ where: { nombre: "administrador" } });
+  if (!rolAdmin) return;
+
+  const count = await usuariosModel.count({ where: { rol_id: rolAdmin.id } });
+  if (count === 0) {
+    const adminEmail = process.env.ADMIN_EMAIL || "admin@allcursos.com";
+    const adminPassword = process.env.ADMIN_PASSWORD || "Admin123!";
+
+    let persona = await personasModel.findOne({ where: { dni: "ADMIN-001" } });
+    if (!persona) {
+      persona = await personasModel.create({
+        nombre: "Administrador",
+        apellido: "Principal",
+        dni: "ADMIN-001",
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(adminPassword, 10);
+    await usuariosModel.create({
+      persona_id: persona.id,
+      rol_id: rolAdmin.id,
+      email_login: adminEmail,
+      password_hash: passwordHash,
+      activo: true,
+      estado_aprobacion: "aprobado",
+      email_verificado: true,
+    });
+
+    console.log(
+      `[Seguridad] Usuario administrador inicial creado: ${adminEmail} (Contraseña: ${adminPassword})`,
+    );
+  }
+}
+
+async function main() {
+  if (!process.env.JWT_SECRET) {
+    console.warn(
+      "ADVERTENCIA: falta JWT_SECRET en el .env, el login no funcionará correctamente.",
+    );
+  }
+  await startDB();
+  await inicializarRoles();
+  await inicializarAdmin();
+
+  app.listen(PORT, async () => {
+    const url = `http://localhost:${PORT}`;
+    console.log(`Servidor corriendo en ${url}`);
+
+    if (process.env.OPEN_BROWSER !== "false") {
+      try {
+        const { default: open } = await import("open");
+        await open(url);
+      } catch {
+        console.log(
+          `(Para abrir el navegador automáticamente, corré "npm install" para instalar la dependencia "open")`,
+        );
+      }
+    }
+  });
+}
+
 main().catch((e) => {
-    console.error("No se pudo iniciar el servidor:", e);
-    process.exit(1);
+  console.error("No se pudo iniciar el servidor:", e);
+  process.exit(1);
 });

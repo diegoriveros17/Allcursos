@@ -45,15 +45,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                   : ""
               }
               ${curso.duracion_horas ? `<p class="mb-1"><strong>⏱️ Duración:</strong> ${curso.duracion_horas} horas</p>` : ""}
-              ${
-                curso.fecha_inicio || curso.fecha_fin
-                  ? `<p class="mb-1"><strong>🗓️ Fechas:</strong> ${
-                      curso.fecha_inicio
-                        ? new Date(curso.fecha_inicio + "T00:00:00").toLocaleDateString("es-AR")
-                        : "s/d"
-                    } ${curso.fecha_fin ? "al " + new Date(curso.fecha_fin + "T00:00:00").toLocaleDateString("es-AR") : ""}</p>`
-                  : ""
-              }
               <p class="mb-1"><strong>👥 Cupos Disponibles:</strong> ${curso.cupos_disponibles} de ${curso.cupo_maximo}</p>
               ${
                 curso.requisitos && curso.requisitos.length > 0
@@ -70,6 +61,29 @@ document.addEventListener("DOMContentLoaded", async () => {
               }
             </div>
 
+            <div class="d-flex align-items-center justify-content-between border-top border-bottom py-3 my-3">
+              <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" id="btnLikeCurso">
+                <i class="bi bi-hand-thumbs-up" id="iconoLike"></i>
+                <span id="contadorLikes">${curso.likes_count || 0}</span>
+                <span class="d-none d-sm-inline">Me gusta</span>
+              </button>
+
+              <div class="dropdown">
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                  <i class="bi bi-share me-1"></i>Compartir
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                  <li><button class="dropdown-item" id="btnCompartirNativo"><i class="bi bi-phone me-2"></i>Compartir...</button></li>
+                  <li><a class="dropdown-item" id="linkCompartirWhatsapp" href="#" target="_blank"><i class="bi bi-whatsapp me-2"></i>WhatsApp</a></li>
+                  <li><a class="dropdown-item" id="linkCompartirFacebook" href="#" target="_blank"><i class="bi bi-facebook me-2"></i>Facebook</a></li>
+                  <li><a class="dropdown-item" id="linkCompartirX" href="#" target="_blank"><i class="bi bi-twitter-x me-2"></i>X / Twitter</a></li>
+                  <li><hr class="dropdown-divider"></li>
+                  <li><button class="dropdown-item" id="btnCopiarLink"><i class="bi bi-link-45deg me-2"></i>Copiar link</button></li>
+                  <li><button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#modalRecomendar"><i class="bi bi-envelope me-2"></i>Recomendar por email</button></li>
+                </ul>
+              </div>
+            </div>
+
             <div class="mt-4">
               ${
                 sesion && sesion.rol !== "ciudadano"
@@ -80,6 +94,42 @@ document.addEventListener("DOMContentLoaded", async () => {
                        ${sinCupos ? "Anotarme en lista de espera" : "Inscribirme a este Curso"}
                      </button>`
               }
+            </div>
+
+            <div class="mt-3 text-center">
+              <button class="btn btn-sm btn-link text-muted text-decoration-none" data-bs-toggle="modal" data-bs-target="#modalReportarCurso">
+                <i class="bi bi-flag me-1 text-danger"></i> Reportar este curso
+              </button>
+            </div>
+
+            <!-- MODAL RECOMENDAR POR EMAIL -->
+            <div class="modal fade" id="modalRecomendar" tabindex="-1" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title">Recomendar este curso</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                  </div>
+                  <div class="modal-body text-start">
+                    <div id="msjRecomendar" class="mb-2"></div>
+                    <form id="formRecomendar">
+                      <div class="mb-3">
+                        <label class="form-label small fw-semibold">Tu nombre (opcional)</label>
+                        <input type="text" class="form-control" id="recomendarNombre" placeholder="Ej: María">
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label small fw-semibold">Email de tu amigo/a</label>
+                        <input type="email" class="form-control" id="recomendarEmail" required placeholder="nombre@ejemplo.com">
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label small fw-semibold">Mensaje (opcional)</label>
+                        <textarea class="form-control" id="recomendarMensaje" rows="2" placeholder="Che, mirá este curso..."></textarea>
+                      </div>
+                      <button type="submit" class="btn btn-dark w-100">Enviar recomendación</button>
+                    </form>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -208,6 +258,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  inicializarAccionesSociales(curso);
+
   document.getElementById("btnConfirmarLogueado").addEventListener("click", async () => {
     const { ok, data: resp } = await apiFetch("/inscripciones", {
       method: "POST",
@@ -215,8 +267,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
     if (ok) {
       modalChoiceBS.hide();
-      alert(resp.mensaje);
-      window.location.href = "dashboard.html";
+      mostrarToast(resp.mensaje, "exito");
+      setTimeout(() => (window.location.href = "dashboard.html"), 1200);
     } else {
       document.getElementById("modalChoiceError").textContent =
         resp.mensaje || (resp.errores ? resp.errores.join(", ") : "No se pudo completar la inscripción");
@@ -318,8 +370,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const msj = document.getElementById("msjInscripcionGuest");
     if (ok) {
       modalInscripcionBS.hide();
-      alert(
-        `${resp.mensaje}${resp.aviso ? "\n\n" + resp.aviso : ""}`,
+      mostrarToast(
+        `${resp.mensaje}${resp.aviso ? "<br><small>" + resp.aviso + "</small>" : ""}`,
+        "exito",
       );
       document.getElementById("formInscripcion").reset();
       verificacionActual = null;
@@ -333,6 +386,61 @@ document.addEventListener("DOMContentLoaded", async () => {
       }</div>`;
     }
   });
+
+  // Manejador para enviar reporte de curso
+  const formReporte = document.getElementById("formReportarCurso");
+  const msjReporte = document.getElementById("msjReporte");
+  const modalReporteEl = document.getElementById("modalReportarCurso");
+  let modalReporteBS = null;
+  if (modalReporteEl) {
+    modalReporteBS = new bootstrap.Modal(modalReporteEl);
+  }
+
+  // Pre-llenar email si está logueado
+  if (sesion && sesion.email_login) {
+    const inputEmail = document.getElementById("reporteEmail");
+    if (inputEmail) {
+      inputEmail.value = sesion.email_login;
+      inputEmail.disabled = true;
+    }
+  }
+
+  if (formReporte) {
+    formReporte.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const motivo = document.getElementById("reporteMotivo")?.value;
+      const descripcion = document.getElementById("reporteDescripcion")?.value.trim();
+      const email_contacto = document.getElementById("reporteEmail")?.value.trim();
+
+      const btnSubmit = document.getElementById("btnEnviarReporte");
+      if (btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Enviando...`;
+      }
+
+      const { ok, data } = await apiFetch(`/cursos/${cursoId}/reportar`, {
+        method: "POST",
+        body: { motivo, descripcion, email_contacto },
+      });
+
+      if (btnSubmit) {
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = `Enviar Reporte`;
+      }
+
+      if (ok) {
+        msjReporte.innerHTML = `<div class="alert alert-success">${data.mensaje || "Reporte enviado con éxito."}</div>`;
+        formReporte.reset();
+        setTimeout(() => {
+          modalReporteBS?.hide();
+          msjReporte.innerHTML = "";
+        }, 2200);
+      } else {
+        msjReporte.innerHTML = `<div class="alert alert-danger">${data.mensaje || "Error al enviar reporte"}</div>`;
+      }
+    });
+  }
 });
 
 function mensajeNoEncontrado() {
@@ -344,4 +452,115 @@ function mensajeNoEncontrado() {
         <a href="index.html" class="btn btn-outline-danger">Volver al Inicio</a>
       </div>
     `;
+}
+
+// ============================================================
+// ME GUSTA + COMPARTIR + RECOMENDAR
+// ============================================================
+function inicializarAccionesSociales(curso) {
+  const urlCurso = `${window.location.origin}/detalles.html?id=${curso.id}`;
+  const textoCompartir = `Mirá este curso: "${curso.titulo}" en AllCursos`;
+
+  // --- Me gusta: el contador es público, pero votar requiere cuenta ---
+  const btnLike = document.getElementById("btnLikeCurso");
+  const iconoLike = document.getElementById("iconoLike");
+  const contadorLikes = document.getElementById("contadorLikes");
+  let yaLikeado = !!curso.yaMeGusta;
+  const sesionActual = obtenerSesion();
+
+  const pintarEstadoLike = () => {
+    iconoLike.className = yaLikeado ? "bi bi-hand-thumbs-up-fill" : "bi bi-hand-thumbs-up";
+    btnLike.classList.toggle("btn-outline-secondary", !yaLikeado);
+    btnLike.classList.toggle("btn-dark", yaLikeado);
+  };
+  pintarEstadoLike();
+
+  btnLike?.addEventListener("click", async () => {
+    if (!sesionActual) {
+      mostrarToast("Necesitás iniciar sesión para dar me gusta", "advertencia");
+      return;
+    }
+    if (sesionActual.rol !== "ciudadano") {
+      mostrarToast("Sólo los ciudadanos pueden dar me gusta a los cursos", "advertencia");
+      return;
+    }
+
+    btnLike.disabled = true;
+    const metodo = yaLikeado ? "DELETE" : "POST";
+    const { ok, data } = await apiFetch(`/cursos/${curso.id}/like`, { method: metodo });
+    if (ok) {
+      contadorLikes.textContent = data.likes_count;
+      yaLikeado = data.yaMeGusta;
+      pintarEstadoLike();
+    } else if (data.likes_count !== undefined) {
+      // ej: ya lo había likeado desde otra pestaña/dispositivo
+      contadorLikes.textContent = data.likes_count;
+      yaLikeado = !!data.yaMeGusta;
+      pintarEstadoLike();
+    } else {
+      mostrarToast(data.mensaje || "No se pudo registrar el me gusta", "error");
+    }
+    btnLike.disabled = false;
+  });
+
+  // --- Compartir ---
+  const linkWhatsapp = document.getElementById("linkCompartirWhatsapp");
+  const linkFacebook = document.getElementById("linkCompartirFacebook");
+  const linkX = document.getElementById("linkCompartirX");
+  if (linkWhatsapp) linkWhatsapp.href = `https://wa.me/?text=${encodeURIComponent(textoCompartir + " " + urlCurso)}`;
+  if (linkFacebook) linkFacebook.href = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(urlCurso)}`;
+  if (linkX) linkX.href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(textoCompartir)}&url=${encodeURIComponent(urlCurso)}`;
+
+  // Web Share API: en celulares abre el selector nativo del sistema
+  // (ahí aparece Instagram, WhatsApp, Telegram, Mail, etc. si están
+  // instalados). Si el navegador no la soporta, hacemos fallback a copiar.
+  const btnCompartirNativo = document.getElementById("btnCompartirNativo");
+  btnCompartirNativo?.addEventListener("click", async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: curso.titulo, text: textoCompartir, url: urlCurso });
+      } catch (error) {
+        /* el usuario canceló el selector, no hacemos nada */
+      }
+    } else {
+      copiarAlPortapapeles(urlCurso);
+    }
+  });
+
+  const btnCopiarLink = document.getElementById("btnCopiarLink");
+  btnCopiarLink?.addEventListener("click", () => copiarAlPortapapeles(urlCurso));
+
+  function copiarAlPortapapeles(texto) {
+    navigator.clipboard
+      .writeText(texto)
+      .then(() => mostrarToast("¡Link copiado al portapapeles!", "exito"))
+      .catch(() => mostrarToast("No se pudo copiar el link. Copialo manualmente: " + texto, "error"));
+  }
+
+  // --- Recomendar por email ---
+  const formRecomendar = document.getElementById("formRecomendar");
+  formRecomendar?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const cuerpo = {
+      email_destino: document.getElementById("recomendarEmail").value.trim(),
+      nombre_remitente: document.getElementById("recomendarNombre").value.trim(),
+      mensaje_personal: document.getElementById("recomendarMensaje").value.trim(),
+    };
+    const { ok, data } = await apiFetch(`/cursos/${curso.id}/recomendar`, {
+      method: "POST",
+      auth: false,
+      body: cuerpo,
+    });
+    const msj = document.getElementById("msjRecomendar");
+    if (ok) {
+      msj.innerHTML = `<div class="alert alert-success py-2 mb-0">${data.mensaje}</div>`;
+      formRecomendar.reset();
+      setTimeout(() => {
+        bootstrap.Modal.getInstance(document.getElementById("modalRecomendar"))?.hide();
+        msj.innerHTML = "";
+      }, 1800);
+    } else {
+      msj.innerHTML = `<div class="alert alert-danger py-2 mb-0">${data.mensaje || "No se pudo enviar la recomendación"}</div>`;
+    }
+  });
 }

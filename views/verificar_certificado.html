@@ -17,8 +17,8 @@
     <link rel="stylesheet" href="assets/css/style.css" />
   </head>
   <body class="d-flex flex-column h-100" id="page-container">
-    <header data-bs-theme="dark">
-      <nav class="navbar navbar-expand-lg bg-body-tertiary fixed-top">
+    <header data-bs-theme="light">
+      <nav class="navbar navbar-expand-lg bg-body-tertiary fixed-top border-bottom shadow-sm">
         <div class="container-fluid">
           <button
             class="navbar-toggler"
@@ -32,7 +32,7 @@
             class="navbar-collapse d-lg-flex justify-content-between collapse show"
             id="navbarsExample11"
           >
-            <ul class="navbar-nav fw-bold col-lg-8" id="menuDinamico"></ul>
+            <ul class="navbar-nav col-lg-8" id="menuDinamico"></ul>
           </div>
         </div>
       </nav>
@@ -43,11 +43,11 @@
         <div class="row justify-content-center">
           <div class="col-md-8 col-lg-6">
             <div class="text-center mb-4">
-              <i class="bi bi-patch-check-fill text-primary" style="font-size: 3rem;"></i>
+              <i class="bi bi-patch-check-fill" style="font-size: 3rem; color: var(--brand-primary);"></i>
               <h2 class="fw-bold mt-2">Verificar Certificado</h2>
               <p class="text-muted">
-                Ingresá el código de verificación que figura al pie del certificado para
-                confirmar que es auténtico.
+                Ingresá el código de verificación que figura al pie del certificado
+                (o escaneá el QR del PDF) para confirmar que es auténtico.
               </p>
             </div>
 
@@ -59,7 +59,7 @@
                 placeholder="Ej: 4F8A9C2D1B3E"
                 required
               />
-              <button type="submit" class="btn btn-primary">Verificar</button>
+              <button type="submit" class="btn btn-dark">Verificar</button>
             </form>
 
             <div id="resultadoVerificacion"></div>
@@ -68,9 +68,9 @@
       </section>
     </main>
 
-    <footer class="text-white bg-black py-3 mt-auto">
-      <div class="container text-center">
-        <p class="mb-0">&copy; AllCursos 2026</p>
+    <footer class="bg-white border-top text-center py-4 mt-auto">
+      <div class="container">
+        <p class="small mb-0 text-muted fw-semibold">AllCursos &copy; 2026</p>
       </div>
     </footer>
 

@@ -24,13 +24,6 @@ const tarjetaCurso = (curso) => {
                         <p class="text-start text-muted small m-0 p-0">
                         <b>Modalidad: </b> ${curso.modalidad}
                         </p>
-                        ${
-                          curso.fecha_inicio
-                            ? `<p class="text-start text-muted small m-0 p-0">
-                                <b>Inicia: </b> ${new Date(curso.fecha_inicio + "T00:00:00").toLocaleDateString("es-AR")}
-                               </p>`
-                            : ""
-                        }
                         <p class="text-start text-muted small m-0 p-0">
                         <b>Vacantes disponibles: </b> ${sinCupos ? "Sin vacantes" : cupos}
                         </p>
@@ -60,7 +53,7 @@ const mostrarMensaje = (mensaje) => {
 
 const cargarCursos = (listaCursos) => {
   if (!listaCursos.length) {
-    mostrarMensaje("No se encontraron cursos con esos filtros");
+    mostrarMensaje("No se encontraron cursos");
     return;
   }
   contenedor.innerHTML = listaCursos.map(tarjetaCurso).join("");
@@ -86,7 +79,6 @@ const inputBusqueda = document.getElementById("terminoBusqueda");
 const selectFiltroCategoria = document.getElementById("filtroCategoria");
 const selectFiltroModalidad = document.getElementById("filtroModalidad");
 const btnLimpiarFiltros = document.getElementById("btnLimpiarFiltros");
-const formBuscarCurso = document.querySelector("#formBuscar");
 
 async function cargarCategoriasEnFiltro() {
   if (!selectFiltroCategoria) return;
@@ -121,10 +113,7 @@ function aplicarFiltros() {
   cargarCursos(cursosFiltrados);
 }
 
-if (formBuscarCurso) {
-  formBuscarCurso.addEventListener("submit", (e) => e.preventDefault());
-  inputBusqueda?.addEventListener("input", aplicarFiltros);
-}
+inputBusqueda?.addEventListener("input", aplicarFiltros);
 selectFiltroCategoria?.addEventListener("change", aplicarFiltros);
 selectFiltroModalidad?.addEventListener("change", aplicarFiltros);
 btnLimpiarFiltros?.addEventListener("click", () => {

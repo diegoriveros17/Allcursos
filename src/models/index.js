@@ -211,6 +211,20 @@ encuestasRespuestasModel.belongsTo(personasModel, { foreignKey: "persona_id", as
 usuariosModel.hasMany(tokensRecuperacionModel, { foreignKey: "usuario_id", as: "tokens_recuperacion" });
 tokensRecuperacionModel.belongsTo(usuariosModel, { foreignKey: "usuario_id", as: "usuario" });
 
+// --- Reportes de Cursos ---
+import { reportesCursosModel } from "./reporte_curso.model.js";
+cursosModel.hasMany(reportesCursosModel, { foreignKey: "curso_id", as: "reportes" });
+reportesCursosModel.belongsTo(cursosModel, { foreignKey: "curso_id", as: "curso" });
+usuariosModel.hasMany(reportesCursosModel, { foreignKey: "usuario_id", as: "reportes_enviados" });
+reportesCursosModel.belongsTo(usuariosModel, { foreignKey: "usuario_id", as: "usuario" });
+
+// --- "Me gusta" de cursos (requiere cuenta, un like por usuario y curso) ---
+import { cursoLikeModel } from "./curso_like.model.js";
+cursosModel.hasMany(cursoLikeModel, { foreignKey: "curso_id", as: "likes" });
+cursoLikeModel.belongsTo(cursosModel, { foreignKey: "curso_id", as: "curso" });
+usuariosModel.hasMany(cursoLikeModel, { foreignKey: "usuario_id", as: "cursos_likeados" });
+cursoLikeModel.belongsTo(usuariosModel, { foreignKey: "usuario_id", as: "usuario" });
+
 export {
   tiposMedioContactoModel,
   mediosContactoModel,
@@ -226,4 +240,7 @@ export {
   encuestasRespuestasModel,
   tokensRecuperacionModel,
   codigosVerificacionModel,
+  reportesCursosModel,
+  cursoLikeModel,
 };
+

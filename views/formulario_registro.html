@@ -16,8 +16,8 @@
     />
   </head>
   <body class="d-flex flex-column h-100">
-    <header data-bs-theme="dark">
-      <nav class="navbar navbar-expand-lg bg-body-tertiary fixed-top">
+    <header data-bs-theme="light">
+      <nav class="navbar navbar-expand-lg bg-body-tertiary fixed-top border-bottom shadow-sm">
         <div class="container-fluid">
           <button
             class="navbar-toggler"
@@ -32,7 +32,7 @@
             id="navbarsExample11"
           >
             <!-- Lista de navegación común -->
-            <ul class="navbar-nav fw-bold col-lg-8" id="menuDinamico">
+            <ul class="navbar-nav col-lg-8" id="menuDinamico">
               <!-- El contenido de aquí adentro se va a generar solo por JavaScript en todas las páginas -->
             </ul>
           </div>
@@ -109,13 +109,46 @@
 
                     <div class="col-sm-12">
                       <label for="email" class="form-label">Email</label>
-                      <input
-                        type="email"
-                        class="form-control"
-                        id="email"
-                        placeholder="dfr17@gmail.com"
-                      />
+                      <div class="input-group">
+                        <input
+                          type="email"
+                          class="form-control"
+                          id="email"
+                          placeholder="nombre@ejemplo.com"
+                        />
+                        <button
+                          class="btn btn-outline-primary"
+                          type="button"
+                          id="btnEnviarCodigoEmail"
+                        >
+                          <i class="bi bi-envelope-check me-1"></i> Verificar Email
+                        </button>
+                      </div>
+                      <div id="msjEnvioCodigo" class="form-text mt-1"></div>
                     </div>
+
+                    <!-- Código de verificación -->
+                    <div id="seccionCodigoVerificacion" class="col-sm-12 d-none">
+                      <div class="p-3 bg-light border border-primary-subtle rounded">
+                        <label for="codigoVerificacion" class="form-label fw-bold text-primary small">
+                          <i class="bi bi-shield-lock-fill me-1"></i> Código de 6 dígitos enviado a tu correo
+                        </label>
+                        <div class="input-group">
+                          <input
+                            type="text"
+                            class="form-control text-center fw-bold fs-5"
+                            id="codigoVerificacion"
+                            maxlength="6"
+                            placeholder="123456"
+                          />
+                          <button class="btn btn-success" type="button" id="btnConfirmarCodigoEmail">
+                            Confirmar
+                          </button>
+                        </div>
+                        <div id="msjEstadoCodigo" class="mt-2 small"></div>
+                      </div>
+                    </div>
+                    <input type="hidden" id="verificacionId" value="" />
 
                     <div class="col-sm-12">
                       <label for="password" class="form-label"
@@ -219,9 +252,9 @@
         </div>
       </section>
     </main>
-    <footer class="text-white bg-black py-3 mt-auto">
+    <footer class="bg-white border-top py-4 mt-auto">
       <div class="container text-center">
-        <p class="mb-0">&copy; AllCursos 2026</p>
+        <p class="mb-0 fw-semibold text-dark">&copy; AllCursos 2026</p>
       </div>
     </footer>
     <script

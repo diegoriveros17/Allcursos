@@ -13,6 +13,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const bajadaPanel = document.querySelector(".container.my-5.pt-5 p.text-muted");
   const infoPerfilCiudadano = document.getElementById("infoPerfilCiudadano");
 
+  if (sesion.rol === "administrador") {
+    window.location.href = "admin.html";
+    return;
+  }
+
   if (sesion.rol === "ciudadano") {
     if (tituloPanel) tituloPanel.textContent = `¡Hola, ${sesion.nombre}!`;
     if (bajadaPanel)
@@ -38,6 +43,45 @@ document.addEventListener("DOMContentLoaded", () => {
       bajadaPanel.textContent =
         "Bienvenido/a. Desde aquí puedes administrar la oferta de cursos de tu institución.";
 
+    const alertaEstado = document.getElementById("alertaEstadoRepresentante");
+    const btnNuevoCurso = document.getElementById("btnAbrirNuevoCurso");
+
+    if (sesion.estado_aprobacion === "pendiente") {
+      if (alertaEstado) {
+        alertaEstado.classList.remove("d-none");
+        alertaEstado.innerHTML = `
+          <div class="alert alert-warning border-start border-warning border-4 shadow-sm" role="alert">
+            <h5 class="alert-heading fw-bold mb-1">
+              <i class="bi bi-hourglass-split me-2"></i>Cuenta de Representante en Proceso de Aprobación
+            </h5>
+            <p class="mb-1">
+              Tu solicitud para representar a <strong>${sesion.institucion?.nombre || "tu institución"}</strong> está siendo revisada por los administradores.
+            </p>
+            <p class="mb-0 small text-muted">
+              Por razones de seguridad y verificación de legitimidad, no podrás publicar cursos hasta que tu cuenta sea aprobada.
+            </p>
+          </div>`;
+      }
+      if (btnNuevoCurso) {
+        btnNuevoCurso.classList.add("disabled");
+        btnNuevoCurso.setAttribute("disabled", "true");
+        btnNuevoCurso.setAttribute("title", "Tu cuenta está pendiente de aprobación");
+      }
+    } else if (sesion.estado_aprobacion === "rechazado") {
+      if (alertaEstado) {
+        alertaEstado.classList.remove("d-none");
+        alertaEstado.innerHTML = `
+          <div class="alert alert-danger border-start border-danger border-4 shadow-sm" role="alert">
+            <h5 class="alert-heading fw-bold mb-1"><i class="bi bi-x-circle me-2"></i>Solicitud Rechazada</h5>
+            <p class="mb-0">Tu solicitud como representante fue rechazada por la administración.</p>
+          </div>`;
+      }
+      if (btnNuevoCurso) {
+        btnNuevoCurso.classList.add("disabled");
+        btnNuevoCurso.setAttribute("disabled", "true");
+      }
+    }
+
     panelRepresentante?.classList.remove("d-none");
     panelCiudadano?.classList.add("d-none");
     cargarTablaRepresentante();
@@ -48,8 +92,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (tituloPanel) tituloPanel.textContent = "Mi Panel de Control";
     panelCiudadano?.classList.remove("d-none");
   }
-
-  prepararMiCuenta(sesion);
 });
 
 // ==========================================
@@ -131,15 +173,20 @@ async function cargarTablaCiudadano() {
 }
 
 async function cancelarInscripcion(id) {
-  if (!confirm("¿Seguro que deseas cancelar esta inscripción?")) return;
+  const confirmado = await confirmarAccion("¿Seguro que deseas cancelar esta inscripción?", {
+    titulo: "Cancelar inscripción",
+    textoConfirmar: "Sí, cancelar",
+  });
+  if (!confirmado) return;
   const { ok, data } = await apiFetch(`/inscripciones/${id}`, {
     method: "PUT",
     body: { estado: "Cancelado" },
   });
   if (ok) {
+    mostrarToast("Inscripción cancelada", "info");
     cargarTablaCiudadano();
   } else {
-    alert(data.mensaje || "No se pudo cancelar la inscripción");
+    mostrarToast(data.mensaje || "No se pudo cancelar la inscripción", "error");
   }
 }
 
@@ -154,7 +201,7 @@ async function descargarCertificado(inscripcionId) {
     );
     if (!respuesta.ok) {
       const data = await respuesta.json().catch(() => ({}));
-      alert(data.mensaje || "No se pudo descargar el certificado");
+      mostrarToast(data.mensaje || "No se pudo descargar el certificado", "error");
       return;
     }
     const blob = await respuesta.blob();
@@ -167,7 +214,7 @@ async function descargarCertificado(inscripcionId) {
     a.remove();
     window.URL.revokeObjectURL(url);
   } catch (error) {
-    alert("No se pudo conectar con el servidor para descargar el certificado");
+    mostrarToast("No se pudo conectar con el servidor para descargar el certificado", "error");
   }
 }
 
@@ -212,7 +259,7 @@ async function enviarRespuestaEncuesta(encuestaId) {
   const input = document.getElementById(`respuesta-${encuestaId}`);
   const respuesta = input ? input.value.trim() : "";
   if (!respuesta) {
-    alert("Escribí una respuesta antes de enviar");
+    mostrarToast("Escribí una respuesta antes de enviar", "advertencia");
     return;
   }
   const { ok, data } = await apiFetch(`/encuestas/${encuestaId}/respuestas`, {
@@ -220,9 +267,10 @@ async function enviarRespuestaEncuesta(encuestaId) {
     body: { respuesta },
   });
   if (ok) {
+    mostrarToast("¡Gracias por responder!", "exito");
     cargarEncuestasCiudadano();
   } else {
-    alert(data.mensaje || "No se pudo enviar tu respuesta");
+    mostrarToast(data.mensaje || "No se pudo enviar tu respuesta", "error");
   }
 }
 
@@ -311,12 +359,17 @@ async function cargarTablaRepresentante() {
 }
 
 async function eliminarCurso(id) {
-  if (!confirm("¿Seguro que deseas eliminar este curso?")) return;
+  const confirmado = await confirmarAccion(
+    "¿Seguro que deseas eliminar este curso? Esta acción no se puede deshacer.",
+    { titulo: "Eliminar curso", textoConfirmar: "Sí, eliminar" },
+  );
+  if (!confirmado) return;
   const { ok, data } = await apiFetch(`/cursos/${id}`, { method: "DELETE" });
   if (ok) {
+    mostrarToast("Curso eliminado", "info");
     cargarTablaRepresentante();
   } else {
-    alert(data.mensaje || "No se pudo eliminar el curso");
+    mostrarToast(data.mensaje || "No se pudo eliminar el curso", "error");
   }
 }
 
@@ -391,8 +444,6 @@ async function abrirModalEditarCurso(id) {
   document.getElementById("cursoModalidad").value = curso.modalidad || "Presencial";
   document.getElementById("cursoCupoMaximo").value = curso.cupo_maximo || "";
   document.getElementById("cursoDuracionHoras").value = curso.duracion_horas || "";
-  document.getElementById("cursoFechaInicio").value = curso.fecha_inicio || "";
-  document.getElementById("cursoFechaFin").value = curso.fecha_fin || "";
   document.getElementById("cursoCategoria").value = curso.categoria_id || "";
   document.getElementById("cursoCategoriaNueva").classList.add("d-none");
   document.getElementById("cursoImagen").value = "";
@@ -464,8 +515,6 @@ async function prepararFormularioNuevoCurso() {
       "duracion_horas",
       document.getElementById("cursoDuracionHoras").value || "",
     );
-    formData.append("fecha_inicio", document.getElementById("cursoFechaInicio").value || "");
-    formData.append("fecha_fin", document.getElementById("cursoFechaFin").value || "");
     // Siempre se manda (incluso vacío) para poder sacar requisitos al editar
     formData.append("requisitos", JSON.stringify(requisitosSeleccionados));
 
@@ -614,122 +663,16 @@ async function verResultadosEncuesta(id) {
 }
 
 async function cerrarEncuesta(id) {
-  if (!confirm("¿Cerrar esta encuesta? Ya no se podrán enviar más respuestas.")) return;
+  const confirmado = await confirmarAccion(
+    "¿Cerrar esta encuesta? Ya no se podrán enviar más respuestas.",
+    { titulo: "Cerrar encuesta", textoConfirmar: "Sí, cerrar", peligroso: false },
+  );
+  if (!confirmado) return;
   const { ok, data } = await apiFetch(`/encuestas/${id}/cerrar`, { method: "PUT" });
   if (ok) {
+    mostrarToast("Encuesta cerrada", "info");
     cargarEncuestasRepresentante();
   } else {
-    alert(data.mensaje || "No se pudo cerrar la encuesta");
+    mostrarToast(data.mensaje || "No se pudo cerrar la encuesta", "error");
   }
-}
-
-// ==========================================
-// MI CUENTA: editar datos, cambiar contraseña, eliminar cuenta
-// (disponible para ambos roles)
-// ==========================================
-async function prepararMiCuenta(sesion) {
-  const grupoInstitucion = document.getElementById("grupoCuentaInstitucion");
-  const grupoCuit = document.getElementById("grupoCuentaCuit");
-  const esRepresentante = sesion.rol === "representante";
-
-  grupoInstitucion?.classList.toggle("d-none", !esRepresentante);
-  grupoCuit?.classList.toggle("d-none", !esRepresentante);
-
-  // Precargamos con lo que ya tenemos en la sesión, y refrescamos con /auth/me
-  // por si hay datos más recientes (ej. teléfono, institución).
-  document.getElementById("cuentaNombre").value = sesion.nombre || "";
-  document.getElementById("cuentaApellido").value = sesion.apellido || "";
-  document.getElementById("cuentaEmail").value = sesion.email_login || "";
-  document.getElementById("cuentaTelefono").value = sesion.telefono || "";
-
-  const { ok, data } = await apiFetch("/auth/me");
-  if (ok && data.usuario) {
-    const usuario = data.usuario;
-    document.getElementById("cuentaNombre").value = usuario.nombre || "";
-    document.getElementById("cuentaApellido").value = usuario.apellido || "";
-    document.getElementById("cuentaEmail").value = usuario.email_login || "";
-    document.getElementById("cuentaTelefono").value = usuario.telefono || "";
-    if (esRepresentante && usuario.institucion) {
-      document.getElementById("cuentaInstitucionNombre").value = usuario.institucion.nombre || "";
-      document.getElementById("cuentaInstitucionCuit").value = usuario.institucion.cuit || "";
-    }
-  }
-
-  // --- Formulario: editar datos ---
-  document.getElementById("formCuentaDatos").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const cuerpo = {
-      nombre: document.getElementById("cuentaNombre").value.trim(),
-      apellido: document.getElementById("cuentaApellido").value.trim(),
-      telefono: document.getElementById("cuentaTelefono").value.trim(),
-      email: document.getElementById("cuentaEmail").value.trim(),
-    };
-    if (esRepresentante) {
-      cuerpo.institucionNombre = document.getElementById("cuentaInstitucionNombre").value.trim();
-      cuerpo.cuit = document.getElementById("cuentaInstitucionCuit").value.trim();
-    }
-
-    const { ok, data } = await apiFetch("/auth/me", { method: "PUT", body: cuerpo });
-    const msj = document.getElementById("msjCuentaDatos");
-    if (ok) {
-      msj.innerHTML = `<div class="alert alert-success py-2">${data.mensaje}</div>`;
-      // Actualizamos la sesión local para que se refleje en el navbar/saludo
-      const sesionActual = obtenerSesion();
-      guardarSesion(
-        { ...sesionActual, nombre: cuerpo.nombre, apellido: cuerpo.apellido, email_login: cuerpo.email },
-        localStorage.getItem("token"),
-      );
-      setTimeout(() => window.location.reload(), 1000);
-    } else {
-      msj.innerHTML = `<div class="alert alert-danger py-2">${data.mensaje || "No se pudieron guardar los cambios"}</div>`;
-    }
-  });
-
-  // --- Formulario: cambiar contraseña ---
-  document.getElementById("formCuentaPassword").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const msj = document.getElementById("msjCuentaPassword");
-    const nueva = document.getElementById("cuentaPasswordNueva").value;
-    const confirmar = document.getElementById("cuentaPasswordConfirmar").value;
-
-    if (nueva !== confirmar) {
-      msj.innerHTML = `<div class="alert alert-danger py-2">Las contraseñas nuevas no coinciden.</div>`;
-      return;
-    }
-
-    const { ok, data } = await apiFetch("/auth/me/password", {
-      method: "PUT",
-      body: {
-        passwordActual: document.getElementById("cuentaPasswordActual").value,
-        passwordNueva: nueva,
-      },
-    });
-
-    if (ok) {
-      msj.innerHTML = `<div class="alert alert-success py-2">${data.mensaje}</div>`;
-      document.getElementById("formCuentaPassword").reset();
-    } else {
-      msj.innerHTML = `<div class="alert alert-danger py-2">${data.mensaje || "No se pudo cambiar la contraseña"}</div>`;
-    }
-  });
-
-  // --- Formulario: eliminar cuenta ---
-  document.getElementById("formCuentaEliminar").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    if (!confirm("¿Seguro que querés eliminar tu cuenta? Vas a perder el acceso a la plataforma.")) return;
-
-    const { ok, data } = await apiFetch("/auth/me", {
-      method: "DELETE",
-      body: { password: document.getElementById("cuentaPasswordEliminar").value },
-    });
-
-    const msj = document.getElementById("msjCuentaEliminar");
-    if (ok) {
-      alert(data.mensaje);
-      cerrarSesion();
-      window.location.href = "index.html";
-    } else {
-      msj.innerHTML = `<div class="alert alert-danger py-2">${data.mensaje || "No se pudo eliminar la cuenta"}</div>`;
-    }
-  });
 }

@@ -20,25 +20,87 @@ import { mediosContactoModel } from "../models/medio_contacto.model.js";
 import { tiposMedioContactoModel } from "../models/tipo_medio_contacto.model.js";
 
 const PALABRAS_PLATAFORMA = [
-  "curso", "cursos", "capacitacion", "capacitación", "requisito", "requisitos",
-  "lugar", "direccion", "dirección", "ubicacion", "ubicación", "donde", "dónde",
-  "contacto", "telefono", "teléfono", "email", "correo", "cupo", "cupos",
-  "modalidad", "presencial", "virtual", "hibrido", "híbrido", "horario",
-  "duracion", "duración", "horas", "inscrib", "certificado", "fecha",
-  "cuando", "cuándo", "empieza", "comienza", "dicta", "categoria", "categoría",
-  "institucion", "institución", "vacante", "vacantes", "anotar", "anotarme",
+  "curso",
+  "cursos",
+  "capacitacion",
+  "capacitación",
+  "requisito",
+  "requisitos",
+  "lugar",
+  "direccion",
+  "dirección",
+  "ubicacion",
+  "ubicación",
+  "donde",
+  "dónde",
+  "contacto",
+  "telefono",
+  "teléfono",
+  "email",
+  "correo",
+  "cupo",
+  "cupos",
+  "modalidad",
+  "presencial",
+  "virtual",
+  "hibrido",
+  "híbrido",
+  "horario",
+  "duracion",
+  "duración",
+  "horas",
+  "inscrib",
+  "certificado",
+  "fecha",
+  "cuando",
+  "cuándo",
+  "empieza",
+  "comienza",
+  "dicta",
+  "categoria",
+  "categoría",
+  "institucion",
+  "institución",
+  "vacante",
+  "vacantes",
+  "anotar",
+  "anotarme",
 ];
-const SALUDOS = ["hola", "buenas", "buen dia", "buen día", "buenos dias", "buenos días", "que tal", "qué tal"];
-const DESPEDIDAS = ["gracias", "chau", "adios", "adiós", "nos vemos", "hasta luego"];
+const SALUDOS = [
+  "hola",
+  "buenas",
+  "buen dia",
+  "buen día",
+  "buenos dias",
+  "buenos días",
+  "que tal",
+  "qué tal",
+];
+const DESPEDIDAS = [
+  "gracias",
+  "chau",
+  "adios",
+  "adiós",
+  "nos vemos",
+  "hasta luego",
+];
 
-const normalizar = (texto) => texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+const normalizar = (texto) =>
+  texto
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 
 function esSaludoOCortesia(mensajeNormalizado) {
-  return [...SALUDOS, ...DESPEDIDAS].some((p) => mensajeNormalizado.includes(normalizar(p)));
+  return [...SALUDOS, ...DESPEDIDAS].some((p) =>
+    mensajeNormalizado.includes(normalizar(p)),
+  );
 }
 
 function esSobrePlataforma(mensajeNormalizado) {
-  return PALABRAS_PLATAFORMA.some((p) => mensajeNormalizado.includes(normalizar(p)));
+  return PALABRAS_PLATAFORMA.some((p) =>
+    mensajeNormalizado.includes(normalizar(p)),
+  );
 }
 
 // Busca cursos activos cuyo título, categoría o institución aparezcan
@@ -46,10 +108,23 @@ function esSobrePlataforma(mensajeNormalizado) {
 // (por ejemplo, cuando el chat se abre desde la página de detalle).
 async function buscarCursosRelevantes(mensajeNormalizado, curso_id) {
   const incluir = [
-    { model: institucionesModel, as: "institucion", attributes: ["id", "nombre"] },
+    {
+      model: institucionesModel,
+      as: "institucion",
+      attributes: ["id", "nombre"],
+    },
     { model: categoriasModel, as: "categoria", attributes: ["id", "nombre"] },
-    { model: direccionesModel, as: "direccion_dictado", attributes: ["calle", "numero", "ciudad", "provincia"] },
-    { model: requisitosModel, as: "requisitos", attributes: ["descripcion"], through: { attributes: [] } },
+    {
+      model: direccionesModel,
+      as: "direccion_dictado",
+      attributes: ["calle", "numero", "ciudad", "provincia"],
+    },
+    {
+      model: requisitosModel,
+      as: "requisitos",
+      attributes: ["descripcion"],
+      through: { attributes: [] },
+    },
   ];
 
   if (curso_id) {
@@ -57,24 +132,42 @@ async function buscarCursosRelevantes(mensajeNormalizado, curso_id) {
     if (curso) return [curso];
   }
 
-  const todos = await cursosModel.findAll({ include: incluir, order: [["created_at", "DESC"]], limit: 60 });
+  const todos = await cursosModel.findAll({
+    include: incluir,
+    order: [["created_at", "DESC"]],
+    limit: 60,
+  });
 
   const coincidencias = todos.filter((curso) => {
     const texto = normalizar(
       `${curso.titulo} ${curso.categoria?.nombre || ""} ${curso.institucion?.nombre || ""}`,
     );
-    return texto.split(/\s+/).some((palabra) => palabra.length > 3 && mensajeNormalizado.includes(palabra));
+    return texto
+      .split(/\s+/)
+      .some(
+        (palabra) => palabra.length > 3 && mensajeNormalizado.includes(palabra),
+      );
   });
 
-  return coincidencias.length > 0 ? coincidencias.slice(0, 5) : todos.slice(0, 15);
+  return coincidencias.length > 0
+    ? coincidencias.slice(0, 5)
+    : todos.slice(0, 15);
 }
 
 async function obtenerMediosContactoInstitucion(institucion_id) {
   const vinculos = await institucionMedioContactoModel.findAll({
     where: { institucion_id },
-    include: [{ model: mediosContactoModel, as: "medio", include: [{ model: tiposMedioContactoModel, as: "tipo" }] }],
+    include: [
+      {
+        model: mediosContactoModel,
+        as: "medio",
+        include: [{ model: tiposMedioContactoModel, as: "tipo" }],
+      },
+    ],
   });
-  return vinculos.map((v) => `${v.medio.tipo?.nombre || "Contacto"}: ${v.medio.valor}`);
+  return vinculos.map(
+    (v) => `${v.medio.tipo?.nombre || "Contacto"}: ${v.medio.valor}`,
+  );
 }
 
 function formatearCursoParaContexto(curso, medios) {
@@ -82,14 +175,18 @@ function formatearCursoParaContexto(curso, medios) {
     `- "${curso.titulo}" (institución: ${curso.institucion?.nombre || "s/d"}, categoría: ${curso.categoria?.nombre || "s/d"})`,
     `  Modalidad: ${curso.modalidad}. Cupo máximo: ${curso.cupo_maximo}.`,
   ];
-  if (curso.duracion_horas) partes.push(`  Duración: ${curso.duracion_horas} horas.`);
+  if (curso.duracion_horas)
+    partes.push(`  Duración: ${curso.duracion_horas} horas.`);
   if (curso.direccion_dictado)
     partes.push(
       `  Lugar: ${curso.direccion_dictado.calle} ${curso.direccion_dictado.numero || ""}, ${curso.direccion_dictado.ciudad}, ${curso.direccion_dictado.provincia}.`,
     );
   if (curso.requisitos?.length)
-    partes.push(`  Requisitos: ${curso.requisitos.map((r) => r.descripcion).join(", ")}.`);
-  if (medios?.length) partes.push(`  Contacto de la institución: ${medios.join(" | ")}.`);
+    partes.push(
+      `  Requisitos: ${curso.requisitos.map((r) => r.descripcion).join(", ")}.`,
+    );
+  if (medios?.length)
+    partes.push(`  Contacto de la institución: ${medios.join(" | ")}.`);
   partes.push(`  Descripción: ${curso.descripcion}`);
   return partes.join("\n");
 }
@@ -128,11 +225,16 @@ ${contexto || "(no hay cursos cargados actualmente)"}`;
 
   if (!respuesta.ok) {
     const detalle = await respuesta.text().catch(() => "");
-    throw new Error(`Error de la API de Anthropic (${respuesta.status}): ${detalle}`);
+    throw new Error(
+      `Error de la API de Anthropic (${respuesta.status}): ${detalle}`,
+    );
   }
 
   const datos = await respuesta.json();
-  const texto = datos.content?.map((b) => b.text || "").join("\n").trim();
+  const texto = datos.content
+    ?.map((b) => b.text || "")
+    .join("\n")
+    .trim();
   return texto || "No pude generar una respuesta en este momento.";
 }
 
@@ -140,7 +242,11 @@ ${contexto || "(no hay cursos cargados actualmente)"}`;
 // Modo sin IA (reglas simples por palabra clave) — funciona siempre,
 // aunque no haya ANTHROPIC_API_KEY configurada.
 // ------------------------------------------------------------------
-async function responderSimulado(mensajeNormalizado, cursos, mediosPorInstitucion) {
+async function responderSimulado(
+  mensajeNormalizado,
+  cursos,
+  mediosPorInstitucion,
+) {
   if (cursos.length === 0) {
     return "Por el momento no hay cursos publicados. ¡Volvé a consultar más adelante!";
   }
@@ -153,12 +259,20 @@ async function responderSimulado(mensajeNormalizado, cursos, mediosPorInstitucio
       ? `Los requisitos de "${curso.titulo}" son: ${curso.requisitos.map((r) => r.descripcion).join(", ")}.`
       : `El curso "${curso.titulo}" no tiene requisitos especiales cargados.`;
   }
-  if (["lugar", "direccion", "ubicacion", "donde"].some((p) => mensajeNormalizado.includes(p))) {
+  if (
+    ["lugar", "direccion", "ubicacion", "donde"].some((p) =>
+      mensajeNormalizado.includes(p),
+    )
+  ) {
     return curso.direccion_dictado
       ? `"${curso.titulo}" se dicta en ${curso.direccion_dictado.calle} ${curso.direccion_dictado.numero || ""}, ${curso.direccion_dictado.ciudad}.`
       : `"${curso.titulo}" es de modalidad ${curso.modalidad}, no tiene una dirección física cargada.`;
   }
-  if (["contacto", "telefono", "email", "correo"].some((p) => mensajeNormalizado.includes(p))) {
+  if (
+    ["contacto", "telefono", "email", "correo"].some((p) =>
+      mensajeNormalizado.includes(p),
+    )
+  ) {
     return medios.length
       ? `Podés contactar a ${curso.institucion?.nombre} por: ${medios.join(" | ")}.`
       : `Todavía no hay un medio de contacto cargado para ${curso.institucion?.nombre}. Te recomiendo revisar el detalle del curso en la plataforma.`;
@@ -190,15 +304,24 @@ export async function responderChatbot(mensaje, curso_id) {
     return "Decime en qué puedo ayudarte respecto a los cursos publicados en AllCursos.";
   }
 
-  if (esSaludoOCortesia(mensajeNormalizado) && !esSobrePlataforma(mensajeNormalizado)) {
+  if (
+    esSaludoOCortesia(mensajeNormalizado) &&
+    !esSobrePlataforma(mensajeNormalizado)
+  ) {
     return "¡Hola! Soy el asistente de AllCursos. Puedo ayudarte con información sobre los cursos publicados: requisitos, lugar, modalidad, cupos y contacto. ¿Qué te gustaría saber?";
   }
 
-  const cursosRelevantes = await buscarCursosRelevantes(mensajeNormalizado, curso_id);
+  const cursosRelevantes = await buscarCursosRelevantes(
+    mensajeNormalizado,
+    curso_id,
+  );
 
   // Filtro de tema: si no hay cursos relacionados Y el mensaje no usa
   // ninguna palabra propia de la plataforma, no es una consulta válida.
-  const pareceRelevante = curso_id || esSobrePlataforma(mensajeNormalizado) || cursosRelevantes.length > 0;
+  const pareceRelevante =
+    curso_id ||
+    esSobrePlataforma(mensajeNormalizado) ||
+    cursosRelevantes.length > 0;
   if (!pareceRelevante) {
     return "Sólo puedo ayudarte con consultas sobre los cursos y capacitaciones publicadas en AllCursos (requisitos, lugar, modalidad, cupos, contacto, etc). ¿Querés preguntarme algo sobre eso?";
   }
@@ -206,22 +329,32 @@ export async function responderChatbot(mensaje, curso_id) {
   const mediosPorInstitucion = {};
   for (const curso of cursosRelevantes) {
     if (!mediosPorInstitucion[curso.institucion_id]) {
-      mediosPorInstitucion[curso.institucion_id] = await obtenerMediosContactoInstitucion(curso.institucion_id);
+      mediosPorInstitucion[curso.institucion_id] =
+        await obtenerMediosContactoInstitucion(curso.institucion_id);
     }
   }
 
   if (process.env.ANTHROPIC_API_KEY) {
     try {
       const contexto = cursosRelevantes
-        .map((c) => formatearCursoParaContexto(c, mediosPorInstitucion[c.institucion_id]))
+        .map((c) =>
+          formatearCursoParaContexto(c, mediosPorInstitucion[c.institucion_id]),
+        )
         .join("\n\n");
       return await responderConIA(mensaje, contexto);
     } catch (error) {
-      console.error("Error del chatbot con IA, usando modo simulado:", error.message);
+      console.error(
+        "Error del chatbot con IA, usando modo simulado:",
+        error.message,
+      );
       // si falla la API (sin conexión, key inválida, etc.) no dejamos al
       // usuario sin respuesta: caemos al motor de reglas.
     }
   }
 
-  return responderSimulado(mensajeNormalizado, cursosRelevantes, mediosPorInstitucion);
+  return responderSimulado(
+    mensajeNormalizado,
+    cursosRelevantes,
+    mediosPorInstitucion,
+  );
 }

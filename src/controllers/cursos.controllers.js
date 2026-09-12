@@ -10,7 +10,10 @@ import { personasModel } from "../models/persona.model.js";
 import { representanteInstituModel } from "../models/representante_institucion.model.js";
 import { requisitosModel } from "../models/requisito.model.js";
 import { cursoRequisitoModel } from "../models/curso_requisito.model.js";
+import { reportesCursosModel } from "../models/reporte_curso.model.js";
+import { cursoLikeModel } from "../models/curso_like.model.js";
 import { notificarNuevoCurso } from "../utils/notificaciones.service.js";
+import { enviarEmail } from "../utils/email.service.js";
 
 // Devuelve el institucion_id del representante autenticado, ya sea que
 // venga en el token o consultando la tabla intermedia como respaldo.
@@ -66,8 +69,6 @@ export const agregarCursos = async (req, res) => {
       direccion_dictado_id,
       modalidad,
       cupo_maximo,
-      fecha_inicio,
-      fecha_fin,
       link_difusion_original,
     } = req.body;
     const errores = [];
@@ -78,9 +79,6 @@ export const agregarCursos = async (req, res) => {
     if (!categoria_id) errores.push("Ingresa la categoría");
     if (!modalidad) errores.push("Modalidad obligatoria");
     if (!cupo_maximo) errores.push("Agrega el cupo maximo");
-    if (fecha_inicio && fecha_fin && new Date(fecha_fin) < new Date(fecha_inicio)) {
-      errores.push("La fecha de fin no puede ser anterior a la fecha de inicio");
-    }
 
     // El curso siempre pertenece a la institución del representante logueado,
     // nunca se confía en un institucion_id enviado desde el cliente.
@@ -96,8 +94,37 @@ export const agregarCursos = async (req, res) => {
       return res.status(400).json({ errores });
     }
 
-    // Si vino un archivo (multer), guardamos la ruta pública para servirlo
-    const imagen_url = req.file ? `/uploads/cursos/${req.file.filename}` : null;
+    // Regla de negocio: sólo representantes aprobados pueden publicar cursos
+    const usuarioActual = await usuariosModel.findByPk(req.usuario.id, {
+      include: [
+        {
+          model: representanteInstituModel,
+          as: "representaciones",
+          include: [{ model: institucionesModel, as: "institucion" }],
+        },
+      ],
+    });
+
+    if (usuarioActual && usuarioActual.estado_aprobacion !== "aprobado") {
+      return res.status(403).json({
+        mensaje:
+          "Tu cuenta de representante está pendiente de aprobación por un administrador. Podrás publicar cursos una vez que sea aprobada.",
+      });
+    }
+
+    if (
+      usuarioActual?.representaciones?.[0]?.institucion?.estado_aprobacion &&
+      usuarioActual.representaciones[0].institucion.estado_aprobacion !== "aprobado"
+    ) {
+      return res.status(403).json({
+        mensaje:
+          "Tu institución está pendiente de aprobación por un administrador.",
+      });
+    }
+
+    // Si vino una imagen (subida a Cloudinary o guardada localmente)
+    const imagen_url =
+      req.imagen_url || (req.file ? `/uploads/cursos/${req.file.filename}` : null);
 
     const curso = await cursosModel.create({
       titulo,
@@ -107,8 +134,6 @@ export const agregarCursos = async (req, res) => {
       direccion_dictado_id: direccion_dictado_id || null,
       modalidad,
       cupo_maximo,
-      fecha_inicio: fecha_inicio || null,
-      fecha_fin: fecha_fin || null,
       link_difusion_original: link_difusion_original || null,
       imagen_url,
       institucion_id,
@@ -159,11 +184,10 @@ export const agregarCursos = async (req, res) => {
 // Listado público de cursos, con filtros opcionales por categoría, institución y texto libre
 export const verTodosCursos = async (req, res) => {
   try {
-    const { categoria_id, institucion_id, modalidad, q } = req.query;
+    const { categoria_id, institucion_id, q } = req.query;
     const where = {};
     if (categoria_id) where.categoria_id = categoria_id;
     if (institucion_id) where.institucion_id = institucion_id;
-    if (modalidad) where.modalidad = modalidad;
     if (q) {
       where[Op.or] = [
         { titulo: { [Op.like]: `%${q}%` } },
@@ -257,15 +281,6 @@ export const editarCursos = async (req, res) => {
     // No permitimos cambiar el curso de institución desde este endpoint
     const { institucion_id: _ignorar, requisitos, ...datos } = req.body;
 
-    // Un campo de fecha/número vacío ("") desde un <form> no es lo mismo que
-    // "no lo toques": lo interpretamos como "vaciar ese campo" (null), para
-    // no romper la validación de tipos de Sequelize.
-    ["fecha_inicio", "fecha_fin", "duracion_horas", "direccion_dictado_id"].forEach(
-      (campo) => {
-        if (datos[campo] === "") datos[campo] = null;
-      },
-    );
-
     const curso = await cursosModel.findOne({
       where: { id: req.params.id, institucion_id },
     });
@@ -275,7 +290,8 @@ export const editarCursos = async (req, res) => {
         .json({ mensaje: "curso no encontrado en tu institución" });
     }
 
-    if (req.file) datos.imagen_url = `/uploads/cursos/${req.file.filename}`;
+    if (req.imagen_url) datos.imagen_url = req.imagen_url;
+    else if (req.file) datos.imagen_url = `/uploads/cursos/${req.file.filename}`;
     await curso.update(datos);
 
     // Si vino la lista de requisitos, la reemplazamos completa (permite
@@ -331,6 +347,16 @@ export const verPorIdCursos = async (req, res) => {
     });
     if (curso) {
       await conCuposDisponibles(curso);
+      // tokenOpcional: si vino sesión, indicamos si esta cuenta ya le dio
+      // like, para que el frontend pinte el botón activo.
+      if (req.usuario) {
+        const yaLikeado = await cursoLikeModel.findOne({
+          where: { curso_id: curso.id, usuario_id: req.usuario.id },
+        });
+        curso.dataValues.yaMeGusta = !!yaLikeado;
+      } else {
+        curso.dataValues.yaMeGusta = false;
+      }
       return res.status(200).json({ mensaje: "curso encontrado", curso });
     } else {
       return res.status(404).json({ mensaje: "curso no encontrado" });
@@ -423,5 +449,171 @@ export const agregarRequisitosACurso = async (req, res) => {
     return res
       .status(500)
       .json({ mensaje: "Error al agregar requisitos", error: error.message });
+  }
+};
+
+// Reportar un curso sospechoso, engañoso o inapropiado
+export const reportarCurso = async (req, res) => {
+  try {
+    const curso_id = req.params.id;
+    const { motivo, descripcion, email_contacto } = req.body;
+
+    if (!motivo || !descripcion) {
+      return res
+        .status(400)
+        .json({ mensaje: "El motivo y la descripción son obligatorios" });
+    }
+
+    const curso = await cursosModel.findByPk(curso_id);
+    if (!curso) {
+      return res.status(404).json({ mensaje: "El curso no existe" });
+    }
+
+    const usuario_id = req.usuario ? req.usuario.id : null;
+    const emailFinal = req.usuario ? req.usuario.email_login : email_contacto;
+
+    const reporte = await reportesCursosModel.create({
+      curso_id,
+      usuario_id,
+      email_contacto: emailFinal || null,
+      motivo,
+      descripcion,
+      estado: "pendiente",
+    });
+
+    return res.status(201).json({
+      mensaje:
+        "Reporte recibido correctamente. El equipo de administración revisará el contenido.",
+      reporte_id: reporte.id,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      mensaje: "Error al registrar el reporte del curso",
+      error: error.message,
+    });
+  }
+};
+
+
+// ============================================================
+// "ME GUSTA" — requiere estar logueado (como ciudadano). El contador es
+// visible para cualquiera, pero para votar hay que tener cuenta: así un
+// usuario sólo puede dar like una vez por curso (tabla curso_likes), y no
+// se puede "hacer trampa" limpiando el localStorage del navegador.
+// ============================================================
+export const darLikeCurso = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const curso = await cursosModel.findByPk(req.params.id, { transaction: t });
+    if (!curso) {
+      await t.rollback();
+      return res.status(404).json({ mensaje: "Curso no encontrado" });
+    }
+
+    const [, creado] = await cursoLikeModel.findOrCreate({
+      where: { curso_id: curso.id, usuario_id: req.usuario.id },
+      transaction: t,
+    });
+
+    if (!creado) {
+      await t.rollback();
+      return res.status(409).json({
+        mensaje: "Ya le diste me gusta a este curso",
+        likes_count: curso.likes_count,
+        yaMeGusta: true,
+      });
+    }
+
+    await curso.increment("likes_count", { transaction: t });
+    await t.commit();
+    await curso.reload();
+
+    return res
+      .status(200)
+      .json({ mensaje: "¡Gracias!", likes_count: curso.likes_count, yaMeGusta: true });
+  } catch (error) {
+    await t.rollback();
+    return res
+      .status(500)
+      .json({ mensaje: "Error al registrar el me gusta", error: error.message });
+  }
+};
+
+export const quitarLikeCurso = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const curso = await cursosModel.findByPk(req.params.id, { transaction: t });
+    if (!curso) {
+      await t.rollback();
+      return res.status(404).json({ mensaje: "Curso no encontrado" });
+    }
+
+    const like = await cursoLikeModel.findOne({
+      where: { curso_id: curso.id, usuario_id: req.usuario.id },
+      transaction: t,
+    });
+    if (!like) {
+      await t.rollback();
+      return res.status(200).json({
+        mensaje: "No tenías un me gusta registrado en este curso",
+        likes_count: curso.likes_count,
+        yaMeGusta: false,
+      });
+    }
+
+    await like.destroy({ transaction: t });
+    if (curso.likes_count > 0) await curso.decrement("likes_count", { transaction: t });
+    await t.commit();
+    await curso.reload();
+
+    return res
+      .status(200)
+      .json({ mensaje: "Listo", likes_count: curso.likes_count, yaMeGusta: false });
+  } catch (error) {
+    await t.rollback();
+    return res
+      .status(500)
+      .json({ mensaje: "Error al quitar el me gusta", error: error.message });
+  }
+};
+
+// ============================================================
+// RECOMENDAR UN CURSO POR EMAIL — no requiere login. Reutiliza
+// el servicio de email que ya usamos para notificaciones y
+// recuperación de contraseña.
+// ============================================================
+export const recomendarCurso = async (req, res) => {
+  try {
+    const { email_destino, nombre_remitente, mensaje_personal } = req.body;
+
+    if (!email_destino || !/^\S+@\S+\.\S+$/.test(email_destino)) {
+      return res.status(400).json({ mensaje: "Ingresá un email de destino válido" });
+    }
+
+    const curso = await cursosModel.findByPk(req.params.id, {
+      include: [{ model: institucionesModel, as: "institucion", attributes: ["nombre"] }],
+    });
+    if (!curso) return res.status(404).json({ mensaje: "Curso no encontrado" });
+
+    const urlCurso = `${process.env.FRONTEND_URL || "http://localhost:3000"}/detalles.html?id=${curso.id}`;
+    const remitente = (nombre_remitente || "Alguien").trim();
+
+    await enviarEmail({
+      to: email_destino,
+      subject: `${remitente} te recomendó un curso en AllCursos`,
+      html: `
+        <p>${remitente} pensó que este curso te podría interesar:</p>
+        <h3>${curso.titulo}</h3>
+        <p>Dictado por ${curso.institucion?.nombre || "una institución adherida"}.</p>
+        ${mensaje_personal ? `<p style="font-style: italic;">"${mensaje_personal}"</p>` : ""}
+        <p><a href="${urlCurso}">Ver el curso y anotarme</a></p>
+      `,
+    });
+
+    return res.status(200).json({ mensaje: "¡Recomendación enviada con éxito!" });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ mensaje: "Error al enviar la recomendación", error: error.message });
   }
 };

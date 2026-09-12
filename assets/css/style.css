@@ -1,72 +1,239 @@
+/* ============================================================
+   AllCursos — Tema visual sobrio y profesional
+   ============================================================
+   Estrategia: Bootstrap 5.3 expone su sistema de color como
+   variables CSS. Redefiniéndolas acá, TODA la plataforma
+   (botones, badges, alertas, bordes, texto) se recolorea sola,
+   sin tener que editar clase por clase en cada página.
+   ============================================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+
+:root {
+  /* --- Paleta de marca --- */
+  --brand-primary: #1e3a5f; /* Azul petróleo oscuro: institucional, serio */
+  --brand-primary-rgb: 30, 58, 95;
+  --brand-primary-dark: #142943;
+  --brand-accent: #2f7d6b; /* Verde azulado apagado: única "nota de color" para CTAs */
+  --brand-accent-rgb: 47, 125, 107;
+  --brand-accent-dark: #235e51;
+  --brand-bg: #f6f7f9;
+  --brand-border: #e4e7ec;
+  --brand-text-muted: #667085;
+
+  /* --- Se sobreescriben las variables de Bootstrap: esto recolorea
+     automáticamente .btn-*, .bg-*, .text-*, .border-*, .badge, .alert
+     en TODAS las páginas sin tocar el HTML --- */
+  --bs-primary: var(--brand-primary);
+  --bs-primary-rgb: var(--brand-primary-rgb);
+  --bs-secondary: #5c6773;
+  --bs-secondary-rgb: 92, 103, 115;
+  --bs-success: var(--brand-accent);
+  --bs-success-rgb: var(--brand-accent-rgb);
+  --bs-info: #3f6b8a;
+  --bs-info-rgb: 63, 107, 138;
+  --bs-warning: #b9862f;
+  --bs-warning-rgb: 185, 134, 47;
+  --bs-danger: #b3413c;
+  --bs-danger-rgb: 179, 65, 60;
+  --bs-dark: #1f2937;
+  --bs-dark-rgb: 31, 41, 55;
+  --bs-light: var(--brand-bg);
+  --bs-light-rgb: 246, 247, 249;
+  --bs-body-bg: var(--brand-bg);
+  --bs-body-color: #2d3339;
+  --bs-body-font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --bs-border-color: var(--brand-border);
+  --bs-border-radius: 0.6rem;
+  --bs-border-radius-sm: 0.4rem;
+  --bs-border-radius-lg: 0.8rem;
+  --bs-link-color: var(--brand-primary);
+  --bs-link-hover-color: var(--brand-primary-dark);
+}
+
 html {
   scroll-behavior: smooth !important;
 }
 
 body {
   opacity: 1;
-  background-color: #ffffff; /* Ajustá al color de fondo de tu app */
-  transition: opacity 1s ease-in-out; /* Un poquito más lento para que se note el efecto */
+  transition: opacity 1s ease-in-out;
 }
 
-/* Cuando aplicamos esta clase, todo se va a negro o al fondo suavemente */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.text-muted {
+  color: var(--brand-text-muted) !important;
+}
+
+/* Cuando aplicamos esta clase, todo se va suavemente */
 body.fade-out {
   opacity: 0;
 }
-
-/* El contenedor inicial del cuerpo de la página */
 .page-container {
   opacity: 1;
-  transition: opacity 0.5s ease-in-out; /* Duración de la transición: 0.5 segundos */
+  transition: opacity 0.5s ease-in-out;
 }
-
-/* La clase que aplicaremos con JS antes de irnos */
 .fade-out {
   opacity: 0;
 }
-
 .page-container-1 {
   opacity: 0;
   transition: opacity 0.5s ease-in-out;
 }
-
 .fade-in {
   opacity: 1;
 }
 
-/* Aseguramos la visualización de la imagen */
-.carousel-item img {
-  height: 100vh;
-  object-fit: cover;
-  object-position: center;
+/* ============================================================
+   BOTONES: los estados hover/active de Bootstrap vienen
+   "quemados" en el CSS compilado (no reaccionan a las variables
+   de arriba), así que se ajustan a mano acá para que combinen.
+   ============================================================ */
+.btn {
+  font-weight: 600;
+  border-radius: var(--bs-border-radius);
 }
 
-/* Corrección del contenedor de texto para que no se desborde */
-.carousel-item .carousel-caption {
-  background-color: transparent !important;
-  padding: 0;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  /* Reseteamos los estilos por defecto de Bootstrap que rompen el layout */
-  width: 100%;
+.btn-primary {
+  --bs-btn-bg: var(--brand-primary);
+  --bs-btn-border-color: var(--brand-primary);
+  --bs-btn-hover-bg: var(--brand-primary-dark);
+  --bs-btn-hover-border-color: var(--brand-primary-dark);
+  --bs-btn-active-bg: var(--brand-primary-dark);
+  --bs-btn-active-border-color: var(--brand-primary-dark);
+  --bs-btn-disabled-bg: var(--brand-primary);
+  --bs-btn-disabled-border-color: var(--brand-primary);
 }
 
-/* Estilo del botón redondeado estilo gold */
+.btn-success {
+  --bs-btn-bg: var(--brand-accent);
+  --bs-btn-border-color: var(--brand-accent);
+  --bs-btn-hover-bg: var(--brand-accent-dark);
+  --bs-btn-hover-border-color: var(--brand-accent-dark);
+  --bs-btn-active-bg: var(--brand-accent-dark);
+  --bs-btn-active-border-color: var(--brand-accent-dark);
+}
+
+.btn-outline-primary {
+  --bs-btn-color: var(--brand-primary);
+  --bs-btn-border-color: var(--brand-primary);
+  --bs-btn-hover-bg: var(--brand-primary);
+  --bs-btn-hover-border-color: var(--brand-primary);
+}
+
+.btn-outline-success {
+  --bs-btn-color: var(--brand-accent);
+  --bs-btn-border-color: var(--brand-accent);
+  --bs-btn-hover-bg: var(--brand-accent);
+  --bs-btn-hover-border-color: var(--brand-accent);
+}
+
+.btn-dark {
+  --bs-btn-bg: #1f2937;
+  --bs-btn-border-color: #1f2937;
+  --bs-btn-hover-bg: #111827;
+  --bs-btn-hover-border-color: #111827;
+}
+
+.btn-outline-dark {
+  --bs-btn-color: #1f2937;
+  --bs-btn-border-color: #1f2937;
+  --bs-btn-hover-bg: #1f2937;
+}
+
+.btn-outline-secondary {
+  --bs-btn-color: #5c6773;
+  --bs-btn-border-color: #c9cdd3;
+  --bs-btn-hover-bg: #5c6773;
+  --bs-btn-hover-border-color: #5c6773;
+}
+
+/* Botón dorado del hero -> ahora usa el acento sobrio de la marca */
 .btn-outline-gold {
-  color: #ffd700;
-  border-color: #ffd700;
-  border-radius: 30px;
+  color: #ffffff;
+  border: 1.5px solid rgba(255, 255, 255, 0.7);
+  border-radius: 4px;
   padding-left: 30px;
   padding-right: 30px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background-color: transparent;
+  transition: all 0.2s ease-in-out;
 }
 .btn-outline-gold:hover {
-  background-color: #ffd700;
-  border-color: #ffd700;
-  color: #000;
+  background-color: var(--brand-accent);
+  border-color: var(--brand-accent);
+  color: #fff;
+}
+
+/* ============================================================
+   NAVBAR: sobria, blanca, con el logo/marca en azul institucional
+   ============================================================ */
+.navbar {
+  padding-top: 0.7rem;
+  padding-bottom: 0.7rem;
+}
+.navbar .nav-link {
+  color: #4b5563;
+  font-weight: 500;
+  transition: color 0.15s ease-in-out;
+}
+.navbar .nav-link:hover,
+.navbar .nav-link.active {
+  color: var(--brand-primary);
+}
+.navbar-brand {
+  font-weight: 800;
+  color: var(--brand-primary) !important;
+  letter-spacing: -0.02em;
+}
+
+/* ============================================================
+   TARJETAS: sombra suave, leve elevación al pasar el mouse
+   ============================================================ */
+.card {
+  border-color: var(--brand-border);
+  transition: transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+.card.h-100:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 0.75rem 1.5rem rgba(30, 58, 95, 0.08) !important;
+}
+
+.badge {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* Banner simple del inicio: sin foto de fondo, sólo un degradé sobrio */
+.hero-banner {
+  background: linear-gradient(120deg, var(--brand-primary-dark) 0%, var(--brand-primary) 100%);
 }
 
 section,
 [cursos] {
-  scroll-margin-top: 70px; /* Ajustá estos px según el alto de tu barra de navegación */
+  scroll-margin-top: 70px;
+}
+
+/* ============================================================
+   ESTADÍSTICAS / MÉTRICAS (paneles y home)
+   ============================================================ */
+.stats-box {
+  background: white;
+  border-radius: var(--bs-border-radius);
+  border: 1px solid var(--brand-border);
+  padding: 1.5rem;
+  text-align: center;
+}
+
+/* ============================================================
+   CREDENCIAL / QR
+   ============================================================ */
+.qr-card {
+  border-radius: var(--bs-border-radius-lg);
+  border: 1px solid var(--brand-border);
 }
