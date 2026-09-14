@@ -4,12 +4,22 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!menuDinamico) return;
 
   const sesion = obtenerSesion();
+  const ctaCrearCuenta = document.getElementById("ctaCrearCuenta");
 
   if (sesion) {
+    // La llamada a registro solo es útil para visitantes sin una sesión activa.
+    ctaCrearCuenta?.classList.add("d-none");
     const enlacePanel =
       sesion.rol === "representante"
         ? `<a class="nav-link text-warning" href="dashboard.html"><i class="bi bi-building-gear me-1"></i>Panel Institucional</a>`
         : `<a class="nav-link text-warning" href="dashboard.html"><i class="bi bi-speedometer2 me-1"></i>Mi Panel</a>`;
+
+    const claveFoto = `fotoPerfil_${sesion.id || sesion.email_login}`;
+    const fotoPerfil = localStorage.getItem(claveFoto);
+    const iniciales = `${sesion.nombre?.[0] || "U"}${sesion.apellido?.[0] || ""}`.toUpperCase();
+    const avatar = fotoPerfil
+      ? `<img class="navbar-avatar" src="${fotoPerfil}" alt="Foto de perfil">`
+      : `<span class="navbar-avatar navbar-avatar-initials">${iniciales}</span>`;
 
     menuDinamico.innerHTML = `
       <li class="nav-item">
@@ -28,7 +38,7 @@ document.addEventListener("DOMContentLoaded", () => {
         </ul>
       </li>
       <li class="nav-item ms-lg-2">
-        <span class="nav-link text-info"><i class="bi bi-person-fill me-1"></i>${sesion.nombre} ${sesion.apellido}</span>
+        <a class="nav-link nav-profile-link" href="cuenta_perfil.html">${avatar}<span>${sesion.nombre} ${sesion.apellido}</span></a>
       </li>
       <li class="nav-item ms-lg-auto">
         <a class="nav-link text-danger" href="#" id="btnCerrarSesion"><i class="bi bi-box-arrow-right me-1"></i>Cerrar Sesión</a>

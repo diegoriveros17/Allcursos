@@ -16,33 +16,39 @@
   </head>
   <body class="d-flex flex-column h-100 bg-light">
     <header data-bs-theme="dark">
-      <nav class="navbar navbar-expand-lg bg-body-tertiary fixed-top">
-        <div class="container-fluid">
-          <a class="navbar-brand brand-infocursos" href="index.html">
-            <span class="brand-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 3L1 8l11 5 9-4.09V17h2V8L12 3z" fill="currentColor"/>
-                <path d="M5 13.18v3.6L12 21l7-4.22v-3.6L12 17l-7-3.82z" fill="currentColor" opacity="0.65"/>
-              </svg>
-            </span>
-            <span>Info<span class="brand-accent">Cursos</span></span>
-          </a>
+      <nav class="navbar navbar-expand-lg" aria-label="Navegación principal">
+        <div class="container">
+          <a class="navbar-brand brand-infocursos" href="index.html"
+            ><i class="bi bi-mortarboard-fill"></i> Info<span>Cursos</span></a
+          >
           <button
             class="navbar-toggler"
             type="button"
             data-bs-toggle="collapse"
-            data-bs-target="#navbarsExample11"
+            data-bs-target="#mainNavigation"
+            aria-controls="mainNavigation"
+            aria-expanded="false"
+            aria-label="Abrir menú"
           >
-            <span class="navbar-toggler-icon"></span>
+            <i class="bi bi-list"></i>
           </button>
-          <div
-            class="navbar-collapse d-lg-flex justify-content-between collapse show"
-            id="navbarsExample11"
-          >
-            <!-- Lista de navegación común -->
-            <ul class="navbar-nav fw-bold col-lg-8" id="menuDinamico">
-              <!-- El contenido de aquí adentro se va a generar solo por JavaScript en todas las páginas -->
-            </ul>
+          <div class="collapse navbar-collapse" id="mainNavigation">
+            <ul
+              class="navbar-nav ms-auto align-items-lg-center gap-lg-1"
+              id="menuDinamico"
+            ></ul>
+            <form class="header-search ms-lg-3" role="search" id="formBuscar">
+              <label class="visually-hidden" for="terminoBusqueda"
+                >Buscar cursos</label
+              >
+              <i class="bi bi-search"></i
+              ><input
+                type="search"
+                id="terminoBusqueda"
+                placeholder="Buscar cursos"
+                autocomplete="off"
+              />
+            </form>
           </div>
         </div>
       </nav>
@@ -58,14 +64,9 @@
             Desde aquí puedes gestionar todas tus actividades en la plataforma.
           </p>
         </div>
-        <button
-          class="btn btn-outline-dark"
-          type="button"
-          data-bs-toggle="modal"
-          data-bs-target="#modalMiCuenta"
-        >
-          <i class="bi bi-gear-fill me-1"></i> Mi Cuenta
-        </button>
+        <a class="btn btn-outline-primary" href="cuenta_perfil.html">
+          <i class="bi bi-person-gear me-1"></i> Editar cuenta
+        </a>
       </div>
 
       <div id="dashCiudadano" class="d-none">
@@ -104,22 +105,30 @@
               </div>
             </div>
 
-            <div class="card shadow-sm border-0 mb-4 d-none" id="cardListaEspera">
+            <div
+              class="card shadow-sm border-0 mb-4 d-none"
+              id="cardListaEspera"
+            >
               <div class="card-body">
                 <h5 class="card-title fw-bold">
                   <i class="bi bi-hourglass-split me-2"></i>En Lista de Espera
                 </h5>
-                <ul class="list-group list-group-flush mt-2" id="listaEsperaCiudadano"></ul>
+                <ul
+                  class="list-group list-group-flush mt-2"
+                  id="listaEsperaCiudadano"
+                ></ul>
               </div>
             </div>
 
             <div class="card shadow-sm border-0">
               <div class="card-body">
                 <h5 class="card-title fw-bold">
-                  <i class="bi bi-clipboard2-check-fill me-2"></i>Encuestas Disponibles
+                  <i class="bi bi-clipboard2-check-fill me-2"></i>Encuestas
+                  Disponibles
                 </h5>
                 <p class="text-muted small">
-                  Contanos qué capacitaciones te interesan o cómo te fue en un curso que hiciste.
+                  Contanos qué capacitaciones te interesan o cómo te fue en un
+                  curso que hiciste.
                 </p>
                 <div id="listaEncuestasCiudadano"></div>
               </div>
@@ -185,8 +194,8 @@
                   </button>
                 </div>
                 <p class="text-muted small mb-2">
-                  Preguntá qué capacitaciones les interesan antes de lanzar un curso, o
-                  medí la satisfacción de un curso ya finalizado.
+                  Preguntá qué capacitaciones les interesan antes de lanzar un
+                  curso, o medí la satisfacción de un curso ya finalizado.
                 </p>
                 <div id="listaEncuestasRepresentante"></div>
               </div>
@@ -279,9 +288,7 @@
                   />
                 </div>
                 <div class="col-md-6">
-                  <label
-                    for="cursoDuracionHoras"
-                    class="form-label fw-semibold"
+                  <label for="cursoDuracionHoras" class="form-label fw-semibold"
                     >Duración (horas)</label
                   >
                   <input
@@ -295,7 +302,11 @@
                   <label for="cursoFechaInicio" class="form-label fw-semibold"
                     >Fecha de inicio (opcional)</label
                   >
-                  <input type="date" class="form-control" id="cursoFechaInicio" />
+                  <input
+                    type="date"
+                    class="form-control"
+                    id="cursoFechaInicio"
+                  />
                 </div>
                 <div class="col-md-6">
                   <label for="cursoFechaFin" class="form-label fw-semibold"
@@ -319,16 +330,26 @@
                   />
                   <div class="form-text">JPG, PNG o WEBP. Máximo 3MB.</div>
                   <div id="cursoImagenActualWrap" class="d-none mt-2">
-                    <span class="text-muted small">Imagen actual:</span><br>
-                    <img id="cursoImagenActualPreview" src="" alt="" style="height:60px;border-radius:6px;">
-                    <span class="text-muted small d-block">Subí una nueva sólo si querés reemplazarla.</span>
+                    <span class="text-muted small">Imagen actual:</span><br />
+                    <img
+                      id="cursoImagenActualPreview"
+                      src=""
+                      alt=""
+                      style="height: 60px; border-radius: 6px"
+                    />
+                    <span class="text-muted small d-block"
+                      >Subí una nueva sólo si querés reemplazarla.</span
+                    >
                   </div>
                 </div>
                 <div class="col-12">
                   <label class="form-label fw-semibold d-block"
                     >Requisitos (opcional)</label
                   >
-                  <div id="cursoRequisitos" class="d-flex flex-wrap gap-3"></div>
+                  <div
+                    id="cursoRequisitos"
+                    class="d-flex flex-wrap gap-3"
+                  ></div>
                 </div>
               </div>
               <div class="mt-4 d-flex justify-content-end gap-2">
@@ -339,7 +360,11 @@
                 >
                   Cancelar
                 </button>
-                <button type="submit" class="btn btn-primary" id="btnSubmitCurso">
+                <button
+                  type="submit"
+                  class="btn btn-primary"
+                  id="btnSubmitCurso"
+                >
                   Publicar Curso
                 </button>
               </div>
@@ -360,7 +385,9 @@
       <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
           <div class="modal-header bg-dark text-white">
-            <h5 class="modal-title" id="modalNuevaEncuestaLabel">Nueva Encuesta</h5>
+            <h5 class="modal-title" id="modalNuevaEncuestaLabel">
+              Nueva Encuesta
+            </h5>
             <button
               type="button"
               class="btn-close btn-close-white"
@@ -372,12 +399,33 @@
             <form id="formNuevaEncuesta">
               <div class="row g-3">
                 <div class="col-12">
-                  <label class="form-label fw-semibold d-block">Tipo de encuesta</label>
+                  <label class="form-label fw-semibold d-block"
+                    >Tipo de encuesta</label
+                  >
                   <div class="btn-group w-100" role="group">
-                    <input type="radio" class="btn-check" name="tipoEncuesta" id="tipoInteres" value="Interes" checked>
-                    <label class="btn btn-outline-primary" for="tipoInteres">Interés (antes de lanzar un curso)</label>
-                    <input type="radio" class="btn-check" name="tipoEncuesta" id="tipoSatisfaccion" value="Satisfaccion">
-                    <label class="btn btn-outline-primary" for="tipoSatisfaccion">Satisfacción (sobre un curso ya dictado)</label>
+                    <input
+                      type="radio"
+                      class="btn-check"
+                      name="tipoEncuesta"
+                      id="tipoInteres"
+                      value="Interes"
+                      checked
+                    />
+                    <label class="btn btn-outline-primary" for="tipoInteres"
+                      >Interés (antes de lanzar un curso)</label
+                    >
+                    <input
+                      type="radio"
+                      class="btn-check"
+                      name="tipoEncuesta"
+                      id="tipoSatisfaccion"
+                      value="Satisfaccion"
+                    />
+                    <label
+                      class="btn btn-outline-primary"
+                      for="tipoSatisfaccion"
+                      >Satisfacción (sobre un curso ya dictado)</label
+                    >
                   </div>
                 </div>
                 <div class="col-12">
@@ -410,10 +458,16 @@
                 </div>
               </div>
               <div class="mt-4 d-flex justify-content-end gap-2">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                <button
+                  type="button"
+                  class="btn btn-secondary"
+                  data-bs-dismiss="modal"
+                >
                   Cancelar
                 </button>
-                <button type="submit" class="btn btn-primary">Publicar Encuesta</button>
+                <button type="submit" class="btn btn-primary">
+                  Publicar Encuesta
+                </button>
               </div>
             </form>
           </div>
@@ -432,14 +486,19 @@
       <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
           <div class="modal-header bg-dark text-white">
-            <h5 class="modal-title" id="modalResultadosEncuestaLabel">Resultados</h5>
+            <h5 class="modal-title" id="modalResultadosEncuestaLabel">
+              Resultados
+            </h5>
             <button
               type="button"
               class="btn-close btn-close-white"
               data-bs-dismiss="modal"
             ></button>
           </div>
-          <div class="modal-body text-start" id="cuerpoResultadosEncuesta"></div>
+          <div
+            class="modal-body text-start"
+            id="cuerpoResultadosEncuesta"
+          ></div>
         </div>
       </div>
     </div>
@@ -465,17 +524,32 @@
           <div class="modal-body text-start">
             <ul class="nav nav-tabs" role="tablist">
               <li class="nav-item" role="presentation">
-                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabDatos" type="button">
+                <button
+                  class="nav-link active"
+                  data-bs-toggle="tab"
+                  data-bs-target="#tabDatos"
+                  type="button"
+                >
                   Mis Datos
                 </button>
               </li>
               <li class="nav-item" role="presentation">
-                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabPassword" type="button">
+                <button
+                  class="nav-link"
+                  data-bs-toggle="tab"
+                  data-bs-target="#tabPassword"
+                  type="button"
+                >
                   Contraseña
                 </button>
               </li>
               <li class="nav-item" role="presentation">
-                <button class="nav-link text-danger" data-bs-toggle="tab" data-bs-target="#tabEliminar" type="button">
+                <button
+                  class="nav-link text-danger"
+                  data-bs-toggle="tab"
+                  data-bs-target="#tabEliminar"
+                  type="button"
+                >
                   Eliminar cuenta
                 </button>
               </li>
@@ -488,32 +562,77 @@
                 <form id="formCuentaDatos">
                   <div class="row g-3">
                     <div class="col-md-6">
-                      <label for="cuentaNombre" class="form-label fw-semibold">Nombre</label>
-                      <input type="text" class="form-control" id="cuentaNombre" required>
+                      <label for="cuentaNombre" class="form-label fw-semibold"
+                        >Nombre</label
+                      >
+                      <input
+                        type="text"
+                        class="form-control"
+                        id="cuentaNombre"
+                        required
+                      />
                     </div>
                     <div class="col-md-6">
-                      <label for="cuentaApellido" class="form-label fw-semibold">Apellido</label>
-                      <input type="text" class="form-control" id="cuentaApellido" required>
+                      <label for="cuentaApellido" class="form-label fw-semibold"
+                        >Apellido</label
+                      >
+                      <input
+                        type="text"
+                        class="form-control"
+                        id="cuentaApellido"
+                        required
+                      />
                     </div>
                     <div class="col-md-6">
-                      <label for="cuentaTelefono" class="form-label fw-semibold">Teléfono</label>
-                      <input type="tel" class="form-control" id="cuentaTelefono">
+                      <label for="cuentaTelefono" class="form-label fw-semibold"
+                        >Teléfono</label
+                      >
+                      <input
+                        type="tel"
+                        class="form-control"
+                        id="cuentaTelefono"
+                      />
                     </div>
                     <div class="col-md-6">
-                      <label for="cuentaEmail" class="form-label fw-semibold">Email de acceso</label>
-                      <input type="email" class="form-control" id="cuentaEmail" required>
+                      <label for="cuentaEmail" class="form-label fw-semibold"
+                        >Email de acceso</label
+                      >
+                      <input
+                        type="email"
+                        class="form-control"
+                        id="cuentaEmail"
+                        required
+                      />
                     </div>
                     <div class="col-md-6 d-none" id="grupoCuentaInstitucion">
-                      <label for="cuentaInstitucionNombre" class="form-label fw-semibold">Nombre de la institución</label>
-                      <input type="text" class="form-control" id="cuentaInstitucionNombre">
+                      <label
+                        for="cuentaInstitucionNombre"
+                        class="form-label fw-semibold"
+                        >Nombre de la institución</label
+                      >
+                      <input
+                        type="text"
+                        class="form-control"
+                        id="cuentaInstitucionNombre"
+                      />
                     </div>
                     <div class="col-md-6 d-none" id="grupoCuentaCuit">
-                      <label for="cuentaInstitucionCuit" class="form-label fw-semibold">CUIT</label>
-                      <input type="text" class="form-control" id="cuentaInstitucionCuit">
+                      <label
+                        for="cuentaInstitucionCuit"
+                        class="form-label fw-semibold"
+                        >CUIT</label
+                      >
+                      <input
+                        type="text"
+                        class="form-control"
+                        id="cuentaInstitucionCuit"
+                      />
                     </div>
                   </div>
                   <div class="mt-4 d-flex justify-content-end">
-                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                    <button type="submit" class="btn btn-primary">
+                      Guardar Cambios
+                    </button>
                   </div>
                 </form>
               </div>
@@ -524,20 +643,51 @@
                 <form id="formCuentaPassword">
                   <div class="row g-3">
                     <div class="col-12">
-                      <label for="cuentaPasswordActual" class="form-label fw-semibold">Contraseña actual</label>
-                      <input type="password" class="form-control" id="cuentaPasswordActual" required>
+                      <label
+                        for="cuentaPasswordActual"
+                        class="form-label fw-semibold"
+                        >Contraseña actual</label
+                      >
+                      <input
+                        type="password"
+                        class="form-control"
+                        id="cuentaPasswordActual"
+                        required
+                      />
                     </div>
                     <div class="col-md-6">
-                      <label for="cuentaPasswordNueva" class="form-label fw-semibold">Nueva contraseña</label>
-                      <input type="password" class="form-control" id="cuentaPasswordNueva" required minlength="4">
+                      <label
+                        for="cuentaPasswordNueva"
+                        class="form-label fw-semibold"
+                        >Nueva contraseña</label
+                      >
+                      <input
+                        type="password"
+                        class="form-control"
+                        id="cuentaPasswordNueva"
+                        required
+                        minlength="4"
+                      />
                     </div>
                     <div class="col-md-6">
-                      <label for="cuentaPasswordConfirmar" class="form-label fw-semibold">Confirmar nueva contraseña</label>
-                      <input type="password" class="form-control" id="cuentaPasswordConfirmar" required minlength="4">
+                      <label
+                        for="cuentaPasswordConfirmar"
+                        class="form-label fw-semibold"
+                        >Confirmar nueva contraseña</label
+                      >
+                      <input
+                        type="password"
+                        class="form-control"
+                        id="cuentaPasswordConfirmar"
+                        required
+                        minlength="4"
+                      />
                     </div>
                   </div>
                   <div class="mt-4 d-flex justify-content-end">
-                    <button type="submit" class="btn btn-primary">Cambiar Contraseña</button>
+                    <button type="submit" class="btn btn-primary">
+                      Cambiar Contraseña
+                    </button>
                   </div>
                 </form>
               </div>
@@ -545,16 +695,28 @@
               <!-- TAB: ELIMINAR CUENTA -->
               <div class="tab-pane fade" id="tabEliminar">
                 <div class="alert alert-warning">
-                  Al eliminar tu cuenta, se desactivará tu acceso a la plataforma. Esta acción no se puede deshacer desde acá.
+                  Al eliminar tu cuenta, se desactivará tu acceso a la
+                  plataforma. Esta acción no se puede deshacer desde acá.
                 </div>
                 <div id="msjCuentaEliminar"></div>
                 <form id="formCuentaEliminar">
                   <div class="mb-3">
-                    <label for="cuentaPasswordEliminar" class="form-label fw-semibold">Confirmá tu contraseña para continuar</label>
-                    <input type="password" class="form-control" id="cuentaPasswordEliminar" required>
+                    <label
+                      for="cuentaPasswordEliminar"
+                      class="form-label fw-semibold"
+                      >Confirmá tu contraseña para continuar</label
+                    >
+                    <input
+                      type="password"
+                      class="form-control"
+                      id="cuentaPasswordEliminar"
+                      required
+                    />
                   </div>
                   <div class="d-flex justify-content-end">
-                    <button type="submit" class="btn btn-danger">Eliminar mi cuenta</button>
+                    <button type="submit" class="btn btn-danger">
+                      Eliminar mi cuenta
+                    </button>
                   </div>
                 </form>
               </div>
@@ -564,13 +726,8 @@
       </div>
     </div>
 
-    <footer class="text-white bg-black py-3 mt-auto">
-      <div class="container text-center">
-        <p class="mb-1">&copy; AllCursos 2026</p>
-        <a href="verificar_certificado.html" class="text-white-50 small">
-          <i class="bi bi-patch-check"></i> Verificar un certificado
-        </a>
-      </div>
+    <footer class="site-footer mt-auto">
+      <div class="container text-center">© 2026 InfoCursos</div>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>

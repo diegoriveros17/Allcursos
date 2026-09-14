@@ -1,164 +1,82 @@
 <!doctype html>
-<html lang="en" class="h-100">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>InfoCursos</title>
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-      integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
-      crossorigin="anonymous"
-    />
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css"
-    />
+    <meta name="description" content="InfoCursos: cursos y formación profesional." />
+    <title>InfoCursos | Formación profesional</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="assets/css/style.css" />
   </head>
-  <body class="d-flex flex-column h-100" id="page-container-1">
-    <header data-bs-theme="dark">
-      <nav class="navbar navbar-expand-lg bg-body-tertiary fixed-top">
-        <div class="container-fluid">
-          <a class="navbar-brand brand-infocursos" href="index.html">
-            <span class="brand-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 3L1 8l11 5 9-4.09V17h2V8L12 3z" fill="currentColor"/>
-                <path d="M5 13.18v3.6L12 21l7-4.22v-3.6L12 17l-7-3.82z" fill="currentColor" opacity="0.65"/>
-              </svg>
-            </span>
-            <span>Info<span class="brand-accent">Cursos</span></span>
-          </a>
-          <button
-            class="navbar-toggler"
-            type="button"
-            data-bs-toggle="collapse"
-            data-bs-target="#navbarsExample11"
-          >
-            <span class="navbar-toggler-icon"></span>
-          </button>
-          <div
-            class="navbar-collapse d-lg-flex justify-content-between collapse show"
-            id="navbarsExample11"
-          >
-            <!-- Lista de navegación común -->
-            <ul class="navbar-nav fw-bold col-lg-8" id="menuDinamico">
-              <!-- El contenido de aquí adentro se va a generar solo por JavaScript en todas las páginas -->
-            </ul>
-
-            <div class="col-lg-4">
-              <form class="d-flex" role="search" id="formBuscar">
-                <input
-                  class="form-control me-2"
-                  type="search"
-                  placeholder="Buscar"
-                  name="terminoBusqueda"
-                  id="terminoBusqueda"
-                />
-                <button class="btn btn-outline-success" type="submit">
-                  Buscar
-                </button>
-              </form>
-            </div>
+  <body class="site-page">
+    <header class="site-header">
+      <nav class="navbar navbar-expand-lg" aria-label="Navegación principal">
+        <div class="container">
+          <a class="navbar-brand brand-infocursos" href="index.html"><i class="bi bi-mortarboard-fill"></i> Info<span>Cursos</span></a>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavigation" aria-controls="mainNavigation" aria-expanded="false" aria-label="Abrir menú"><i class="bi bi-list"></i></button>
+          <div class="collapse navbar-collapse" id="mainNavigation">
+            <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-1" id="menuDinamico"></ul>
+            <form class="header-search ms-lg-3" role="search" id="formBuscar">
+              <label class="visually-hidden" for="terminoBusqueda">Buscar cursos</label>
+              <i class="bi bi-search"></i><input type="search" id="terminoBusqueda" placeholder="Buscar cursos" autocomplete="off" />
+            </form>
           </div>
         </div>
       </nav>
     </header>
 
     <main>
-      <section>
-        <div
-          id="carouselExample"
-          class="carousel slide carousel-fade"
-          data-bs-ride="carousel"
-        >
-          <div class="carousel-inner">
-            <!-- Item Activo -->
-            <div class="carousel-item active">
-              <!-- Tu imagen limpia de fondo -->
-              <img
-                src="assets/img/infocursos1.png"
-                class="d-block w-100"
-                alt="InfoCursos"
-              />
-
-              <!-- Capa contenedora alineada con Flexbox nativo de Bootstrap -->
-              <div class="carousel-caption d-flex align-items-center">
-                <div class="container">
-                  <div class="row">
-                    <!-- Limitamos el ancho del texto a 6 columnas en pantallas grandes -->
-                    <div class="col-lg-6 col-md-8 col-12 text-start text-white">
-                      <h1 class="display-3 fw-bold mb-3 text-uppercase">
-                        ¡BIENVENIDO A
-                      </h1>
-                      <h1
-                        class="display-3 fw-bold mb-3 text-uppercase text-warning"
-                      >
-                        INFOCURSOS!
-                      </h1>
-                      <p class="lead display-6 fw-bolder mb-4">
-                        Conoce las últimas ofertas de cursos de formación
-                        profesional, disponibles.
-                      </p>
-                      <a href="#cursos" class="btn btn-outline-gold btn-lg"
-                        >Explora los Cursos Disponibles</a
-                      >
-                    </div>
-                  </div>
-                </div>
+      <section class="hero-section">
+        <div class="container position-relative">
+          <div class="row align-items-center gy-5">
+            <div class="col-lg-6">
+              <p class="eyebrow"><i class="bi bi-stars"></i> Formación para tu futuro</p>
+              <h1 class="hero-title">Aprendé hoy.<br /><span>Avanzá siempre.</span></h1>
+              <p class="hero-subtitle">Encontrá cursos de calidad, estudiá a tu ritmo y obtené certificados que potencian tu perfil profesional.</p>
+              <div class="hero-actions">
+                <a class="btn btn-brand btn-lg" href="#cursos"><i class="bi bi-search"></i> Explorar cursos</a>
+                <a class="button-link" id="ctaCrearCuenta" href="formulario_registro.html">Crear una cuenta <i class="bi bi-arrow-right"></i></a>
+              </div>
+              <div class="hero-stats" aria-label="Estadísticas de la plataforma">
+                <div><strong>+500</strong><span>cursos disponibles</span></div>
+                <div><strong>+10 mil</strong><span>personas aprendiendo</span></div>
+                <div><strong>98%</strong><span>de satisfacción</span></div>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <div class="hero-visual" aria-hidden="true">
+                <div class="hero-orbit orbit-lg"></div><div class="hero-orbit orbit-sm"></div>
+                <article class="preview-card">
+                  <div class="preview-cover"><span class="preview-play"><i class="bi bi-play-fill"></i></span><span>CURSOS ONLINE</span></div>
+                  <div class="preview-content"><small>DISEÑO Y TECNOLOGÍA</small><h2>Diseño UX/UI desde cero</h2><div class="progress"><div class="progress-bar" style="width:68%"></div></div><p>68% completado</p></div>
+                </article>
+                <div class="floating-note note-cert"><i class="bi bi-patch-check-fill"></i><span><strong>Certificado oficial</strong><small>Sumalo a tu perfil</small></span></div>
+                <div class="floating-note note-community"><i class="bi bi-people-fill"></i><span><strong>Comunidad activa</strong><small>Aprendé acompañado</small></span></div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="py-3 text-center container" id="cursos">
-        <div class="album py-5">
-          <div class="container">
-            <h2 class="section-heading">
-              <i class="bi bi-mortarboard-fill"></i> Cursos Disponibles
-            </h2>
-            <div class="row g-2 justify-content-center mb-4">
-              <div class="col-auto">
-                <select class="form-select" id="filtroCategoria">
-                  <option value="">Todas las categorías</option>
-                </select>
-              </div>
-              <div class="col-auto">
-                <select class="form-select" id="filtroModalidad">
-                  <option value="">Todas las modalidades</option>
-                  <option value="Presencial">Presencial</option>
-                  <option value="Virtual">Virtual</option>
-                  <option value="Híbrido">Híbrido</option>
-                </select>
-              </div>
-              <div class="col-auto">
-                <button class="btn btn-outline-secondary" type="button" id="btnLimpiarFiltros">
-                  Limpiar filtros
-                </button>
-              </div>
-            </div>
-            <div class="row g-3" id="cardCursos"></div>
+      <section class="courses-section" id="cursos">
+        <div class="container">
+          <div class="section-heading">
+            <div><p class="section-kicker">CATÁLOGO</p><h2>Encontrá tu próximo curso</h2><p>Explorá propuestas de instituciones y elegí la modalidad que mejor se adapta a vos.</p></div>
+            <a href="verificar_certificado.html" class="button-link d-none d-md-inline-block">Verificar certificado <i class="bi bi-arrow-right"></i></a>
           </div>
+          <div class="filter-toolbar">
+            <div class="filter-field"><label for="filtroCategoria">Categoría</label><select class="form-select" id="filtroCategoria"><option value="">Todas las categorías</option></select></div>
+            <div class="filter-field"><label for="filtroModalidad">Modalidad</label><select class="form-select" id="filtroModalidad"><option value="">Todas las modalidades</option><option value="Presencial">Presencial</option><option value="Virtual">Virtual</option><option value="Híbrido">Híbrido</option></select></div>
+            <button class="btn btn-light" type="button" id="btnLimpiarFiltros"><i class="bi bi-arrow-counterclockwise"></i> Limpiar</button>
+          </div>
+          <div class="row g-4" id="cardCursos" aria-live="polite"></div>
         </div>
       </section>
     </main>
-    <footer class="text-white bg-black py-3 mt-auto">
-      <div class="container text-center">
-        <p class="mb-1">&copy; AllCursos 2026</p>
-        <a href="verificar_certificado.html" class="text-white-50 small">
-          <i class="bi bi-patch-check"></i> Verificar un certificado
-        </a>
-      </div>
-    </footer>
-    <script
-      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
-      integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
-      crossorigin="anonymous"
-    ></script>
-    <script src="assets/js/api.js"></script>
-    <script src="assets/js/navbar.js"></script>
-    <script src="assets/js/app.js"></script>
-    <script src="assets/js/chatbot.js"></script>
+
+    <footer class="site-footer"><div class="container d-flex flex-wrap justify-content-between gap-2"><span>© 2026 InfoCursos</span><a href="verificar_certificado.html">Verificar un certificado</a></div></footer>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/js/api.js"></script><script src="assets/js/navbar.js"></script><script src="assets/js/app.js"></script><script src="assets/js/chatbot.js"></script>
   </body>
 </html>

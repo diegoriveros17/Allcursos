@@ -76,7 +76,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                   ? `<div class="alert alert-secondary text-center mb-0">
                        Los representantes de instituciones no pueden inscribirse a cursos.
                      </div>`
-                  : `<button class="btn btn-dark btn-lg w-100" id="btnInscribirse">
+                  : `<button class="btn btn-brand btn-lg w-100" id="btnInscribirse">
                        ${sinCupos ? "Anotarme en lista de espera" : "Inscribirme a este Curso"}
                      </button>`
               }
@@ -206,6 +206,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         modalInscripcionBS.show();
       }
     });
+
+    // Desde el catálogo, el botón “Inscribirme” llega con esta acción y abre
+    // directamente el flujo correcto: confirmación si hay sesión o formulario si no.
+    if (urlParams.get("accion") === "inscribir") botonInscribirse.click();
   }
 
   document.getElementById("btnConfirmarLogueado").addEventListener("click", async () => {

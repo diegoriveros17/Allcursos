@@ -16,48 +16,41 @@
     />
     <link rel="stylesheet" href="assets/css/style.css" />
   </head>
-  <body class="d-flex flex-column h-100">
+  <body class="auth-page d-flex flex-column h-100">
     <header data-bs-theme="dark">
-      <nav class="navbar navbar-expand-lg bg-body-tertiary fixed-top">
-        <div class="container-fluid">
-          <a class="navbar-brand brand-infocursos" href="index.html">
-            <span class="brand-icon">
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M12 3L1 8l11 5 9-4.09V17h2V8L12 3z"
-                  fill="currentColor"
-                />
-                <path
-                  d="M5 13.18v3.6L12 21l7-4.22v-3.6L12 17l-7-3.82z"
-                  fill="currentColor"
-                  opacity="0.65"
-                />
-              </svg>
-            </span>
-            <span>Info<span class="brand-accent">Cursos</span></span>
-          </a>
+      <nav class="navbar navbar-expand-lg" aria-label="Navegación principal">
+        <div class="container">
+          <a class="navbar-brand brand-infocursos" href="index.html"
+            ><i class="bi bi-mortarboard-fill"></i> Info<span>Cursos</span></a
+          >
           <button
             class="navbar-toggler"
             type="button"
             data-bs-toggle="collapse"
-            data-bs-target="#navbarsExample11"
+            data-bs-target="#mainNavigation"
+            aria-controls="mainNavigation"
+            aria-expanded="false"
+            aria-label="Abrir menú"
           >
-            <span class="navbar-toggler-icon"></span>
+            <i class="bi bi-list"></i>
           </button>
-          <div
-            class="navbar-collapse d-lg-flex justify-content-between collapse show"
-            id="navbarsExample11"
-          >
-            <!-- Lista de navegación común -->
-            <ul class="navbar-nav fw-bold col-lg-8" id="menuDinamico">
-              <!-- El contenido de aquí adentro se va a generar solo por JavaScript en todas las páginas -->
-            </ul>
+          <div class="collapse navbar-collapse" id="mainNavigation">
+            <ul
+              class="navbar-nav ms-auto align-items-lg-center gap-lg-1"
+              id="menuDinamico"
+            ></ul>
+            <form class="header-search ms-lg-3" role="search" id="formBuscar">
+              <label class="visually-hidden" for="terminoBusqueda"
+                >Buscar cursos</label
+              >
+              <i class="bi bi-search"></i
+              ><input
+                type="search"
+                id="terminoBusqueda"
+                placeholder="Buscar cursos"
+                autocomplete="off"
+              />
+            </form>
           </div>
         </div>
       </nav>
@@ -244,10 +237,8 @@
         </div>
       </section>
     </main>
-    <footer class="text-white bg-black py-3 mt-auto">
-      <div class="container text-center">
-        <p class="mb-0">&copy; AllCursos 2026</p>
-      </div>
+    <footer class="site-footer">
+      <div class="container text-center">© 2026 InfoCursos</div>
     </footer>
     <script
       src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"

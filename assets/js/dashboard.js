@@ -49,7 +49,6 @@ document.addEventListener("DOMContentLoaded", () => {
     panelCiudadano?.classList.remove("d-none");
   }
 
-  prepararMiCuenta(sesion);
 });
 
 // ==========================================
