@@ -20,6 +20,31 @@
     <header data-bs-theme="dark">
       <nav class="navbar navbar-expand-lg bg-body-tertiary fixed-top">
         <div class="container-fluid">
+<<<<<<< Updated upstream
+=======
+          <a class="navbar-brand brand-infocursos" href="index.html">
+            <span class="brand-icon">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M12 3L1 8l11 5 9-4.09V17h2V8L12 3z"
+                  fill="currentColor"
+                />
+                <path
+                  d="M5 13.18v3.6L12 21l7-4.22v-3.6L12 17l-7-3.82z"
+                  fill="currentColor"
+                  opacity="0.65"
+                />
+              </svg>
+            </span>
+            <span>Info<span class="brand-accent">Cursos</span></span>
+          </a>
+>>>>>>> Stashed changes
           <button
             class="navbar-toggler"
             type="button"
@@ -57,45 +82,83 @@
     </header>
 
     <main>
-      <section>
-        <div
-          id="carouselExample"
-          class="carousel slide carousel-fade"
-          data-bs-ride="carousel"
-        >
-          <div class="carousel-inner">
-            <!-- Item Activo -->
-            <div class="carousel-item active">
-              <!-- Tu imagen limpia de fondo -->
-              <img
-                src="assets/img/infocursos1.png"
-                class="d-block w-100"
-                alt="InfoCursos"
-              />
-
-              <!-- Capa contenedora alineada con Flexbox nativo de Bootstrap -->
-              <div class="carousel-caption d-flex align-items-center">
-                <div class="container">
-                  <div class="row">
-                    <!-- Limitamos el ancho del texto a 6 columnas en pantallas grandes -->
-                    <div class="col-lg-6 col-md-8 col-12 text-start text-white">
-                      <h1 class="display-3 fw-bold mb-3 text-uppercase">
-                        ¡BIENVENIDO A
-                      </h1>
-                      <h1
-                        class="display-3 fw-bold mb-3 text-uppercase text-warning"
-                      >
-                        INFOCURSOS!
-                      </h1>
-                      <p class="lead display-6 fw-bolder mb-4">
-                        Conoce las últimas ofertas de cursos de formación
-                        profesional, disponibles.
-                      </p>
-                      <a href="#cursos" class="btn btn-outline-gold btn-lg"
-                        >Explora los Cursos Disponibles</a
-                      >
-                    </div>
+      <section class="hero-section">
+        <div class="container">
+          <div class="row align-items-center gy-5">
+            <div class="col-lg-6">
+              <span class="hero-eyebrow">
+                <i class="bi bi-mortarboard-fill"></i> Plataforma de formación
+                profesional
+              </span>
+              <h1 class="hero-title">
+                ¡Bienvenido a <span class="text-brand-blue">Info</span
+                ><span class="text-brand-yellow">Cursos</span>!
+              </h1>
+              <p class="hero-subtitle">
+                Conocé las últimas ofertas de cursos de formación profesional,
+                elegí la modalidad que más te conviene y sumá un certificado
+                validado a tu perfil.
+              </p>
+              <div class="hero-cta">
+                <a href="#cursos" class="btn btn-primary btn-lg">
+                  <i class="bi bi-search"></i> Explorar cursos disponibles
+                </a>
+                <a
+                  href="formulario_registro.html"
+                  class="btn btn-outline-primary btn-lg"
+                >
+                  Registrate gratis
+                </a>
+              </div>
+              <div class="hero-stats">
+                <div class="hero-stat">
+                  <div class="hero-stat-icon bg-brand-blue">
+                    <i class="bi bi-journal-bookmark-fill"></i>
                   </div>
+                  <div>
+                    <strong>+500</strong>
+                    <span>Cursos disponibles</span>
+                  </div>
+                </div>
+                <div class="hero-stat">
+                  <div class="hero-stat-icon bg-brand-green">
+                    <i class="bi bi-people-fill"></i>
+                  </div>
+                  <div>
+                    <strong>+10.000</strong>
+                    <span>Estudiantes</span>
+                  </div>
+                </div>
+                <div class="hero-stat">
+                  <div class="hero-stat-icon bg-brand-yellow">
+                    <i class="bi bi-patch-check-fill"></i>
+                  </div>
+                  <div>
+                    <strong>Certificados</strong>
+                    <span>Oficiales y validados</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-6">
+              <div class="hero-illustration">
+                <div class="hero-blob blob-blue"></div>
+                <div class="hero-blob blob-green"></div>
+                <div class="hero-card hero-card-main">
+                  <i class="bi bi-mortarboard-fill"></i>
+                  <span>Formación<br />Profesional</span>
+                </div>
+                <div class="hero-card hero-floating card-1">
+                  <i class="bi bi-laptop text-brand-blue"></i> Modalidad Virtual
+                </div>
+                <div class="hero-card hero-floating card-2">
+                  <i class="bi bi-award-fill text-brand-yellow"></i> Certificado
+                  Oficial
+                </div>
+                <div class="hero-card hero-floating card-3">
+                  <i class="bi bi-graph-up-arrow text-brand-green"></i> 98%
+                  Satisfacción
                 </div>
               </div>
             </div>
@@ -106,7 +169,16 @@
       <section class="py-3 text-center container" id="cursos">
         <div class="album py-5">
           <div class="container">
+<<<<<<< Updated upstream
             <div class="row g-2 justify-content-center mb-4">
+=======
+            <h2 class="section-heading">
+              <i class="bi bi-mortarboard-fill"></i> Cursos Disponibles
+            </h2>
+            <div
+              class="filter-toolbar row g-2 justify-content-center align-items-center mb-4"
+            >
+>>>>>>> Stashed changes
               <div class="col-auto">
                 <select class="form-select" id="filtroCategoria">
                   <option value="">Todas las categorías</option>
@@ -121,7 +193,11 @@
                 </select>
               </div>
               <div class="col-auto">
-                <button class="btn btn-outline-secondary" type="button" id="btnLimpiarFiltros">
+                <button
+                  class="btn btn-outline-secondary"
+                  type="button"
+                  id="btnLimpiarFiltros"
+                >
                   Limpiar filtros
                 </button>
               </div>
@@ -131,7 +207,7 @@
         </div>
       </section>
     </main>
-    <footer class="text-white bg-black py-3 mt-auto">
+    <footer class="text-white bg-primary py-3 mt-auto">
       <div class="container text-center">
         <p class="mb-1">&copy; AllCursos 2026</p>
         <a href="verificar_certificado.html" class="text-white-50 small">
