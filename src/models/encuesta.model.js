@@ -6,6 +6,8 @@ export const encuestasModel = sequelize.define(
   {
     id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
     titulo: { type: DataTypes.STRING(150), allowNull: false },
+    // Texto de presentación opcional que ve el estudiante antes de responder
+    descripcion: { type: DataTypes.TEXT, allowNull: true },
     institucion_id: { type: DataTypes.INTEGER, allowNull: false },
     curso_id: { type: DataTypes.INTEGER, allowNull: true },
     categoria_id: { type: DataTypes.INTEGER, allowNull: true },

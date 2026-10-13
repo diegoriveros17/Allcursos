@@ -11,6 +11,7 @@ import {
   reportesCursosModel,
 } from "../models/index.js";
 import { enviarEmail } from "../utils/email.service.js";
+import { construirUrl } from "../config/appUrl.js";
 
 // Resumen de métricas para el dashboard del administrador
 export const obtenerMetricas = async (req, res) => {
@@ -132,7 +133,7 @@ export const aprobarRepresentante = async (req, res) => {
           usuario.representaciones?.[0]?.institucion?.nombre || "tu institución"
         }</strong> ha sido <strong>aprobada</strong> por el equipo de administración de AllCursos.</p>
         <p>Ya puedes iniciar sesión y comenzar a publicar tus cursos y capacitaciones.</p>
-        <p><a href="${process.env.FRONTEND_URL || "http://localhost:3000"}/login.html" style="background:#0d6efd;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;">Ingresar a la Plataforma</a></p>
+        <p><a href="${construirUrl("login.html")}" style="background:#0d6efd;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;">Ingresar a la Plataforma</a></p>
       `,
     }).catch((e) => console.error("Error enviando email de aprobación:", e.message));
 

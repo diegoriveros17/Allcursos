@@ -135,6 +135,44 @@ document.addEventListener("DOMContentLoaded", async () => {
         </div>
       </div>
 
+      ${
+        !sesion || sesion.rol === "ciudadano"
+          ? `
+      <!-- CONSULTAR SOBRE ESTE CURSO (público, no requiere cuenta) -->
+      <div class="card shadow-sm border-0 mt-4 text-start" id="seccionConsulta">
+        <div class="card-body p-4">
+          <h4 class="fw-bold mb-1"><i class="bi bi-chat-dots me-2"></i>Consultar sobre este curso</h4>
+          <p class="text-muted">¿Tenés dudas? Escribile a la institución. No necesitás tener una cuenta.</p>
+          <div id="msjConsulta"></div>
+          <form id="formConsulta" novalidate>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label for="consultaNombre" class="form-label fw-semibold">Nombre</label>
+                <input type="text" class="form-control" id="consultaNombre" maxlength="100" autocomplete="name" required>
+              </div>
+              <div class="col-md-6">
+                <label for="consultaEmail" class="form-label fw-semibold">Correo de contacto</label>
+                <input type="email" class="form-control" id="consultaEmail" maxlength="150" autocomplete="email" required>
+              </div>
+              <div class="col-12">
+                <label for="consultaMensaje" class="form-label fw-semibold">Mensaje / Consulta</label>
+                <textarea class="form-control" id="consultaMensaje" rows="4" minlength="10" maxlength="2000" required></textarea>
+                <div class="form-text text-end"><span id="consultaContador">0</span>/2000</div>
+              </div>
+              <!-- Campo trampa para bots: una persona no lo ve ni lo completa -->
+              <div style="position:absolute;left:-9999px;" aria-hidden="true">
+                <label>No completar este campo <input type="text" id="consultaSitioWeb" tabindex="-1" autocomplete="off"></label>
+              </div>
+              <div class="col-12 text-end">
+                <button type="submit" class="btn btn-dark" id="btnEnviarConsulta"><i class="bi bi-send me-1"></i>Enviar consulta</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>`
+          : ""
+      }
+
       <!-- MODAL DE CONFIRMACIÓN (PARA USUARIOS LOGUEADOS) -->
       <div class="modal fade" id="modalChoice" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -457,8 +495,20 @@ function mensajeNoEncontrado() {
 // ============================================================
 // ME GUSTA + COMPARTIR + RECOMENDAR
 // ============================================================
-function inicializarAccionesSociales(curso) {
-  const urlCurso = `${window.location.origin}/detalles.html?id=${curso.id}`;
+// URL pública con la que se arman los links para compartir. La define el servidor
+// (APP_URL / HOST_IP en el .env); si no hay nada configurado se usa la dirección actual.
+async function obtenerUrlBasePublica() {
+  try {
+    const { ok, data } = await apiFetch("/config/publica", { auth: false });
+    if (ok && data.baseUrl) return data.baseUrl.replace(/\/+$/, "");
+  } catch {
+    // sin conexión con la config: seguimos con el origen actual
+  }
+  return window.location.origin;
+}
+
+async function inicializarAccionesSociales(curso) {
+  const urlCurso = `${await obtenerUrlBasePublica()}/detalles.html?id=${curso.id}`;
   const textoCompartir = `Mirá este curso: "${curso.titulo}" en AllCursos`;
 
   // --- Me gusta: el contador es público, pero votar requiere cuenta ---
@@ -562,5 +612,67 @@ function inicializarAccionesSociales(curso) {
     } else {
       msj.innerHTML = `<div class="alert alert-danger py-2 mb-0">${data.mensaje || "No se pudo enviar la recomendación"}</div>`;
     }
+  });
+
+  inicializarFormularioConsulta(curso);
+}
+
+// ============================================================
+// CONSULTAR SOBRE EL CURSO (usuarios no registrados)
+// ============================================================
+function inicializarFormularioConsulta(curso) {
+  const form = document.getElementById("formConsulta");
+  if (!form) return;
+
+  const msj = document.getElementById("msjConsulta");
+  const campoMensaje = document.getElementById("consultaMensaje");
+  const contador = document.getElementById("consultaContador");
+  const boton = document.getElementById("btnEnviarConsulta");
+
+  // Si ya inició sesión, le ahorramos tipear sus datos
+  const sesion = obtenerSesion();
+  if (sesion) {
+    document.getElementById("consultaNombre").value = [sesion.nombre, sesion.apellido].filter(Boolean).join(" ");
+    document.getElementById("consultaEmail").value = sesion.email_login || "";
+  }
+
+  campoMensaje.addEventListener("input", () => (contador.textContent = campoMensaje.value.length));
+
+  const mostrarMensaje = (tipo, texto) => {
+    const alerta = document.createElement("div");
+    alerta.className = `alert alert-${tipo} py-2`;
+    alerta.textContent = texto; // textContent: el mensaje nunca se interpreta como HTML
+    msj.replaceChildren(alerta);
+  };
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!form.checkValidity()) {
+      form.classList.add("was-validated");
+      mostrarMensaje("warning", "Completá tu nombre, un correo válido y tu consulta (mínimo 10 caracteres).");
+      return;
+    }
+
+    boton.disabled = true;
+    const { ok, data } = await apiFetch(`/cursos/${curso.id}/consultas`, {
+      method: "POST",
+      auth: false,
+      body: {
+        nombre: document.getElementById("consultaNombre").value.trim(),
+        email: document.getElementById("consultaEmail").value.trim(),
+        mensaje: campoMensaje.value.trim(),
+        sitio_web: document.getElementById("consultaSitioWeb").value, // honeypot
+      },
+    });
+
+    if (ok) {
+      mostrarMensaje("success", data.mensaje || "¡Consulta enviada!");
+      campoMensaje.value = "";
+      contador.textContent = "0";
+      form.classList.remove("was-validated");
+    } else {
+      mostrarMensaje("danger", data.mensaje || "No se pudo enviar la consulta");
+    }
+    boton.disabled = false;
   });
 }

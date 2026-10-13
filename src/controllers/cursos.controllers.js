@@ -14,6 +14,8 @@ import { reportesCursosModel } from "../models/reporte_curso.model.js";
 import { cursoLikeModel } from "../models/curso_like.model.js";
 import { notificarNuevoCurso } from "../utils/notificaciones.service.js";
 import { enviarEmail } from "../utils/email.service.js";
+import { construirUrl } from "../config/appUrl.js";
+import { escaparHtml } from "../utils/html.js";
 
 // Devuelve el institucion_id del representante autenticado, ya sea que
 // venga en el token o consultando la tabla intermedia como respaldo.
@@ -595,17 +597,17 @@ export const recomendarCurso = async (req, res) => {
     });
     if (!curso) return res.status(404).json({ mensaje: "Curso no encontrado" });
 
-    const urlCurso = `${process.env.FRONTEND_URL || "http://localhost:3000"}/detalles.html?id=${curso.id}`;
-    const remitente = (nombre_remitente || "Alguien").trim();
+    const urlCurso = construirUrl(`detalles.html?id=${curso.id}`);
+    const remitente = escaparHtml((nombre_remitente || "Alguien").trim().slice(0, 80));
 
     await enviarEmail({
       to: email_destino,
-      subject: `${remitente} te recomendó un curso en AllCursos`,
+      subject: `${(nombre_remitente || "Alguien").toString().trim().slice(0, 80).replace(/[\r\n]/g, " ")} te recomendó un curso en AllCursos`,
       html: `
         <p>${remitente} pensó que este curso te podría interesar:</p>
-        <h3>${curso.titulo}</h3>
-        <p>Dictado por ${curso.institucion?.nombre || "una institución adherida"}.</p>
-        ${mensaje_personal ? `<p style="font-style: italic;">"${mensaje_personal}"</p>` : ""}
+        <h3>${escaparHtml(curso.titulo)}</h3>
+        <p>Dictado por ${escaparHtml(curso.institucion?.nombre || "una institución adherida")}.</p>
+        ${mensaje_personal ? `<p style="font-style: italic;">"${escaparHtml(String(mensaje_personal).slice(0, 500))}"</p>` : ""}
         <p><a href="${urlCurso}">Ver el curso y anotarme</a></p>
       `,
     });

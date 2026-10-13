@@ -91,6 +91,15 @@ export const recomendarLimiter = rateLimit({
   message: mensajeLimite("Has enviado demasiadas recomendaciones. Intenta más tarde."),
 });
 
+// Limitador para consultas públicas sobre un curso (no requiere login, hay que frenar el spam)
+export const consultaLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hora
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: mensajeLimite("Enviaste muchas consultas seguidas. Intentá nuevamente en un rato."),
+});
+
 // Limitador general para la API
 export const apiGeneralLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos

@@ -8,6 +8,7 @@ import { cursosModel } from "../models/cursos.model.js";
 import { institucionesModel } from "../models/instituciones.model.js";
 import { certificadosModel } from "../models/certificado.model.js";
 import { representanteInstituModel } from "../models/representante_institucion.model.js";
+import { construirUrl } from "../config/appUrl.js";
 
 const generarCodigoVerificacion = () =>
   crypto.randomBytes(6).toString("hex").toUpperCase();
@@ -148,7 +149,7 @@ export const descargarCertificado = async (req, res) => {
     // código ya cargado. Así, quien reciba el certificado (un empleador,
     // por ejemplo) puede confirmar su autenticidad escaneándolo con el
     // celular, sin tener que tipear el código a mano.
-    const urlVerificacion = `${process.env.FRONTEND_URL || "http://localhost:3000"}/verificar_certificado.html?codigo=${certificado.codigo_verificacion}`;
+    const urlVerificacion = construirUrl(`verificar_certificado.html?codigo=${certificado.codigo_verificacion}`);
     try {
       const qrDataUrl = await QRCode.toDataURL(urlVerificacion, {
         margin: 1,

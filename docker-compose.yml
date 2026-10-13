@@ -38,7 +38,10 @@ services:
       OPEN_BROWSER: "false"
       JWT_SECRET: ${JWT_SECRET:-cambiar_este_valor_por_uno_seguro}
       JWT_EXPIRES_IN: 7d
-      FRONTEND_URL: http://localhost:3000
+      # URL pública con la que se entra a la app (links de emails, QR, compartir). Cambiala por tu IP/dominio.
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      TRUST_PROXY: ${TRUST_PROXY:-}
+      DB_SYNC: ${DB_SYNC:-force}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}

@@ -26,6 +26,9 @@ import { verificacionRoutes } from "./src/routes/verificacion.routes.js";
 import { chatbotRoutes } from "./src/routes/chatbot.routes.js";
 import { certificadosRoutes } from "./src/routes/certificado.routes.js";
 import { adminRoutes } from "./src/routes/admin.routes.js";
+import { consultasRoutes } from "./src/routes/consulta.routes.js";
+import { obtenerBaseUrl, obtenerBaseUrlConfigurada, obtenerIpLocal } from "./src/config/appUrl.js";
+import { verificarConexionEmail } from "./src/utils/email.service.js";
 import { apiGeneralLimiter } from "./src/middlewares/rateLimit.middleware.js";
 
 dotenv.config();
@@ -33,6 +36,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+
+// Si la app corre detrás de un proxy / balanceador (Nginx, Render, Railway, Cloudflare...),
+// TRUST_PROXY=1 hace que Express use la IP y el protocolo reales del visitante
+// (necesario para el rate limit y para saber si la petición llegó por https).
+if (process.env.TRUST_PROXY) {
+  const v = process.env.TRUST_PROXY;
+  app.set("trust proxy", v === "true" ? true : /^\d+$/.test(v) ? Number(v) : v);
+}
 
 // Seguridad: Cabeceras HTTP con Helmet
 app.use(
@@ -48,15 +59,21 @@ const allowedOrigins = process.env.CORS_ORIGIN
   : null;
 
 app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Permite peticiones locales, mismo origen o sin origen (como curl / apps móviles)
-      if (!origin || !allowedOrigins || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(new Error("Acceso bloqueado por política de CORS"));
-    },
-    credentials: true,
+  cors((req, callback) => {
+    const origin = req.header("Origin");
+    // Una petición "del mismo origen" (la página y la API salen del mismo servidor,
+    // sea por localhost, por 192.168.x.x o por un dominio) es siempre legítima.
+    // Sin esto, entrar por una IP distinta a la de CORS_ORIGIN rompía los POST/PUT.
+    const mismoOrigen = origin && origin === `${req.protocol}://${req.get("host")}`;
+    let esLaUrlPublica = false;
+    try {
+      esLaUrlPublica = !!origin && origin === new URL(obtenerBaseUrl()).origin;
+    } catch {
+      // APP_URL mal escrita: simplemente no cuenta como origen permitido
+    }
+    const permitido =
+      !origin || !allowedOrigins || mismoOrigen || esLaUrlPublica || allowedOrigins.includes(origin);
+    callback(null, { origin: permitido, credentials: true });
   }),
 );
 
@@ -64,6 +81,10 @@ app.use(express.json());
 
 // Limitador de tasa de peticiones general para la API
 app.use("/api", apiGeneralLimiter);
+
+// Config pública para el frontend: la URL con la que hay que armar los links para compartir.
+// Si no hay ninguna configurada devuelve null y el front usa la dirección con la que se abrió la página.
+app.get("/api/config/publica", (req, res) => res.json({ baseUrl: obtenerBaseUrlConfigurada() }));
 
 app.get("/api/health", (req, res) =>
   res.json({ ok: true, mensaje: "API funcionando" }),
@@ -92,6 +113,7 @@ app.use("/api", mediosContactoRoutes);
 app.use("/api", verificacionRoutes);
 app.use("/api", chatbotRoutes);
 app.use("/api", certificadosRoutes);
+app.use("/api", consultasRoutes);
 
 // Frontend estático seguro: solo se sirve la carpeta de recursos (assets) y las vistas (views)
 app.use("/assets", express.static(path.join(__dirname, "assets")));
@@ -169,21 +191,35 @@ async function main() {
   await inicializarRoles();
   await inicializarAdmin();
 
-  app.listen(PORT, async () => {
-    const url = `http://localhost:${PORT}`;
-    console.log(`Servidor corriendo en ${url}`);
+  verificarConexionEmail();
+
+  // HOST es opcional. Sin HOST, Express escucha en TODAS las interfaces de red
+  // (localhost, IP de la LAN, IP pública), así que se puede entrar desde otros equipos.
+  const onListen = async () => {
+    const urlLocal = `http://localhost:${PORT}`;
+    const ip = obtenerIpLocal();
+    console.log(`Servidor corriendo en ${urlLocal}`);
+    if (ip) console.log(`Accesible en tu red en http://${ip}:${PORT}`);
+    console.log(`URL pública usada en emails y enlaces compartibles: ${obtenerBaseUrl()}`);
+    if (!process.env.APP_URL && !process.env.HOST_IP) {
+      console.log(
+        "(Tip: definí APP_URL o HOST_IP en el .env para fijar la URL de los enlaces de los emails)",
+      );
+    }
 
     if (process.env.OPEN_BROWSER !== "false") {
       try {
         const { default: open } = await import("open");
-        await open(url);
+        await open(urlLocal);
       } catch {
         console.log(
           `(Para abrir el navegador automáticamente, corré "npm install" para instalar la dependencia "open")`,
         );
       }
     }
-  });
+  };
+  if (process.env.HOST) app.listen(PORT, process.env.HOST, onListen);
+  else app.listen(PORT, onListen);
 }
 
 main().catch((e) => {

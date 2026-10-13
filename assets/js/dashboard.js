@@ -88,6 +88,7 @@ document.addEventListener("DOMContentLoaded", () => {
     prepararFormularioNuevoCurso();
     prepararFormularioNuevaEncuesta();
     cargarEncuestasRepresentante();
+    cargarConsultasRepresentante();
   } else {
     if (tituloPanel) tituloPanel.textContent = "Mi Panel de Control";
     panelCiudadano?.classList.remove("d-none");
@@ -220,59 +221,8 @@ async function descargarCertificado(inscripcionId) {
 
 // ==========================================
 // CIUDADANO: encuestas disponibles
+// (la lógica vive en encuesta_responder.js: cargarEncuestasCiudadano)
 // ==========================================
-async function cargarEncuestasCiudadano() {
-  const contenedor = document.getElementById("listaEncuestasCiudadano");
-  if (!contenedor) return;
-
-  const { ok, data } = await apiFetch("/encuestas");
-  if (!ok) {
-    contenedor.innerHTML = `<p class="text-danger small">${data.mensaje || "No se pudieron cargar las encuestas"}</p>`;
-    return;
-  }
-
-  const encuestas = (data.encuestas || []).filter((e) => !e.yaRespondida);
-  if (encuestas.length === 0) {
-    contenedor.innerHTML = `<p class="text-muted small mb-0">No tenés encuestas pendientes por ahora.</p>`;
-    return;
-  }
-
-  contenedor.innerHTML = encuestas
-    .map(
-      (enc) => `
-      <div class="border rounded p-3 mb-2">
-        <p class="fw-semibold mb-1">${enc.titulo}</p>
-        <p class="text-muted small mb-2">
-          ${enc.tipo === "Satisfaccion" ? `Sobre el curso: ${enc.curso?.titulo || ""}` : `Categoría: ${enc.categoria?.nombre || "General"}`}
-        </p>
-        <div class="input-group input-group-sm">
-          <input type="text" class="form-control" placeholder="Tu respuesta..." id="respuesta-${enc.id}">
-          <button class="btn btn-primary" onclick="enviarRespuestaEncuesta(${enc.id})">Enviar</button>
-        </div>
-      </div>
-    `,
-    )
-    .join("");
-}
-
-async function enviarRespuestaEncuesta(encuestaId) {
-  const input = document.getElementById(`respuesta-${encuestaId}`);
-  const respuesta = input ? input.value.trim() : "";
-  if (!respuesta) {
-    mostrarToast("Escribí una respuesta antes de enviar", "advertencia");
-    return;
-  }
-  const { ok, data } = await apiFetch(`/encuestas/${encuestaId}/respuestas`, {
-    method: "POST",
-    body: { respuesta },
-  });
-  if (ok) {
-    mostrarToast("¡Gracias por responder!", "exito");
-    cargarEncuestasCiudadano();
-  } else {
-    mostrarToast(data.mensaje || "No se pudo enviar tu respuesta", "error");
-  }
-}
 
 // ==========================================
 // REPRESENTANTE: sus cursos + alta de curso
@@ -573,23 +523,37 @@ function prepararFormularioNuevaEncuesta() {
   const form = document.getElementById("formNuevaEncuesta");
   if (!form) return;
 
+  // Constructor dinámico de preguntas (selección múltiple / texto abierto / rating)
+  EncuestaBuilder.init("#constructorPreguntas");
+
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const tipo = document.querySelector('input[name="tipoEncuesta"]:checked').value;
+    const msj = document.getElementById("msjNuevaEncuesta");
+
+    const { errores, preguntas } = EncuestaBuilder.obtenerPreguntas();
+    if (errores.length > 0) {
+      msj.replaceChildren(h("div", { class: "alert alert-warning py-2" }, errores[0]));
+      return;
+    }
 
     const cuerpo = {
       titulo: document.getElementById("encuestaTitulo").value.trim(),
+      descripcion: document.getElementById("encuestaDescripcion").value.trim(),
       tipo,
       categoria_id: tipo === "Interes" ? document.getElementById("encuestaCategoria").value || null : null,
       curso_id: tipo === "Satisfaccion" ? document.getElementById("encuestaCurso").value : null,
+      preguntas,
     };
 
     const { ok, data } = await apiFetch("/encuestas", { method: "POST", body: cuerpo });
-    const msj = document.getElementById("msjNuevaEncuesta");
 
     if (ok) {
       form.reset();
+      EncuestaBuilder.reset();
+      msj.replaceChildren();
       bootstrap.Modal.getInstance(document.getElementById("modalNuevaEncuesta"))?.hide();
+      mostrarToast("Encuesta publicada", "exito");
       cargarEncuestasRepresentante();
     } else {
       msj.innerHTML = `<div class="alert alert-danger py-2">${data.mensaje || "No se pudo crear la encuesta"}</div>`;
@@ -617,18 +581,19 @@ async function cargarEncuestasRepresentante() {
     <div class="table-responsive">
       <table class="table table-sm align-middle">
         <thead>
-          <tr><th>Título</th><th>Tipo</th><th>Estado</th><th>Acciones</th></tr>
+          <tr><th>Título</th><th>Tipo</th><th>Respuestas</th><th>Estado</th><th>Acciones</th></tr>
         </thead>
         <tbody>
           ${encuestas
             .map(
               (enc) => `
             <tr>
-              <td>${enc.titulo}</td>
-              <td>${enc.tipo === "Satisfaccion" ? `Satisfacción (${enc.curso?.titulo || ""})` : `Interés (${enc.categoria?.nombre || "General"})`}</td>
+              <td>${escaparHtml(enc.titulo)}</td>
+              <td>${enc.tipo === "Satisfaccion" ? `Satisfacción (${escaparHtml(enc.curso?.titulo || "")})` : `Interés (${escaparHtml(enc.categoria?.nombre || "General")})`}</td>
+              <td>${enc.total_respuestas ?? 0}</td>
               <td><span class="badge ${enc.activo ? "bg-success" : "bg-secondary"}">${enc.activo ? "Activa" : "Cerrada"}</span></td>
               <td>
-                <button class="btn btn-sm btn-outline-primary" onclick="verResultadosEncuesta(${enc.id})">Resultados</button>
+                <a class="btn btn-sm btn-outline-primary" href="estadisticas_encuesta.html?id=${enc.id}"><i class="bi bi-bar-chart-line me-1"></i>Estadísticas</a>
                 ${enc.activo ? `<button class="btn btn-sm btn-outline-secondary" onclick="cerrarEncuesta(${enc.id})">Cerrar</button>` : ""}
               </td>
             </tr>
@@ -639,27 +604,6 @@ async function cargarEncuestasRepresentante() {
       </table>
     </div>
   `;
-}
-
-async function verResultadosEncuesta(id) {
-  const { ok, data } = await apiFetch(`/encuestas/${id}/resultados`);
-  const cuerpo = document.getElementById("cuerpoResultadosEncuesta");
-  if (!ok) {
-    cuerpo.innerHTML = `<div class="alert alert-danger">${data.mensaje || "No se pudieron cargar los resultados"}</div>`;
-  } else {
-    cuerpo.innerHTML = `
-      <h5>${data.encuesta.titulo}</h5>
-      <p class="text-muted">Total de respuestas: <strong>${data.totalRespuestas}</strong></p>
-      <ul class="list-group list-group-flush">
-        ${
-          data.respuestas.length > 0
-            ? data.respuestas.map((r) => `<li class="list-group-item">${r.respuesta || "(sin texto)"}</li>`).join("")
-            : `<li class="list-group-item text-muted">Todavía no hay respuestas.</li>`
-        }
-      </ul>
-    `;
-  }
-  new bootstrap.Modal(document.getElementById("modalResultadosEncuesta")).show();
 }
 
 async function cerrarEncuesta(id) {

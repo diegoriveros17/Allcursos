@@ -10,7 +10,7 @@ import { institucionesModel } from "../models/instituciones.model.js";
 import { certificadosModel } from "../models/certificado.model.js";
 import { representanteInstituModel } from "../models/representante_institucion.model.js";
 import { listaEsperaModel } from "../models/lista_espera.model.js";
-import { notificarAUsuarios } from "../utils/notificaciones.service.js";
+import { notificarAUsuarios, notificarRepresentantes } from "../utils/notificaciones.service.js";
 import { verificacionValida } from "./verificacion.controller.js";
 import { verificarDNI } from "../utils/dni.service.js";
 
@@ -189,6 +189,16 @@ export const agregarInscripciones = async (req, res) => {
     );
 
     await t.commit();
+
+    // Campanita del representante: nueva inscripción (se agrupan las que no leyó)
+    notificarRepresentantes(curso.institucion_id, {
+      tipo: "inscripcion",
+      titulo: `Nueva inscripción en "${curso.titulo}"`,
+      mensaje: `Alguien se inscribió en "${curso.titulo}".`,
+      url: `alumnos_x_curso.html?id=${curso.id}`,
+      agrupar: true,
+      mensajeAgrupado: (n) => `${n} inscripciones nuevas en "${curso.titulo}".`,
+    }).catch((e) => console.error("Error notificando inscripción:", e.message));
 
     return res.status(201).json({
       mensaje: "Inscripción registrada correctamente",

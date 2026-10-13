@@ -205,7 +205,9 @@ SMTP_USER=
 SMTP_PASS=
 SMTP_FROM=AllCursos <no-responder@allcursos.local>
 
-FRONTEND_URL=http://localhost:3000
+# URL pública de la app (links de emails, QR de certificados, compartir curso).
+# Poné tu dominio o IP; ver .env.example para las opciones (APP_URL / HOST_IP).
+APP_URL=http://192.168.1.35:3000
 ```
 
 ## 5. Flujo de prueba sugerido para esta versión

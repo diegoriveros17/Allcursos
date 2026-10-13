@@ -20,7 +20,18 @@ export const sequelize = new Sequelize(
 export const startDB = async () => {
   try {
     await sequelize.authenticate();
-    await sequelize.sync({ alter: true });
+    // DB_SYNC controla qué hace Sequelize al arrancar:
+    //   force (por defecto, comportamiento de siempre) -> BORRA y recrea todas las tablas
+    //   alter -> ajusta las tablas existentes a los modelos sin borrar datos
+    //   safe  -> sólo crea las tablas que falten, sin tocar las existentes (+ migraciones .sql)
+    const modo = (process.env.DB_SYNC || "force").toLowerCase();
+    if (modo === "force") {
+      await sequelize.sync({ force: true });
+    } else if (modo === "alter") {
+      await sequelize.sync({ alter: true });
+    } else {
+      await sequelize.sync();
+    }
     console.log("Conexión con la BD establecida correctamente.");
   } catch (error) {
     console.error(`No se pudo conectar con la BD: ${error.message}`);

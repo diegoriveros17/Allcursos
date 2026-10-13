@@ -207,6 +207,52 @@ encuestasRespuestasModel.belongsTo(encuestasModel, { foreignKey: "encuesta_id", 
 personasModel.hasMany(encuestasRespuestasModel, { foreignKey: "persona_id", as: "respuestas_encuestas" });
 encuestasRespuestasModel.belongsTo(personasModel, { foreignKey: "persona_id", as: "persona" });
 
+// --- Encuestas dinámicas: preguntas y respuestas por pregunta ---
+import { encuestasPreguntasModel } from "./encuesta_pregunta.model.js";
+import { encuestasRespuestasDetalleModel } from "./encuesta_respuesta_detalle.model.js";
+
+encuestasModel.hasMany(encuestasPreguntasModel, {
+  foreignKey: "encuesta_id",
+  as: "preguntas",
+  onDelete: "CASCADE",
+});
+encuestasPreguntasModel.belongsTo(encuestasModel, { foreignKey: "encuesta_id", as: "encuesta" });
+
+encuestasRespuestasModel.hasMany(encuestasRespuestasDetalleModel, {
+  foreignKey: "respuesta_id",
+  as: "detalles",
+  onDelete: "CASCADE",
+});
+encuestasRespuestasDetalleModel.belongsTo(encuestasRespuestasModel, {
+  foreignKey: "respuesta_id",
+  as: "participacion",
+});
+encuestasPreguntasModel.hasMany(encuestasRespuestasDetalleModel, {
+  foreignKey: "pregunta_id",
+  as: "respuestas",
+  onDelete: "CASCADE",
+});
+encuestasRespuestasDetalleModel.belongsTo(encuestasPreguntasModel, {
+  foreignKey: "pregunta_id",
+  as: "pregunta",
+});
+
+// --- Consultas públicas sobre un curso ---
+import { consultasCursoModel } from "./consulta_curso.model.js";
+cursosModel.hasMany(consultasCursoModel, { foreignKey: "curso_id", as: "consultas" });
+consultasCursoModel.belongsTo(cursosModel, { foreignKey: "curso_id", as: "curso" });
+institucionesModel.hasMany(consultasCursoModel, { foreignKey: "institucion_id", as: "consultas" });
+consultasCursoModel.belongsTo(institucionesModel, { foreignKey: "institucion_id", as: "institucion" });
+
+// --- Bandeja de notificaciones internas (campanita) ---
+import { notificacionesUsuarioModel } from "./notificacion_usuario.model.js";
+usuariosModel.hasMany(notificacionesUsuarioModel, {
+  foreignKey: "usuario_id",
+  as: "bandeja_notificaciones",
+  onDelete: "CASCADE",
+});
+notificacionesUsuarioModel.belongsTo(usuariosModel, { foreignKey: "usuario_id", as: "usuario" });
+
 // --- Recuperación de contraseña ---
 usuariosModel.hasMany(tokensRecuperacionModel, { foreignKey: "usuario_id", as: "tokens_recuperacion" });
 tokensRecuperacionModel.belongsTo(usuariosModel, { foreignKey: "usuario_id", as: "usuario" });
@@ -242,5 +288,9 @@ export {
   codigosVerificacionModel,
   reportesCursosModel,
   cursoLikeModel,
+  encuestasPreguntasModel,
+  encuestasRespuestasDetalleModel,
+  consultasCursoModel,
+  notificacionesUsuarioModel,
 };
 
