@@ -15,7 +15,7 @@
       href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css"
     />
     <link rel="stylesheet" href="assets/css/style.css" />
-  </head>
+</head>
   <body class="d-flex flex-column h-100" id="page-container">
     <header data-bs-theme="light">
       <nav class="navbar navbar-expand-lg bg-body-tertiary fixed-top border-bottom shadow-sm">
@@ -154,22 +154,53 @@
                     </form>
                   </div>
 
-                  <!-- TAB: ELIMINAR CUENTA -->
-                  <div class="tab-pane fade" id="tabEliminar">
-                    <div class="alert alert-warning">
-                      Al eliminar tu cuenta, se desactivará tu acceso a la plataforma. Esta acción no se puede deshacer desde acá.
-                    </div>
-                    <div id="msjCuentaEliminar"></div>
-                    <form id="formCuentaEliminar">
-                      <div class="mb-3">
-                        <label for="cuentaPasswordEliminar" class="form-label fw-semibold">Confirmá tu contraseña para continuar</label>
-                        <input type="password" class="form-control" id="cuentaPasswordEliminar" required />
-                      </div>
-                      <div class="d-flex justify-content-end">
-                        <button type="submit" class="btn btn-danger">Eliminar mi cuenta</button>
-                      </div>
-                    </form>
-                  </div>
+                  <!-- TAB: ELIMINAR CUENTA (v2.3: sólo motivo por radio; el detalle aparece únicamente con "Otro motivo") -->
+                  <div class="tab-pane fade" id="tabEliminar"> <!-- Panel de la pestaña Eliminar cuenta -->
+                    <div class="alert alert-warning"> <!-- Aviso amarillo -->
+                      Al eliminar tu cuenta, se desactivará tu acceso a la plataforma. <!-- Texto del aviso -->
+                    </div> <!-- Cierra el aviso -->
+                    <div id="msjCuentaEliminar"></div> <!-- Acá se muestran los errores -->
+                    <form id="formCuentaEliminar"> <!-- Formulario de baja -->
+                      <p class="fw-semibold mb-2">¿Por qué querés eliminar tu cuenta?</p> <!-- Pregunta del motivo -->
+                      <div class="mb-3"> <!-- Grupo de opciones (radio buttons: se puede elegir sólo una) -->
+                        <div class="form-check"> <!-- Opción 1 -->
+                          <input class="form-check-input" type="radio" name="motivoBaja" id="motivo1" value="no_uso_la_plataforma"> <!-- Radio con el valor que valida el backend -->
+                          <label class="form-check-label" for="motivo1">Casi no uso la plataforma</label> <!-- Texto de la opción 1 -->
+                        </div> <!-- Cierra opción 1 -->
+                        <div class="form-check"> <!-- Opción 2 -->
+                          <input class="form-check-input" type="radio" name="motivoBaja" id="motivo2" value="encontre_otra_alternativa"> <!-- Radio opción 2 -->
+                          <label class="form-check-label" for="motivo2">Encontré otra alternativa</label> <!-- Texto de la opción 2 -->
+                        </div> <!-- Cierra opción 2 -->
+                        <div class="form-check"> <!-- Opción 3 -->
+                          <input class="form-check-input" type="radio" name="motivoBaja" id="motivo3" value="problemas_tecnicos"> <!-- Radio opción 3 -->
+                          <label class="form-check-label" for="motivo3">Tuve problemas técnicos</label> <!-- Texto de la opción 3 -->
+                        </div> <!-- Cierra opción 3 -->
+                        <div class="form-check"> <!-- Opción 4 -->
+                          <input class="form-check-input" type="radio" name="motivoBaja" id="motivo4" value="dificil_de_usar"> <!-- Radio opción 4 -->
+                          <label class="form-check-label" for="motivo4">Me resultó difícil de usar</label> <!-- Texto de la opción 4 -->
+                        </div> <!-- Cierra opción 4 -->
+                        <div class="form-check"> <!-- Opción 5 -->
+                          <input class="form-check-input" type="radio" name="motivoBaja" id="motivo5" value="privacidad"> <!-- Radio opción 5 -->
+                          <label class="form-check-label" for="motivo5">Me preocupa mi privacidad</label> <!-- Texto de la opción 5 -->
+                        </div> <!-- Cierra opción 5 -->
+                        <div class="form-check"> <!-- Opción 6 -->
+                          <input class="form-check-input" type="radio" name="motivoBaja" id="motivo6" value="otro"> <!-- Radio opción 6 -->
+                          <label class="form-check-label" for="motivo6">Otro motivo</label> <!-- Texto de la opción 6 -->
+                        </div> <!-- Cierra opción 6 -->
+                      </div> <!-- Cierra el grupo de radios -->
+                      <div class="mb-3 d-none" id="grupoMotivoOtro"> <!-- Grupo oculto: el JS lo muestra sólo si se elige "Otro motivo" -->
+                        <label for="motivoOtroTexto" class="form-label fw-semibold">¿Cuál fue el motivo?</label> <!-- Etiqueta del campo -->
+                        <input type="text" class="form-control" id="motivoOtroTexto" maxlength="255" placeholder="Escribí brevemente el motivo" /> <!-- Campo de una línea para el motivo específico (máximo 255 caracteres) -->
+                      </div> <!-- Cierra el grupo del motivo "Otro" -->
+                      <div class="mb-3"> <!-- Grupo de la contraseña -->
+                        <label for="cuentaPasswordEliminar" class="form-label fw-semibold">Confirmá tu contraseña para continuar</label> <!-- Etiqueta -->
+                        <input type="password" class="form-control" id="cuentaPasswordEliminar" required /> <!-- Campo contraseña obligatorio -->
+                      </div> <!-- Cierra el grupo -->
+                      <div class="d-flex justify-content-end"> <!-- Contenedor del botón -->
+                        <button type="submit" class="btn btn-danger">Eliminar mi cuenta</button> <!-- Botón que abre el modal de confirmación -->
+                      </div> <!-- Cierra el contenedor -->
+                    </form> <!-- Cierra el formulario -->
+                  </div> <!-- Cierra el panel Eliminar cuenta -->
                 </div>
               </div>
             </div>
@@ -185,7 +216,7 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="assets/js/api.js"></script>
+    <script src="assets/js/api.js"></script> <!-- Funciones comunes (apiFetch, toasts) -->
     <script src="assets/js/navbar.js"></script>
     <script src="assets/js/configuracion.js"></script>
   </body>

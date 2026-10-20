@@ -60,3 +60,37 @@ export async function geocodificarDireccion({ calle, numero, ciudad, provincia }
     return null;
   }
 }
+
+// NUEVO: busca lugares por texto libre y devuelve hasta 5 sugerencias para el buscador del mapa
+export async function buscarLugares(texto) { // Recibe lo que escribió el usuario (ej: "Av. 25 de Mayo 500, Formosa")
+  const consulta = String(texto || "").trim(); // Convierte a texto sin espacios sobrantes
+  if (consulta.length < 3) return []; // Con menos de 3 letras no busca (evita pedidos inútiles)
+
+  const url = new URL(NOMINATIM_URL); // Arma la dirección del buscador de OpenStreetMap
+  url.searchParams.set("q", consulta); // Texto a buscar
+  url.searchParams.set("format", "json"); // Pide la respuesta en formato JSON
+  url.searchParams.set("limit", "5"); // Máximo 5 sugerencias
+  url.searchParams.set("countrycodes", "ar"); // Sólo resultados de Argentina
+  url.searchParams.set("accept-language", "es"); // Nombres en español
+
+  try { // Si algo falla, no se rompe la pantalla
+    const controller = new AbortController(); // Permite cortar el pedido si tarda demasiado
+    const timeout = setTimeout(() => controller.abort(), 5000); // Corta a los 5 segundos
+    const respuesta = await fetch(url, { // Hace el pedido a Nominatim
+      headers: { "User-Agent": "AllCursos/1.0 (plataforma de cursos)" }, // Nominatim exige identificar a la aplicación
+      signal: controller.signal, // Conecta el corte por tiempo
+    }); // Cierra el fetch
+    clearTimeout(timeout); // Cancela el temporizador porque ya respondió
+    if (!respuesta.ok) return []; // Si respondió con error, devuelve lista vacía
+
+    const resultados = await respuesta.json(); // Convierte la respuesta a objetos JavaScript
+    return (resultados || []).map((r) => ({ // Deja sólo los datos que necesita el frontend
+      nombre: r.display_name, // Nombre completo del lugar
+      latitud: parseFloat(r.lat), // Latitud como número
+      longitud: parseFloat(r.lon), // Longitud como número
+    })); // Cierra el map
+  } catch (error) { // Si hubo un error de red o tiempo agotado...
+    console.error("No se pudo buscar el lugar:", error.message); // ...lo muestra en la consola del servidor
+    return []; // ...y devuelve lista vacía
+  } // Cierra el catch
+} // Cierra la función

@@ -136,6 +136,19 @@ document.addEventListener("DOMContentLoaded", async () => {
       </div>
 
       ${
+        curso.mapa_embed_url || curso.latitud != null // NUEVO: si la institución cargó ubicación (pin o Google Maps)...
+          ? `
+      <div class="card shadow-sm border-0 mt-4 text-start"> <!-- Tarjeta del mapa -->
+        <div class="card-body p-4"> <!-- Cuerpo de la tarjeta -->
+          <h4 class="fw-bold mb-3"><i class="bi bi-geo-alt-fill me-2"></i>Dónde queda ${curso.institucion?.nombre || "la institución"}</h4> <!-- Título con el nombre de la institución -->
+          <div id="contenedorMapa"></div> <!-- Acá se dibuja el mapa con pin o el iframe de Google Maps -->
+          ${curso.latitud != null ? `<a class="btn btn-outline-primary btn-sm mt-3" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${curso.latitud},${curso.longitud}"><i class="bi bi-signpost-2 me-1"></i>Cómo llegar</a>` : ""} <!-- Botón que abre Google Maps con la ruta hasta el pin -->
+        </div> <!-- Cierra el cuerpo -->
+      </div>` // Cierra la tarjeta
+          : "" // ...si no hay ubicación no se muestra nada
+      }
+
+      ${
         !sesion || sesion.rol === "ciudadano"
           ? `
       <!-- CONSULTAR SOBRE ESTE CURSO (público, no requiere cuenta) -->
@@ -297,6 +310,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   inicializarAccionesSociales(curso);
+  if (curso.latitud != null) mostrarMapaPin("contenedorMapa", curso.latitud, curso.longitud, curso.institucion?.nombre); // NUEVO: si hay pin, dibuja el mapa Leaflet con el pin (tiene prioridad)
+  else if (curso.mapa_embed_url) mostrarMapa("contenedorMapa", curso.mapa_embed_url); // NUEVO: si no hay pin pero sí código de Google, dibuja el iframe
 
   document.getElementById("btnConfirmarLogueado").addEventListener("click", async () => {
     const { ok, data: resp } = await apiFetch("/inscripciones", {

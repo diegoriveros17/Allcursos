@@ -94,9 +94,8 @@ npm run dev
 - Queda registrado en `notificaciones` (qué se avisó) y `envios_notificacion`
   (a quién, por qué canal, y si se pudo enviar).
 - En el registro, el ciudadano elige su canal preferido: Email, WhatsApp o
-  Ambos (`usuarios.canal_notificacion_preferido`, ver "Sugerencias" abajo
-  para el porqué de este campo en vez de usar directamente
-  `preferencias_notificacion`).
+  Ambos (`usuarios.canal_notificacion_preferido`). (v2.3: la tabla
+  `preferencias_notificacion` se eliminó por no usarse).
 - **Sobre WhatsApp:** el esquema contempla el canal, pero no hay ningún
   proveedor de WhatsApp conectado (haría falta la API de WhatsApp Business o
   algo como Twilio, que son servicios pagos con alta propia). Por ahora,
@@ -139,20 +138,11 @@ ve una lista de encuestas pendientes con un campo de texto para responder.
 - El ciudadano ve en su dashboard una sección "En Lista de Espera" con los
   cursos donde está esperando un cupo.
 
-### h) Resto de tablas (medios de contacto, preferencias)
-Para completar el modelo, quedaron con CRUD básico (sin una pantalla
-dedicada todavía, pero totalmente funcionales vía API):
-- `GET /api/tipos-medio-contacto`
-- `POST /api/instituciones/medios-contacto` (el representante carga un
-  WhatsApp/Facebook/etc. de su institución)
-- `GET /api/instituciones/:id/medios-contacto`
-- `POST /api/personas/medios-contacto` (el ciudadano carga una vía de
-  contacto alternativa)
-- `GET /api/preferencias-notificacion` y `PUT /api/preferencias-notificacion`
-  (preferencia de notificación por categoría, más granular que el canal
-  general del registro)
+### h) Historial de notificaciones
 - `GET /api/notificaciones/mias` (historial de notificaciones recibidas por
   el usuario logueado)
+- (v2.3) Se eliminaron las tablas y rutas de medios de contacto y de
+  preferencias de notificación por categoría: ninguna pantalla las usaba.
 
 ## 3. Sugerencias que agregué (no estaban contempladas)
 
@@ -164,16 +154,10 @@ dedicada todavía, pero totalmente funcionales vía API):
    satisfacción) + un campo `tipo` para diferenciar los dos casos de uso que
    me describiste, que en el diseño original eran indistinguibles.
 
-2. **Canal de notificación: lo puse en `usuarios` en vez de sólo en
-   `preferencias_notificacion`.** La tabla `preferencias_notificacion` está
-   pensada por categoría (ej: "de Arte no quiero avisos, pero de Tecnología
-   sí"), lo cual es genial para una versión más madura, pero no sirve para
-   preguntar "¿cómo querés que te avisemos, en general?" en el momento del
-   registro, porque en ese momento todavía no eligió ninguna categoría de
-   interés. Por eso agregué `usuarios.canal_notificacion_preferido` como
-   default general, y dejé `preferencias_notificacion` disponible para el
-   día que quieras ofrecer ese ajuste fino por categoría (ya tiene su
-   endpoint listo, sólo falta la pantalla).
+2. **Canal de notificación en `usuarios`.** El canal preferido
+   (`usuarios.canal_notificacion_preferido`) se elige en el registro. (v2.3:
+   la tabla `preferencias_notificacion`, pensada para ajustes por categoría,
+   se eliminó porque nunca tuvo pantalla.)
 
 3. **Constraints únicas que faltaban** (agregadas en `migracion_v2.sql`):
    una persona no puede responder la misma encuesta dos veces, un curso no
@@ -185,8 +169,6 @@ dedicada todavía, pero totalmente funcionales vía API):
    versión, pero quedan anotadas):
    - Integrar un proveedor real de WhatsApp (Twilio o WhatsApp Business API)
      para que el canal deje de ser simulado.
-   - Pantalla dedicada para que el ciudadano cargue sus propios medios de
-     contacto y ajuste sus preferencias por categoría (el backend ya está).
    - Encuestas con opciones de respuesta predefinidas (hoy es texto libre;
      para estadísticas más prolijas convendría radio buttons con opciones
      fijas más un campo "otro").
@@ -296,7 +278,7 @@ Un widget de chat flotante (la burbuja abajo a la derecha, visible en el
 inicio, el detalle de un curso, el dashboard y la lista de alumnos) que
 responde **únicamente** preguntas sobre los cursos publicados: requisitos,
 lugar donde se dictan, modalidad, cupos, duración, categoría, institución y
-medios de contacto.
+cómo contactarla (por el formulario de consultas).
 
 Cómo funciona (`src/utils/chatbot.service.js`):
 1. Busca en la base los cursos relacionados con la pregunta (por palabras del
@@ -435,8 +417,8 @@ en vez de incrementarse sin control.
   cursos (que también se agregaron en este mismo cambio).
 - **Nueva página `configuracion.html` ("Mi Cuenta")**: reemplaza el modal
   que estaba en el dashboard. Incluye:
-  - **Foto de perfil**: se sube al elegir el archivo (usa Cloudinary si
-    está configurado, igual que las imágenes de los cursos).
+  - **Foto de perfil**: se sube al elegir el archivo y se guarda en la carpeta
+    local `uploads/avatars` (v2.3: se eliminó Cloudinary).
   - Editar nombre, apellido, teléfono, email (y datos de la institución si
     sos representante).
   - Cambiar contraseña.

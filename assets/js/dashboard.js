@@ -367,6 +367,97 @@ async function cargarRequisitosEnFormulario(idsSeleccionados = []) {
     : `<p class="text-muted small mb-0">Todavía no hay requisitos cargados en el sistema.</p>`;
 }
 
+let institucionIdModal = null; // NUEVO: id de la institución del representante (para guardar su ubicación)
+let ubicacionGuardada = ""; // NUEVO: texto de ubicación que ya estaba guardado (para saber si el usuario lo cambió)
+let pinGuardado = null; // NUEVO: pin que ya estaba guardado { latitud, longitud } o null (para saber si lo cambió)
+
+// NUEVO: carga la ubicación guardada de la institución y dibuja su mapa en el modal
+async function cargarUbicacionEnModal() { // Función async porque consulta al backend
+  const campo = document.getElementById("cursoUbicacionMaps"); // Busca el campo de texto de la ubicación
+  if (!campo) return; // Si el modal no tiene el campo, no hace nada
+  const { ok, data } = await apiFetch("/auth/me"); // Pide los datos del usuario logueado (incluye su institución)
+  if (!ok || !data.usuario?.institucion) return; // Si falló o no tiene institución, corta
+  institucionIdModal = data.usuario.institucion.id; // Guarda el id de la institución
+  ubicacionGuardada = data.usuario.institucion.ubicacion_maps || ""; // Guarda el texto de ubicación actual
+  campo.value = ubicacionGuardada; // Lo muestra en el campo
+  const inst = data.usuario.institucion; // Atajo a los datos de la institución
+  pinGuardado = inst.latitud != null ? { latitud: inst.latitud, longitud: inst.longitud } : null; // Recuerda el pin guardado (o null si no hay)
+  iniciarSelectorPin("cursoSelectorPin", inst.latitud, inst.longitud, (la, lo) => { // Crea el mapa con pin y define qué hacer cuando cambia
+    document.getElementById("cursoPinCoordenadas").textContent = textoCoordenadas(la, lo); // Actualiza el texto de coordenadas
+  }); // Cierra la llamada
+  document.getElementById("cursoPinCoordenadas").textContent = textoCoordenadas(inst.latitud, inst.longitud); // Muestra las coordenadas iniciales
+  setTimeout(() => refrescarMapaLeaflet("cursoSelectorPin"), 400); // Redibuja el mapa por si el modal todavía se estaba abriendo (tamaño 0)
+  const respuesta = await apiFetch(`/instituciones/${institucionIdModal}/ubicacion`, { auth: false }); // Pide la URL segura del mapa
+  mostrarMapa("cursoMapaPreview", respuesta.ok ? respuesta.data.mapa_embed_url : null); // Dibuja el mapa (o el aviso si no hay)
+} // Cierra la función
+
+// NUEVO: buscador de lugares con sugerencias; al elegir una, el pin se mueve ahí
+function prepararBuscadorLugares() { // Se llama una vez al preparar el formulario
+  const campo = document.getElementById("buscadorLugar"); // Campo de texto del buscador
+  const lista = document.getElementById("sugerenciasLugar"); // Lista desplegable de sugerencias
+  if (!campo || !lista) return; // Si el modal no tiene el buscador, no hace nada
+  let temporizador = null; // Guarda el temporizador para esperar a que el usuario deje de escribir
+
+  const ocultarLista = () => { lista.classList.add("d-none"); lista.innerHTML = ""; }; // Función que vacía y esconde la lista
+
+  campo.addEventListener("input", () => { // Cada vez que el usuario escribe una letra...
+    clearTimeout(temporizador); // ...cancela la búsqueda anterior pendiente
+    const texto = campo.value.trim(); // Toma lo escrito sin espacios sobrantes
+    if (texto.length < 3) { ocultarLista(); return; } // Con menos de 3 letras no busca
+    temporizador = setTimeout(async () => { // Espera 600 ms sin escribir para no saturar al servicio (Nominatim pide máx. ~1 búsqueda por segundo)
+      const { ok, data } = await apiFetch(`/lugares/buscar?q=${encodeURIComponent(texto)}`); // Pide las sugerencias al backend
+      lista.innerHTML = ""; // Vacía la lista anterior
+      if (!ok || !data.lugares?.length) { // Si no hubo resultados...
+        const vacio = document.createElement("div"); // ...crea un aviso
+        vacio.className = "list-group-item text-muted small"; // ...con estilo de item de lista
+        vacio.textContent = ok ? "No encontramos ese lugar. Probá con otra dirección o marcá el punto en el mapa." : (data.mensaje || "No se pudo buscar el lugar"); // ...texto del aviso (textContent evita inyectar HTML)
+        lista.appendChild(vacio); // ...lo agrega a la lista
+        lista.classList.remove("d-none"); // ...y muestra la lista
+        return; // ...y termina
+      } // Cierra el if
+      data.lugares.forEach((lugar) => { // Por cada lugar encontrado...
+        const item = document.createElement("button"); // ...crea un botón
+        item.type = "button"; // ...que no envía el formulario
+        item.className = "list-group-item list-group-item-action small"; // ...con estilo de item clickeable
+        item.textContent = lugar.nombre; // ...mostrando el nombre del lugar (textContent evita inyectar HTML)
+        item.addEventListener("click", () => { // ...cuando el usuario lo elige...
+          moverPin("cursoSelectorPin", lugar.latitud, lugar.longitud); // ...mueve el pin y centra el mapa en ese lugar
+          campo.value = lugar.nombre; // ...deja el nombre elegido en el campo
+          ocultarLista(); // ...y esconde la lista
+        }); // Cierra el click
+        lista.appendChild(item); // ...agrega el botón a la lista
+      }); // Cierra el forEach
+      lista.classList.remove("d-none"); // Muestra la lista con las sugerencias
+    }, 600); // Cierra el temporizador (600 ms)
+  }); // Cierra el listener input
+
+  document.addEventListener("click", (e) => { // Cuando se hace clic en cualquier parte de la página...
+    if (!lista.contains(e.target) && e.target !== campo) ocultarLista(); // ...si fue fuera del buscador, esconde la lista
+  }); // Cierra el listener
+} // Cierra la función
+
+// NUEVO: si el representante cambió la ubicación, la guarda; devuelve true si todo salió bien
+async function guardarUbicacionDelModal() { // Función async porque llama al backend
+  const campo = document.getElementById("cursoUbicacionMaps"); // Busca el campo de texto
+  if (!campo || !institucionIdModal) return true; // Sin campo o sin institución no hay nada que guardar
+  const texto = campo.value.trim(); // Lee el texto sin espacios sobrantes
+  const pin = obtenerPin("cursoSelectorPin"); // Lee el pin actual del mapa (o null)
+  const pinCambio = (pin?.latitud ?? null) !== (pinGuardado?.latitud ?? null) || (pin?.longitud ?? null) !== (pinGuardado?.longitud ?? null); // Compara con el pin guardado
+  if (texto === ubicacionGuardada.trim() && !pinCambio) return true; // Si ni el texto ni el pin cambiaron, no hace falta llamar al backend
+  const { ok, data } = await apiFetch(`/instituciones/${institucionIdModal}/ubicacion`, { // Llama al PUT de ubicación
+    method: "PUT", // Método PUT porque actualiza un dato
+    body: { ubicacion_maps: texto, latitud: pin?.latitud ?? null, longitud: pin?.longitud ?? null }, // Envía el texto escrito y el pin (null si no hay)
+  }); // Cierra la llamada
+  if (!ok) { // Si el backend rechazó la ubicación...
+    document.getElementById("msjNuevoCurso").innerHTML = `<div class="alert alert-danger py-2">${data.mensaje || "No se pudo guardar la ubicación"}</div>`; // ...muestra el error dentro del modal
+    return false; // ...e indica que hubo un problema
+  } // Cierra el if
+  ubicacionGuardada = texto; // Recuerda el nuevo texto guardado
+  pinGuardado = pin; // Recuerda el nuevo pin guardado
+  mostrarMapa("cursoMapaPreview", data.mapa_embed_url); // Actualiza el mapa del modal
+  return true; // Todo salió bien
+} // Cierra la función
+
 function resetearModalCurso() {
   cursoEditandoId = null;
   const form = document.getElementById("formNuevoCurso");
@@ -377,6 +468,8 @@ function resetearModalCurso() {
   document.getElementById("cursoImagenActualWrap").classList.add("d-none");
   document.getElementById("msjNuevoCurso").innerHTML = "";
   cargarRequisitosEnFormulario([]);
+  document.getElementById("buscadorLugar").value = ""; // NUEVO: vacía el buscador al abrir el modal
+  cargarUbicacionEnModal(); // NUEVO: precarga la ubicación guardada y su mapa
 }
 
 // Se llama desde el botón "Editar" de cada fila de la tabla de cursos
@@ -408,6 +501,7 @@ async function abrirModalEditarCurso(id) {
 
   const idsRequisitos = (curso.requisitos || []).map((r) => r.id);
   await cargarRequisitosEnFormulario(idsRequisitos);
+  cargarUbicacionEnModal(); // NUEVO: también al editar un curso, muestra la ubicación de la institución
 
   new bootstrap.Modal(document.getElementById("modalNuevoCurso")).show();
 }
@@ -415,12 +509,17 @@ async function abrirModalEditarCurso(id) {
 async function prepararFormularioNuevoCurso() {
   await cargarCategoriasEnSelect();
   await cargarRequisitosEnFormulario();
+  cargarUbicacionEnModal(); // NUEVO: precarga la ubicación al preparar el formulario
 
   const selectCategoria = document.getElementById("cursoCategoria");
   const inputCategoriaNueva = document.getElementById("cursoCategoriaNueva");
   selectCategoria.addEventListener("change", () => {
     inputCategoriaNueva.classList.toggle("d-none", selectCategoria.value !== "__nueva__");
   });
+
+  document.getElementById("modalNuevoCurso").addEventListener("shown.bs.modal", () => refrescarMapaLeaflet("cursoSelectorPin")); // NUEVO: al terminar de abrirse el modal, redibuja el mapa para que tome su tamaño real
+  prepararBuscadorLugares(); // NUEVO: activa el buscador de lugares con sugerencias
+  document.getElementById("btnQuitarPinCurso").addEventListener("click", () => quitarPin("cursoSelectorPin")); // NUEVO: el botón "Quitar pin" borra el pin
 
   const btnAbrirNuevo = document.getElementById("btnAbrirNuevoCurso");
   btnAbrirNuevo?.addEventListener("click", resetearModalCurso);
@@ -450,6 +549,8 @@ async function prepararFormularioNuevoCurso() {
       }
       categoriaId = dataCat.categoria.id;
     }
+
+    if (!(await guardarUbicacionDelModal())) return; // NUEVO: guarda la ubicación primero; si falla, no sigue con el curso
 
     const requisitosSeleccionados = Array.from(
       document.querySelectorAll('#cursoRequisitos input[type="checkbox"]:checked'),

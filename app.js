@@ -20,8 +20,6 @@ import { representanteIntiRouter } from "./src/routes/representante_institucion.
 import { requisitosRoutes } from "./src/routes/requisito.routes.js";
 import { encuestasRoutes } from "./src/routes/encuesta.routes.js";
 import { notificacionesRoutes } from "./src/routes/notificacion.routes.js";
-import { preferenciasNotificacionRoutes } from "./src/routes/preferencia_notificacion.routes.js";
-import { mediosContactoRoutes } from "./src/routes/medio_contacto.routes.js";
 import { verificacionRoutes } from "./src/routes/verificacion.routes.js";
 import { chatbotRoutes } from "./src/routes/chatbot.routes.js";
 import { certificadosRoutes } from "./src/routes/certificado.routes.js";
@@ -48,8 +46,9 @@ if (process.env.TRUST_PROXY) {
 // Seguridad: Cabeceras HTTP con Helmet
 app.use(
   helmet({
-    contentSecurityPolicy: false, // Permite cargar CDNs externas (Bootstrap, Bootstrap Icons) y Cloudinary
+    contentSecurityPolicy: false, // MODIFICADO: Permite cargar CDNs externas (Bootstrap, Bootstrap Icons, Leaflet); ya no hay Cloudinary
     crossOriginResourcePolicy: { policy: "cross-origin" },
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" }, // NUEVO: helmet por defecto manda "no-referrer"; OpenStreetMap exige saber de qué sitio viene el pedido, si no responde 403
   }),
 );
 
@@ -108,8 +107,7 @@ app.use("/api", representanteIntiRouter);
 app.use("/api", requisitosRoutes);
 app.use("/api", encuestasRoutes);
 app.use("/api", notificacionesRoutes);
-app.use("/api", preferenciasNotificacionRoutes);
-app.use("/api", mediosContactoRoutes);
+// (v2.3) LIMPIEZA: se quitaron las rutas de preferencias de notificación y medios de contacto (nadie las usaba)
 app.use("/api", verificacionRoutes);
 app.use("/api", chatbotRoutes);
 app.use("/api", certificadosRoutes);

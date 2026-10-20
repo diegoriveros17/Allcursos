@@ -15,7 +15,8 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css"
     />
-  </head>
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" /> <!-- NUEVO: estilos de Leaflet (mapa con pin) -->
+</head>
   <body class="d-flex flex-column h-100" id="page-container-1">
     <header data-bs-theme="light">
       <nav
@@ -41,21 +42,7 @@
             <ul class="navbar-nav col-lg-6" id="menuDinamico">
               <!-- Generado dinámicamente por navbar.js según haya o no sesión -->
             </ul>
-            <div class="col-lg-4">
-              <form class="d-flex" role="search" id="formBuscar">
-                <input
-                  class="form-control me-2"
-                  type="search"
-                  placeholder="Buscar"
-                  aria-label="Search"
-                  name="terminoBusqueda"
-                  id="terminoBusqueda"
-                />
-                <button class="btn btn-outline-success" type="submit">
-                  Buscar
-                </button>
-              </form>
-            </div>
+            <!-- (v2.3) LIMPIEZA: se quitó el buscador (input + botón Buscar) del navbar del detalle del curso; sirve para usuarios logueados y no logueados -->
           </div>
         </div>
       </nav>
@@ -119,6 +106,8 @@
     ></script>
 
     <script src="assets/js/api.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script> <!-- NUEVO: librería Leaflet (mapa con pin) -->
+    <script src="assets/js/mapa.js"></script> <!-- NUEVO: función mostrarMapa -->
     <script src="assets/js/navbar.js"></script>
     <script src="assets/js/detalles.js"></script>
     <script src="assets/js/chatbot.js"></script>

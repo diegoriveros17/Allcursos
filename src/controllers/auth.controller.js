@@ -11,7 +11,9 @@ import {
   representanteInstituModel,
   direccionesModel,
   tokensRecuperacionModel,
+  bajasCuentaModel, // NUEVO: modelo donde se guardan los motivos de baja
 } from "../models/index.js";
+import { MOTIVOS_BAJA } from "../models/baja_cuenta.model.js"; // NUEVO: lista de motivos válidos
 import { enviarEmail } from "../utils/email.service.js";
 import { verificacionValida } from "./verificacion.controller.js";
 
@@ -61,6 +63,9 @@ const usuarioPublico = (usuario) => ({
           cuit: usuario.representaciones[0].institucion.cuit,
           estado_aprobacion:
             usuario.representaciones[0].institucion.estado_aprobacion,
+          ubicacion_maps: usuario.representaciones[0].institucion.ubicacion_maps, // NUEVO: ubicación guardada, para precargar el formulario
+          latitud: usuario.representaciones[0].institucion.latitud === null ? null : Number(usuario.representaciones[0].institucion.latitud), // NUEVO: latitud del pin para precargar el mapa
+          longitud: usuario.representaciones[0].institucion.longitud === null ? null : Number(usuario.representaciones[0].institucion.longitud), // NUEVO: longitud del pin para precargar el mapa
         }
       : null,
 });
@@ -504,25 +509,59 @@ export const cambiarPassword = async (req, res) => {
 // Desactiva la cuenta (no se borra físicamente para no romper el historial
 // de cursos/inscripciones ya asociado). Un usuario inactivo no puede
 // volver a iniciar sesión.
-export const eliminarCuenta = async (req, res) => {
-  try {
-    const { password } = req.body;
-    if (!password)
-      return res.status(400).json({ mensaje: "Debes confirmar tu contraseña" });
+// MODIFICADO (v2.3): antes de desactivar, registra sólo el motivo elegido (y el detalle únicamente si eligió "Otro"); ya no pide sugerencias.
+export const eliminarCuenta = async (req, res) => { // Controlador de DELETE /api/auth/me
+  const t = await sequelize.transaction(); // Abre una transacción: o se guarda todo (feedback + baja) o no se guarda nada
+  try { // Si algo falla, salta al catch
+    const { password, motivo, motivo_otro } = req.body; // MODIFICADO: toma del cuerpo la contraseña, el motivo y (sólo si eligió "otro") el detalle del motivo
+    if (!password) { // Si no mandó la contraseña...
+      await t.rollback(); // ...cancela la transacción
+      return res.status(400).json({ mensaje: "Debes confirmar tu contraseña" }); // ...y responde 400
+    } // Cierra el if de la contraseña
 
-    const usuario = await usuariosModel.findByPk(req.usuario.id);
-    if (!usuario) return res.status(404).json({ mensaje: "Usuario no encontrado" });
+    if (!MOTIVOS_BAJA.includes(motivo)) { // Si el motivo no está en la lista de motivos permitidos...
+      await t.rollback(); // ...cancela la transacción
+      return res.status(400).json({ mensaje: "Elegí el motivo por el cual eliminás tu cuenta" }); // ...y responde 400
+    } // Cierra el if del motivo
 
-    const esCorrecta = await bcrypt.compare(password, usuario.password_hash);
-    if (!esCorrecta)
-      return res.status(401).json({ mensaje: "La contraseña es incorrecta" });
+    const detalleOtro = motivo === "otro" ? String(motivo_otro ?? "").trim() : ""; // MODIFICADO: el detalle sólo cuenta si el motivo es "otro"; en los demás casos se ignora
+    if (motivo === "otro" && detalleOtro.length < 3) { // Si eligió "otro", tiene que escribir cuál fue (mínimo 3 caracteres)
+      await t.rollback(); // Cancela la transacción
+      return res.status(400).json({ mensaje: "Escribí cuál fue el motivo" }); // Responde 400 con el aviso
+    } // Cierra el if de "otro"
+    if (detalleOtro.length > 255) { // Limita el largo para que nadie guarde textos enormes
+      await t.rollback(); // Cancela la transacción
+      return res.status(400).json({ mensaje: "El motivo no puede superar los 255 caracteres" }); // Responde 400
+    } // Cierra el if del largo
 
-    await usuario.update({ activo: false });
+    const usuario = await usuariosModel.findByPk(req.usuario.id, { // Busca al usuario logueado (el id sale del token)
+      include: [{ model: rolesModel, as: "rol" }], // Trae también su rol para guardarlo en la baja
+      transaction: t, // Hace la consulta dentro de la transacción
+    }); // Cierra la búsqueda
+    if (!usuario) { // Si no existe...
+      await t.rollback(); // ...cancela la transacción
+      return res.status(404).json({ mensaje: "Usuario no encontrado" }); // ...y responde 404
+    } // Cierra el if
 
-    return res.status(200).json({ mensaje: "Tu cuenta fue desactivada correctamente" });
-  } catch (error) {
-    return res
-      .status(500)
-      .json({ mensaje: "Error al eliminar la cuenta", error: error.message });
-  }
-};
+    const esCorrecta = await bcrypt.compare(password, usuario.password_hash); // Compara la contraseña escrita con el hash guardado
+    if (!esCorrecta) { // Si no coincide...
+      await t.rollback(); // ...cancela la transacción
+      return res.status(401).json({ mensaje: "La contraseña es incorrecta" }); // ...y responde 401
+    } // Cierra el if
+
+    await bajasCuentaModel.create( // Guarda el feedback en la tabla bajas_cuenta
+      { usuario_id: usuario.id, rol: usuario.rol.nombre, motivo, motivo_otro: detalleOtro || null }, // MODIFICADO: guarda quién, qué rol tenía, el motivo y el detalle (null si no eligió "otro")
+      { transaction: t }, // Dentro de la misma transacción
+    ); // Cierra el create
+
+    await usuario.update({ activo: false }, { transaction: t }); // Baja lógica: marca la cuenta como inactiva (no borra datos)
+    await t.commit(); // Confirma la transacción: se guardan feedback y baja a la vez
+
+    return res.status(200).json({ mensaje: "Tu cuenta fue desactivada correctamente." }); // MODIFICADO: Responde OK (sin agradecer "comentarios", ya no se piden)
+  } catch (error) { // Si ocurrió un error inesperado...
+    await t.rollback().catch(() => {}); // ...cancela la transacción (el catch interno evita un segundo error si ya estaba cerrada)
+    return res // ...y responde con error 500
+      .status(500) // Código 500 = error del servidor
+      .json({ mensaje: "Error al eliminar la cuenta", error: error.message }); // Mensaje con el detalle del error
+  } // Cierra el catch
+}; // Cierra el controlador

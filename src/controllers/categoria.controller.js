@@ -7,7 +7,12 @@ export const agregarCategorias = async (req, res) => {
     if (!nombre)
       return res.status(400).json({ errores: ["El nombre es obligatorio"] });
 
-    const categoria = await categoriasModel.create({ nombre });
+    const nombreLimpio = String(nombre).trim(); // NUEVO: saca espacios sobrantes al principio y al final
+    const existente = await categoriasModel.findOne({ where: { nombre: nombreLimpio } }); // NUEVO: busca si ya existe una categoría con ese nombre (MySQL ignora mayúsculas y tildes: "Tecnologia" = "Tecnología")
+    if (existente) { // NUEVO: si ya existía...
+      return res.status(200).json({ mensaje: "La categoría ya existía, se usará la existente", categoria: existente }); // ...devuelve la existente en vez de fallar por nombre duplicado
+    } // Cierra el if
+    const categoria = await categoriasModel.create({ nombre: nombreLimpio }); // MODIFICADO: crea la categoría con el nombre ya limpio
     return res
       .status(201)
       .json({ mensaje: "Categoría agregada correctamente", categoria });

@@ -12,6 +12,7 @@ import {
   eliminarCursoAdmin,
   listarReportes,
   actualizarEstadoReporte,
+  listarBajas, // NUEVO: controlador de bajas
 } from "../controllers/admin.controller.js";
 import { verificarRol, verificarToken } from "../middlewares/auth.middleware.js";
 
@@ -43,3 +44,5 @@ adminRoutes.delete("/cursos/:id", eliminarCursoAdmin);
 // Moderación de reportes (/api/admin/reportes)
 adminRoutes.get("/reportes", listarReportes);
 adminRoutes.put("/reportes/:id", actualizarEstadoReporte);
+
+adminRoutes.get("/bajas", listarBajas); // NUEVO: el administrador ve los motivos de las bajas (GET /api/admin/bajas)

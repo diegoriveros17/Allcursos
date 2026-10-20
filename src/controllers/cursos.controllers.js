@@ -16,6 +16,7 @@ import { notificarNuevoCurso } from "../utils/notificaciones.service.js";
 import { enviarEmail } from "../utils/email.service.js";
 import { construirUrl } from "../config/appUrl.js";
 import { escaparHtml } from "../utils/html.js";
+import { construirUrlMapa } from "../utils/mapas.js"; // NUEVO: helper que arma la URL del mapa
 
 // Devuelve el institucion_id del representante autenticado, ya sea que
 // venga en el token o consultando la tabla intermedia como respaldo.
@@ -124,7 +125,7 @@ export const agregarCursos = async (req, res) => {
       });
     }
 
-    // Si vino una imagen (subida a Cloudinary o guardada localmente)
+    // MODIFICADO: Si vino una imagen (guardada en el disco local, carpeta /uploads)
     const imagen_url =
       req.imagen_url || (req.file ? `/uploads/cursos/${req.file.filename}` : null);
 
@@ -336,7 +337,7 @@ export const verPorIdCursos = async (req, res) => {
         {
           model: institucionesModel,
           as: "institucion",
-          attributes: ["id", "nombre", "cuit"],
+          attributes: ["id", "nombre", "cuit", "ubicacion_maps", "latitud", "longitud"], // NUEVO: también trae la ubicación de la institución
         },
         { model: categoriasModel, as: "categoria", attributes: ["id", "nombre"] },
         {
@@ -359,6 +360,9 @@ export const verPorIdCursos = async (req, res) => {
       } else {
         curso.dataValues.yaMeGusta = false;
       }
+      curso.dataValues.mapa_embed_url = construirUrlMapa(curso.institucion?.ubicacion_maps); // NUEVO: agrega al curso la URL segura del mapa (null si la institución no cargó ubicación)
+      curso.dataValues.latitud = curso.institucion?.latitud == null ? null : Number(curso.institucion.latitud); // NUEVO: latitud del pin de la institución como número (o null)
+      curso.dataValues.longitud = curso.institucion?.longitud == null ? null : Number(curso.institucion.longitud); // NUEVO: longitud del pin de la institución como número (o null)
       return res.status(200).json({ mensaje: "curso encontrado", curso });
     } else {
       return res.status(404).json({ mensaje: "curso no encontrado" });

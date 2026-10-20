@@ -100,6 +100,15 @@ export const consultaLimiter = rateLimit({
   message: mensajeLimite("Enviaste muchas consultas seguidas. Intentá nuevamente en un rato."),
 });
 
+// NUEVO: limitador del buscador de lugares (Nominatim pide no abusar: máximo 30 búsquedas por minuto por IP)
+export const lugaresLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minuto
+  max: 30, // Máximo de búsquedas en esa ventana
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: mensajeLimite("Estás buscando demasiado rápido. Esperá unos segundos."),
+});
+
 // Limitador general para la API
 export const apiGeneralLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos

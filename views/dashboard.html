@@ -12,7 +12,8 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
     />
-  </head>
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" /> <!-- NUEVO: estilos de Leaflet (mapa con pin) -->
+</head>
   <body class="d-flex flex-column h-100 bg-light">
     <header data-bs-theme="light">
       <nav class="navbar navbar-expand-lg bg-body-tertiary fixed-top border-bottom shadow-sm">
@@ -312,6 +313,23 @@
                   >
                   <div id="cursoRequisitos" class="d-flex flex-wrap gap-3"></div>
                 </div>
+                <div class="col-12"> <!-- NUEVO: bloque de ubicación (pin o Google Maps) -->
+                  <label class="form-label fw-semibold d-block">Ubicación de la institución (opcional)</label> <!-- Título del bloque -->
+                  <div class="form-text mb-2">Hacé clic en el mapa para marcar el punto exacto (podés arrastrar el pin). Se guarda en tu institución y se muestra en todos tus cursos.</div> <!-- Instrucción del pin -->
+                  <div class="position-relative mb-2"> <!-- NUEVO: contenedor del buscador (position-relative para ubicar la lista de sugerencias debajo) -->
+                    <input type="text" class="form-control" id="buscadorLugar" autocomplete="off" placeholder="Buscar dirección o lugar (ej: Av. 25 de Mayo 500, Formosa)" /> <!-- Campo donde se escribe lo que se busca -->
+                    <div class="list-group position-absolute w-100 shadow d-none" id="sugerenciasLugar" style="z-index: 2000;"></div> <!-- Lista de sugerencias (oculta hasta que haya resultados) -->
+                  </div> <!-- Cierra el contenedor del buscador -->
+                  <div id="cursoSelectorPin" class="mb-1"></div> <!-- Acá se dibuja el mapa Leaflet donde se hace clic -->
+                  <div class="d-flex justify-content-between align-items-center mb-3"> <!-- Fila con coordenadas y botón quitar -->
+                    <span id="cursoPinCoordenadas" class="small text-muted"></span> <!-- Texto con las coordenadas del pin -->
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="btnQuitarPinCurso">Quitar pin</button> <!-- Botón que borra el pin -->
+                  </div> <!-- Cierra la fila -->
+                  <label for="cursoUbicacionMaps" class="form-label fw-semibold">O pegá un mapa de Google Maps (alternativa)</label> <!-- Etiqueta del campo de Google -->
+                  <textarea class="form-control" id="cursoUbicacionMaps" rows="2" maxlength="2000" placeholder="Ej: Av. 25 de Mayo 500, Formosa  |  -26.1857, -58.1756  |  código de Compartir > Insertar un mapa"></textarea> <!-- Campo para dirección, coordenadas o iframe -->
+                  <div class="form-text">Si marcás un pin, los estudiantes ven el pin; el mapa de Google se usa cuando no hay pin. Los links cortos (maps.app.goo.gl) no sirven.</div> <!-- Aclaración de prioridad -->
+                  <div id="cursoMapaPreview" class="mt-2 text-muted small"></div> <!-- Acá se dibuja el iframe de Google guardado -->
+                </div> <!-- Cierra el bloque de ubicación -->
               </div>
               <div class="mt-4 d-flex justify-content-end gap-2">
                 <button
@@ -431,6 +449,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
     <script src="assets/js/api.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script> <!-- NUEVO: librería Leaflet (mapa con pin) -->
+    <script src="assets/js/mapa.js"></script> <!-- NUEVO: función mostrarMapa -->
     <script src="assets/js/dom_utils.js"></script>
     <script src="assets/js/navbar.js"></script>
     <script src="assets/js/encuesta_builder.js"></script>

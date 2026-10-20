@@ -129,11 +129,6 @@ export {
 // ============================================================
 // NUEVAS TABLAS (v2)
 // ============================================================
-import { tiposMedioContactoModel } from "./tipo_medio_contacto.model.js";
-import { mediosContactoModel } from "./medio_contacto.model.js";
-import { personaMedioContactoModel } from "./persona_medio_contacto.model.js";
-import { institucionMedioContactoModel } from "./institucion_medio_contacto.model.js";
-import { preferenciaNotificacionModel } from "./preferencia_notificacion.model.js";
 import { notificacionesModel } from "./notificacion.model.js";
 import { enviosNotificacionModel } from "./envio_notificacion.model.js";
 import { requisitosModel } from "./requisito.model.js";
@@ -144,25 +139,7 @@ import { encuestasRespuestasModel } from "./encuesta_respuesta.model.js";
 import { tokensRecuperacionModel } from "./token_recuperacion.model.js";
 import { codigosVerificacionModel } from "./codigo_verificacion.model.js";
 
-// --- Medios de contacto ---
-tiposMedioContactoModel.hasMany(mediosContactoModel, { foreignKey: "tipo_medio_id", as: "medios" });
-mediosContactoModel.belongsTo(tiposMedioContactoModel, { foreignKey: "tipo_medio_id", as: "tipo" });
-
-personasModel.hasMany(personaMedioContactoModel, { foreignKey: "persona_id", as: "medios_contacto" });
-personaMedioContactoModel.belongsTo(personasModel, { foreignKey: "persona_id", as: "persona" });
-mediosContactoModel.hasMany(personaMedioContactoModel, { foreignKey: "medio_contacto_id", as: "personas" });
-personaMedioContactoModel.belongsTo(mediosContactoModel, { foreignKey: "medio_contacto_id", as: "medio" });
-
-institucionesModel.hasMany(institucionMedioContactoModel, { foreignKey: "institucion_id", as: "medios_contacto" });
-institucionMedioContactoModel.belongsTo(institucionesModel, { foreignKey: "institucion_id", as: "institucion" });
-mediosContactoModel.hasMany(institucionMedioContactoModel, { foreignKey: "medio_contacto_id", as: "instituciones" });
-institucionMedioContactoModel.belongsTo(mediosContactoModel, { foreignKey: "medio_contacto_id", as: "medio" });
-
-// --- Preferencias y notificaciones ---
-usuariosModel.hasMany(preferenciaNotificacionModel, { foreignKey: "usuario_id", as: "preferencias_notificacion" });
-preferenciaNotificacionModel.belongsTo(usuariosModel, { foreignKey: "usuario_id", as: "usuario" });
-categoriasModel.hasMany(preferenciaNotificacionModel, { foreignKey: "categoria_id", as: "preferencias" });
-preferenciaNotificacionModel.belongsTo(categoriasModel, { foreignKey: "categoria_id", as: "categoria" });
+// (v2.3) LIMPIEZA: se eliminaron los modelos de medios de contacto y de preferencias de notificación porque ninguna pantalla los usaba
 
 cursosModel.hasMany(notificacionesModel, { foreignKey: "curso_id", as: "notificaciones" });
 notificacionesModel.belongsTo(cursosModel, { foreignKey: "curso_id", as: "curso" });
@@ -253,6 +230,11 @@ usuariosModel.hasMany(notificacionesUsuarioModel, {
 });
 notificacionesUsuarioModel.belongsTo(usuariosModel, { foreignKey: "usuario_id", as: "usuario" });
 
+// --- Bajas de cuenta (sólo motivo) ---
+import { bajasCuentaModel } from "./baja_cuenta.model.js"; // Importa el modelo nuevo
+usuariosModel.hasMany(bajasCuentaModel, { foreignKey: "usuario_id", as: "bajas", onDelete: "SET NULL" }); // Un usuario puede tener bajas registradas; si se borra el usuario, la baja se conserva con usuario_id vacío
+bajasCuentaModel.belongsTo(usuariosModel, { foreignKey: "usuario_id", as: "usuario" }); // Cada baja pertenece a un usuario (se usa para mostrar el email en el panel del admin)
+
 // --- Recuperación de contraseña ---
 usuariosModel.hasMany(tokensRecuperacionModel, { foreignKey: "usuario_id", as: "tokens_recuperacion" });
 tokensRecuperacionModel.belongsTo(usuariosModel, { foreignKey: "usuario_id", as: "usuario" });
@@ -272,11 +254,6 @@ usuariosModel.hasMany(cursoLikeModel, { foreignKey: "usuario_id", as: "cursos_li
 cursoLikeModel.belongsTo(usuariosModel, { foreignKey: "usuario_id", as: "usuario" });
 
 export {
-  tiposMedioContactoModel,
-  mediosContactoModel,
-  personaMedioContactoModel,
-  institucionMedioContactoModel,
-  preferenciaNotificacionModel,
   notificacionesModel,
   enviosNotificacionModel,
   requisitosModel,
@@ -292,5 +269,6 @@ export {
   encuestasRespuestasDetalleModel,
   consultasCursoModel,
   notificacionesUsuarioModel,
+  bajasCuentaModel, // Exporta el modelo nuevo junto con los demás
 };
 

@@ -13,6 +13,10 @@ export const institucionesModel = sequelize.define(
       type: DataTypes.ENUM("pendiente", "aprobado", "rechazado"),
       defaultValue: "pendiente",
     },
+    // NUEVO: dirección, coordenadas o código "Insertar un mapa" de Google Maps tal como lo escribió el representante
+    ubicacion_maps: { type: DataTypes.TEXT, allowNull: true }, // TEXT porque el código de Google Maps puede ser largo; null = sin ubicación cargada
+    latitud: { type: DataTypes.DECIMAL(10, 7), allowNull: true }, // NUEVO: latitud del pin del mapa (-90 a 90); null = sin pin
+    longitud: { type: DataTypes.DECIMAL(10, 7), allowNull: true }, // NUEVO: longitud del pin del mapa (-180 a 180); null = sin pin
   },
   {
     tableName: "instituciones",

@@ -1,6 +1,8 @@
 // assets/js/configuracion.js
 const AVATAR_POR_DEFECTO = "assets/img/avatar_default.svg";
 
+// (v2.3) LIMPIEZA: se quitó la sección de ubicación de Mi Cuenta; la ubicación ahora se carga sólo al publicar/editar un curso
+
 document.addEventListener("DOMContentLoaded", async () => {
   const sesion = obtenerSesion();
   if (!sesion) {
@@ -133,27 +135,58 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
-  // --- Formulario: eliminar cuenta ---
-  document.getElementById("formCuentaEliminar").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const confirmado = await confirmarAccion(
-      "¿Seguro que querés eliminar tu cuenta? Vas a perder el acceso a la plataforma.",
-      { titulo: "Eliminar cuenta", textoConfirmar: "Sí, eliminar mi cuenta" },
-    );
-    if (!confirmado) return;
+  // --- MODIFICADO (v2.3): Formulario: eliminar cuenta (motivo por radio + detalle sólo si elige "Otro") ---
+  const radiosMotivo = document.querySelectorAll('input[name="motivoBaja"]'); // Busca todos los radio buttons de motivo
+  const grupoMotivoOtro = document.getElementById("grupoMotivoOtro"); // Contenedor del campo de texto para "Otro motivo"
+  radiosMotivo.forEach((radio) => { // Recorre cada radio button...
+    radio.addEventListener("change", () => { // ...y cuando el usuario elige uno...
+      const esOtro = radio.value === "otro" && radio.checked; // ...calcula si eligió "Otro motivo"
+      grupoMotivoOtro.classList.toggle("d-none", !esOtro); // ...muestra el campo de texto sólo si eligió "Otro" (si no, lo oculta)
+      if (esOtro) document.getElementById("motivoOtroTexto").focus(); // ...y si eligió "Otro", pone el cursor en el campo
+    }); // Cierra el listener del radio
+  }); // Cierra el forEach
 
-    const { ok, data } = await apiFetch("/auth/me", {
-      method: "DELETE",
-      body: { password: document.getElementById("cuentaPasswordEliminar").value },
-    });
+  document.getElementById("formCuentaEliminar").addEventListener("submit", async (e) => { // Cuando se envía el formulario de baja...
+    e.preventDefault(); // ...evita que la página se recargue
+    const msj = document.getElementById("msjCuentaEliminar"); // Contenedor de mensajes de error
+    msj.className = ""; // Limpia el estilo del mensaje anterior
+    msj.textContent = ""; // Limpia el texto del mensaje anterior
 
-    const msj = document.getElementById("msjCuentaEliminar");
-    if (ok) {
-      mostrarToast(data.mensaje, "info");
-      cerrarSesion();
-      setTimeout(() => (window.location.href = "index.html"), 1200);
-    } else {
-      msj.innerHTML = `<div class="alert alert-danger py-2">${data.mensaje || "No se pudo eliminar la cuenta"}</div>`;
-    }
-  });
+    const motivoElegido = document.querySelector('input[name="motivoBaja"]:checked'); // Busca el radio button que está marcado
+    const motivoOtro = document.getElementById("motivoOtroTexto").value.trim(); // Lee el detalle de "Otro motivo" sin espacios sobrantes
+    if (!motivoElegido) { // Si no eligió ningún motivo...
+      msj.textContent = "Elegí el motivo por el cual querés eliminar tu cuenta"; // ...pone el mensaje de error
+      msj.className = "alert alert-danger py-2"; // ...con estilo de alerta roja
+      return; // ...y corta sin enviar nada
+    } // Cierra el if del motivo
+    if (motivoElegido.value === "otro" && motivoOtro.length < 3) { // Si eligió "otro" y no escribió cuál fue...
+      msj.textContent = "Escribí cuál fue el motivo"; // ...pone el mensaje de error
+      msj.className = "alert alert-danger py-2"; // ...con estilo de alerta roja
+      return; // ...y corta sin enviar nada
+    } // Cierra el if de "otro"
+
+    const confirmado = await confirmarAccion( // Muestra el modal de confirmación final (función que ya existe en api.js)
+      "¿Seguro que querés eliminar tu cuenta? Vas a perder el acceso a la plataforma.", // Mensaje del modal
+      { titulo: "Eliminar cuenta", textoConfirmar: "Sí, eliminar mi cuenta" }, // Título y texto del botón de confirmar
+    ); // Cierra la llamada
+    if (!confirmado) return; // Si el usuario cancela, no hace nada más
+
+    const { ok, data } = await apiFetch("/auth/me", { // Llama al backend con DELETE
+      method: "DELETE", // Método DELETE (eliminar)
+      body: { // Datos que se envían
+        password: document.getElementById("cuentaPasswordEliminar").value, // Contraseña para confirmar identidad
+        motivo: motivoElegido.value, // Motivo elegido en los radio buttons
+        motivo_otro: motivoElegido.value === "otro" ? motivoOtro : null, // Detalle del motivo (sólo se envía si eligió "Otro")
+      }, // Cierra el body
+    }); // Cierra la llamada
+
+    if (ok) { // Si el backend aceptó la baja...
+      mostrarToast(data.mensaje, "info"); // ...muestra el mensaje de confirmación
+      cerrarSesion(); // ...borra la sesión guardada en el navegador
+      setTimeout(() => (window.location.href = "index.html"), 1200); // ...y a los 1,2 segundos vuelve al inicio
+    } else { // Si hubo un error (contraseña incorrecta, etc.)...
+      msj.textContent = data.mensaje || "No se pudo eliminar la cuenta"; // ...muestra el motivo (textContent evita inyectar HTML)
+      msj.className = "alert alert-danger py-2"; // ...con estilo de alerta roja
+    } // Cierra el if/else
+  }); // Cierra el listener de eliminar cuenta
 });

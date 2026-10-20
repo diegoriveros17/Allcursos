@@ -9,6 +9,7 @@ import {
   categoriasModel,
   inscripcionesModel,
   reportesCursosModel,
+  bajasCuentaModel, // NUEVO: modelo de bajas de cuenta
 } from "../models/index.js";
 import { enviarEmail } from "../utils/email.service.js";
 import { construirUrl } from "../config/appUrl.js";
@@ -478,3 +479,16 @@ export const actualizarEstadoReporte = async (req, res) => {
     });
   }
 };
+
+// MODIFICADO (v2.3): lista los motivos que indicaron los usuarios al darse de baja (GET /api/admin/bajas)
+export const listarBajas = async (req, res) => { // Controlador para el administrador
+  try { // Intenta ejecutar
+    const bajas = await bajasCuentaModel.findAll({ // Busca todas las bajas
+      include: [{ model: usuariosModel, as: "usuario", attributes: ["id", "email_login"] }], // Trae el email del usuario para identificar la baja
+      order: [["fecha_creacion", "DESC"]], // Las más nuevas primero
+    }); // Cierra la búsqueda
+    return res.status(200).json({ mensaje: "Bajas de cuenta", bajas }); // Responde con la lista
+  } catch (error) { // Si falla...
+    return res.status(500).json({ mensaje: "Error al listar las bajas", error: error.message }); // ...responde 500
+  } // Cierra el catch
+}; // Cierra el controlador

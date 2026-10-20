@@ -15,9 +15,6 @@ import { categoriasModel } from "../models/categoria.model.js";
 import { institucionesModel } from "../models/instituciones.model.js";
 import { direccionesModel } from "../models/direcciones.model.js";
 import { requisitosModel } from "../models/requisito.model.js";
-import { institucionMedioContactoModel } from "../models/institucion_medio_contacto.model.js";
-import { mediosContactoModel } from "../models/medio_contacto.model.js";
-import { tiposMedioContactoModel } from "../models/tipo_medio_contacto.model.js";
 
 const PALABRAS_PLATAFORMA = [
   "curso",
@@ -154,23 +151,9 @@ async function buscarCursosRelevantes(mensajeNormalizado, curso_id) {
     : todos.slice(0, 15);
 }
 
-async function obtenerMediosContactoInstitucion(institucion_id) {
-  const vinculos = await institucionMedioContactoModel.findAll({
-    where: { institucion_id },
-    include: [
-      {
-        model: mediosContactoModel,
-        as: "medio",
-        include: [{ model: tiposMedioContactoModel, as: "tipo" }],
-      },
-    ],
-  });
-  return vinculos.map(
-    (v) => `${v.medio.tipo?.nombre || "Contacto"}: ${v.medio.valor}`,
-  );
-}
+// (v2.3) LIMPIEZA: se eliminó obtenerMediosContactoInstitucion(); la tabla de medios de contacto ya no existe
 
-function formatearCursoParaContexto(curso, medios) {
+function formatearCursoParaContexto(curso) { // MODIFICADO: ya no recibe los medios de contacto
   const partes = [
     `- "${curso.titulo}" (institución: ${curso.institucion?.nombre || "s/d"}, categoría: ${curso.categoria?.nombre || "s/d"})`,
     `  Modalidad: ${curso.modalidad}. Cupo máximo: ${curso.cupo_maximo}.`,
@@ -185,8 +168,7 @@ function formatearCursoParaContexto(curso, medios) {
     partes.push(
       `  Requisitos: ${curso.requisitos.map((r) => r.descripcion).join(", ")}.`,
     );
-  if (medios?.length)
-    partes.push(`  Contacto de la institución: ${medios.join(" | ")}.`);
+  partes.push("  Contacto: se hace desde el formulario 'Consultar sobre este curso' del detalle del curso."); // MODIFICADO: indica cómo contactar a la institución (formulario de consultas)
   partes.push(`  Descripción: ${curso.descripcion}`);
   return partes.join("\n");
 }
@@ -245,14 +227,12 @@ ${contexto || "(no hay cursos cargados actualmente)"}`;
 async function responderSimulado(
   mensajeNormalizado,
   cursos,
-  mediosPorInstitucion,
-) {
+) { // MODIFICADO: se quitó el parámetro mediosPorInstitucion
   if (cursos.length === 0) {
     return "Por el momento no hay cursos publicados. ¡Volvé a consultar más adelante!";
   }
 
   const curso = cursos[0];
-  const medios = mediosPorInstitucion[curso.institucion_id] || [];
 
   if (mensajeNormalizado.includes("requisito")) {
     return curso.requisitos?.length
@@ -273,9 +253,7 @@ async function responderSimulado(
       mensajeNormalizado.includes(p),
     )
   ) {
-    return medios.length
-      ? `Podés contactar a ${curso.institucion?.nombre} por: ${medios.join(" | ")}.`
-      : `Todavía no hay un medio de contacto cargado para ${curso.institucion?.nombre}. Te recomiendo revisar el detalle del curso en la plataforma.`;
+    return `Para contactar a ${curso.institucion?.nombre} usá el formulario "Consultar sobre este curso" que está en el detalle del curso; no hace falta tener cuenta.`; // MODIFICADO: respuesta fija que apunta al formulario de consultas
   }
   if (["cupo", "vacante"].some((p) => mensajeNormalizado.includes(p))) {
     return `El curso "${curso.titulo}" tiene un cupo máximo de ${curso.cupo_maximo} personas.`;
@@ -326,20 +304,10 @@ export async function responderChatbot(mensaje, curso_id) {
     return "Sólo puedo ayudarte con consultas sobre los cursos y capacitaciones publicadas en AllCursos (requisitos, lugar, modalidad, cupos, contacto, etc). ¿Querés preguntarme algo sobre eso?";
   }
 
-  const mediosPorInstitucion = {};
-  for (const curso of cursosRelevantes) {
-    if (!mediosPorInstitucion[curso.institucion_id]) {
-      mediosPorInstitucion[curso.institucion_id] =
-        await obtenerMediosContactoInstitucion(curso.institucion_id);
-    }
-  }
-
   if (process.env.ANTHROPIC_API_KEY) {
     try {
       const contexto = cursosRelevantes
-        .map((c) =>
-          formatearCursoParaContexto(c, mediosPorInstitucion[c.institucion_id]),
-        )
+        .map((c) => formatearCursoParaContexto(c)) // MODIFICADO: ya no se pasan medios de contacto
         .join("\n\n");
       return await responderConIA(mensaje, contexto);
     } catch (error) {
@@ -352,9 +320,5 @@ export async function responderChatbot(mensaje, curso_id) {
     }
   }
 
-  return responderSimulado(
-    mensajeNormalizado,
-    cursosRelevantes,
-    mediosPorInstitucion,
-  );
+  return responderSimulado(mensajeNormalizado, cursosRelevantes); // MODIFICADO: sin el tercer argumento
 }
