@@ -220,6 +220,18 @@ cursosModel.hasMany(consultasCursoModel, { foreignKey: "curso_id", as: "consulta
 consultasCursoModel.belongsTo(cursosModel, { foreignKey: "curso_id", as: "curso" });
 institucionesModel.hasMany(consultasCursoModel, { foreignKey: "institucion_id", as: "consultas" });
 consultasCursoModel.belongsTo(institucionesModel, { foreignKey: "institucion_id", as: "institucion" });
+usuariosModel.hasMany(consultasCursoModel, { foreignKey: "usuario_id", as: "consultas_enviadas" });
+consultasCursoModel.belongsTo(usuariosModel, { foreignKey: "usuario_id", as: "usuario" });
+
+// --- Conversación de cada consulta (se responde sólo dentro de la plataforma) ---
+import { mensajesConsultaModel } from "./mensaje_consulta.model.js";
+consultasCursoModel.hasMany(mensajesConsultaModel, {
+  foreignKey: "consulta_id",
+  as: "mensajes",
+  onDelete: "CASCADE", // Si se borra la consulta (o su curso), se borran sus mensajes
+});
+mensajesConsultaModel.belongsTo(consultasCursoModel, { foreignKey: "consulta_id", as: "consulta" });
+mensajesConsultaModel.belongsTo(usuariosModel, { foreignKey: "usuario_id", as: "autor_usuario" });
 
 // --- Bandeja de notificaciones internas (campanita) ---
 import { notificacionesUsuarioModel } from "./notificacion_usuario.model.js";
@@ -268,6 +280,7 @@ export {
   encuestasPreguntasModel,
   encuestasRespuestasDetalleModel,
   consultasCursoModel,
+  mensajesConsultaModel,
   notificacionesUsuarioModel,
   bajasCuentaModel, // Exporta el modelo nuevo junto con los demás
 };

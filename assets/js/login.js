@@ -7,13 +7,42 @@ if (obtenerSesion()) {
 const formLogin = document.querySelector("#formLogin");
 const msjConfirmacion = document.querySelector("#msjConfirmacion");
 
+// Muestra un aviso con ícono dentro del formulario (textContent: el mensaje nunca se interpreta como HTML)
+function mostrarAvisoFormulario(contenedor, tipo, mensaje) {
+  const iconos = { success: "bi-check-circle-fill", danger: "bi-exclamation-circle-fill", warning: "bi-exclamation-triangle-fill" };
+  const aviso = document.createElement("div");
+  aviso.className = `alert alert-${tipo} aviso-formulario`;
+  aviso.setAttribute("role", "alert");
+  const icono = document.createElement("i");
+  icono.className = `bi ${iconos[tipo] || iconos.warning}`;
+  const texto = document.createElement("span");
+  texto.textContent = mensaje;
+  aviso.append(icono, texto);
+  contenedor.replaceChildren(aviso);
+}
+
+// Pone el botón en estado "cargando" (spinner + deshabilitado) y lo restaura después
+function botonCargando(boton, cargando, texto) {
+  if (!boton) return;
+  if (cargando) {
+    boton.dataset.htmlOriginal = boton.innerHTML;
+    boton.disabled = true;
+    boton.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>${texto}`;
+  } else {
+    boton.disabled = false;
+    if (boton.dataset.htmlOriginal) boton.innerHTML = boton.dataset.htmlOriginal;
+  }
+}
+
 if (formLogin) {
   formLogin.addEventListener("submit", async (e) => {
     e.preventDefault();
 
     const user = formLogin.user.value.trim();
     const password = formLogin.password.value;
+    const btnLogin = document.getElementById("btnLogin");
 
+    botonCargando(btnLogin, true, "Ingresando...");
     const { ok, data } = await apiFetch("/auth/login", {
       method: "POST",
       auth: false,
@@ -22,15 +51,7 @@ if (formLogin) {
 
     if (ok) {
       guardarSesion(data.usuario, data.token);
-
-      msjConfirmacion.innerHTML = `
-        <div class="row justify-content-center p-3">
-          <div class="col">
-            <div class="alert alert-success" role="alert">
-              ¡Hola ${data.usuario.nombre}! Redirigiendo a la página de inicio...
-            </div>
-          </div>
-        </div>`;
+      mostrarAvisoFormulario(msjConfirmacion, "success", `¡Hola ${data.usuario.nombre}! Te estamos llevando al inicio...`);
 
       const contenedor = document.getElementById("page-container");
       if (contenedor) contenedor.classList.add("fade-out");
@@ -39,14 +60,11 @@ if (formLogin) {
         window.location.href = "index.html";
       }, 1200);
     } else {
-      msjConfirmacion.innerHTML = `
-        <div class="row justify-content-center p-3">
-          <div class="col">
-            <div class="alert alert-danger" role="alert">
-              ${data.mensaje || "Usuario o contraseña incorrectos"}
-            </div>
-          </div>
-        </div>`;
+      botonCargando(btnLogin, false);
+      mostrarAvisoFormulario(msjConfirmacion, "danger", data.mensaje || "Usuario o contraseña incorrectos");
+      formLogin.classList.remove("sacudir");
+      void formLogin.offsetWidth; // Reinicia la animación aunque se repita el error
+      formLogin.classList.add("sacudir");
     }
   });
 }
@@ -71,12 +89,13 @@ function seleccionarRol(rol) {
   document.getElementById("email").required = true;
   document.getElementById("password").required = true;
 
-  if (rol === "ciudadano") {
-    btnCiudadano?.classList.replace("btn-outline-secondary", "btn-primary");
-    btnCiudadano?.classList.add("text-white");
-    btnRepresentante?.classList.replace("btn-primary", "btn-outline-secondary");
-    btnRepresentante?.classList.remove("text-white");
+  // Marca la tarjeta de rol elegida
+  btnCiudadano?.classList.toggle("seleccionada", rol === "ciudadano");
+  btnCiudadano?.setAttribute("aria-pressed", String(rol === "ciudadano"));
+  btnRepresentante?.classList.toggle("seleccionada", rol === "representante");
+  btnRepresentante?.setAttribute("aria-pressed", String(rol === "representante"));
 
+  if (rol === "ciudadano") {
     camposCiudadano?.classList.remove("d-none");
     camposInstitucion?.classList.add("d-none");
 
@@ -87,11 +106,6 @@ function seleccionarRol(rol) {
     if (document.getElementById("cuit"))
       document.getElementById("cuit").required = false;
   } else if (rol === "representante") {
-    btnRepresentante?.classList.replace("btn-outline-secondary", "btn-primary");
-    btnRepresentante?.classList.add("text-white");
-    btnCiudadano?.classList.replace("btn-primary", "btn-outline-secondary");
-    btnCiudadano?.classList.remove("text-white");
-
     camposInstitucion?.classList.remove("d-none");
     camposCiudadano?.classList.add("d-none");
 
@@ -141,7 +155,7 @@ if (btnEnviarCodigo && inputEmail) {
     });
 
     btnEnviarCodigo.disabled = false;
-    btnEnviarCodigo.innerHTML = `<i class="bi bi-send me-1"></i> Reenviar Código`;
+    btnEnviarCodigo.innerHTML = `<i class="bi bi-send me-1"></i> Reenviar`;
 
     if (ok) {
       idVerificacionActual = data.verificacion_id;
@@ -203,20 +217,14 @@ if (formRegistro) {
     const rolElegido = inputOcultoRol ? inputOcultoRol.value : "";
 
     if (!rolElegido) {
-      msjRegistro.innerHTML = `
-        <div class="alert alert-warning mt-2">
-          Por favor, selecciona si eres "Ciudadano" o "Representante de Institución" arriba.
-        </div>`;
+      mostrarAvisoFormulario(msjRegistro, "warning", 'Por favor, elegí arriba si te registrás como "Ciudadano" o como "Institución".');
       return;
     }
 
     const verificacion_id = inputVerificacionId ? inputVerificacionId.value : "";
     if (!verificacion_id) {
-      msjRegistro.innerHTML = `
-        <div class="alert alert-warning mt-2">
-          <i class="bi bi-shield-exclamation me-1"></i>
-          Debes verificar tu email haciendo click en "Verificar Email" e ingresar el código de 6 dígitos antes de registrarte.
-        </div>`;
+      mostrarAvisoFormulario(msjRegistro, "warning", 'Primero verificá tu email: tocá "Verificar" e ingresá el código de 6 dígitos que te llegó.');
+      inputEmail?.focus();
       return;
     }
 
@@ -247,6 +255,8 @@ if (formRegistro) {
         : "Email",
     };
 
+    const btnRegistrarme = document.getElementById("btnRegistrarme");
+    botonCargando(btnRegistrarme, true, "Creando tu cuenta...");
     const { ok, data } = await apiFetch("/auth/register", {
       method: "POST",
       auth: false,
@@ -255,22 +265,21 @@ if (formRegistro) {
 
     if (ok) {
       const esRepresentante = rolElegido === "representante";
-      msjRegistro.innerHTML = `
-        <div class="alert alert-success mt-2">
-          ${
-            esRepresentante
-              ? `<strong>¡Solicitud de registro enviada!</strong> Tu cuenta de representante e institución está en revisión. Un administrador la validará pronto.`
-              : `<strong>¡Registro completado con éxito!</strong> Redirigiendo al inicio de sesión...`
-          }
-        </div>`;
+      mostrarAvisoFormulario(
+        msjRegistro,
+        "success",
+        esRepresentante
+          ? "¡Solicitud enviada! Tu cuenta de representante e institución está en revisión. Un administrador la validará pronto."
+          : "¡Registro completado con éxito! Te llevamos al inicio de sesión...",
+      );
       formRegistro.reset();
 
       setTimeout(() => {
         window.location.href = "login.html";
       }, esRepresentante ? 3000 : 1800);
     } else {
-      msjRegistro.innerHTML = `
-        <div class="alert alert-danger mt-2">${data.mensaje || "No se pudo completar el registro"}</div>`;
+      botonCargando(btnRegistrarme, false);
+      mostrarAvisoFormulario(msjRegistro, "danger", data.mensaje || "No se pudo completar el registro");
     }
   });
 }

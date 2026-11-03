@@ -92,19 +92,21 @@ function confirmarAccion(mensaje, { titulo = "Confirmar", textoConfirmar = "Conf
     if (!modalEl) {
       modalEl = document.createElement("div");
       modalEl.id = "modalConfirmacionGlobal";
-      modalEl.className = "modal fade";
+      modalEl.className = "modal fade modal-confirmacion";
       modalEl.setAttribute("tabindex", "-1");
+      modalEl.setAttribute("aria-labelledby", "modalConfirmacionTitulo");
       modalEl.innerHTML = `
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-sm-plus">
           <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title" id="modalConfirmacionTitulo">Confirmar</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <button type="button" class="btn-close modal-confirmacion-cerrar" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            <div class="modal-body text-center">
+              <span class="modal-confirmacion-icono" id="modalConfirmacionIcono"><i class="bi"></i></span>
+              <h5 class="modal-title mb-2" id="modalConfirmacionTitulo">Confirmar</h5>
+              <p class="text-muted mb-0" id="modalConfirmacionMensaje"></p>
             </div>
-            <div class="modal-body" id="modalConfirmacionMensaje"></div>
             <div class="modal-footer">
-              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-              <button type="button" class="btn" id="modalConfirmacionBtnOk">Confirmar</button>
+              <button type="button" class="btn btn-outline-secondary flex-fill" data-bs-dismiss="modal">Cancelar</button>
+              <button type="button" class="btn flex-fill" id="modalConfirmacionBtnOk">Confirmar</button>
             </div>
           </div>
         </div>
@@ -116,7 +118,10 @@ function confirmarAccion(mensaje, { titulo = "Confirmar", textoConfirmar = "Conf
     modalEl.querySelector("#modalConfirmacionMensaje").textContent = mensaje;
     const btnOk = modalEl.querySelector("#modalConfirmacionBtnOk");
     btnOk.textContent = textoConfirmar;
-    btnOk.className = `btn ${peligroso ? "btn-danger" : "btn-dark"}`;
+    btnOk.className = `btn flex-fill ${peligroso ? "btn-danger" : "btn-primary"}`;
+    const icono = modalEl.querySelector("#modalConfirmacionIcono");
+    icono.classList.toggle("peligro", peligroso); // Rojo para acciones peligrosas, azul para el resto
+    icono.querySelector("i").className = `bi ${peligroso ? "bi-exclamation-triangle" : "bi-question-circle"}`;
 
     const modal = new bootstrap.Modal(modalEl);
 

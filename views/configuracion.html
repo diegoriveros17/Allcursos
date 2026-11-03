@@ -14,6 +14,8 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css"
     />
+    <link rel="preconnect" href="https://fonts.googleapis.com" /> <!-- Adelanta la conexión con Google Fonts para que las letras carguen antes -->
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="assets/css/style.css" />
 </head>
   <body class="d-flex flex-column h-100" id="page-container">
@@ -141,7 +143,7 @@
                         </div>
                         <div class="col-md-6">
                           <label for="cuentaPasswordNueva" class="form-label fw-semibold">Nueva contraseña</label>
-                          <input type="password" class="form-control" id="cuentaPasswordNueva" required minlength="4" />
+                          <input type="password" class="form-control" id="cuentaPasswordNueva" required minlength="4" autocomplete="new-password" data-fuerza />
                         </div>
                         <div class="col-md-6">
                           <label for="cuentaPasswordConfirmar" class="form-label fw-semibold">Confirmar nueva contraseña</label>
@@ -218,6 +220,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
     <script src="assets/js/api.js"></script> <!-- Funciones comunes (apiFetch, toasts) -->
     <script src="assets/js/navbar.js"></script>
+    <script src="assets/js/ui.js"></script> <!-- Efectos visuales comunes (scroll, volver arriba) -->
     <script src="assets/js/configuracion.js"></script>
   </body>
 </html>

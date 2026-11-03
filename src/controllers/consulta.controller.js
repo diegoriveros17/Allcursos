@@ -1,14 +1,20 @@
+import { Op } from "sequelize";
 import {
   consultasCursoModel,
   cursosModel,
   institucionesModel,
+  mensajesConsultaModel,
+  personasModel,
   representanteInstituModel,
+  usuariosModel,
 } from "../models/index.js";
-import { notificarRepresentantes } from "../utils/notificaciones.service.js";
+import { crearNotificacionUsuario, notificarRepresentantes } from "../utils/notificaciones.service.js";
 import { construirUrl } from "../config/appUrl.js";
 import { escaparHtml } from "../utils/html.js";
 
-const REGEX_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIN_CONSULTA = 10;
+const MIN_MENSAJE = 2;
+const MAX_MENSAJE = 2000;
 
 const obtenerInstitucionDeRepresentante = async (usuarioReq) => {
   if (usuarioReq.institucion_id) return usuarioReq.institucion_id;
@@ -18,42 +24,81 @@ const obtenerInstitucionDeRepresentante = async (usuarioReq) => {
   return representacion ? representacion.institucion_id : null;
 };
 
+// Usuario con sus datos personales (nombre, apellido) para armar la consulta/mensaje
+const obtenerUsuarioConPersona = (id) =>
+  usuariosModel.findByPk(id, {
+    attributes: ["id", "email_login"],
+    include: [{ model: personasModel, as: "persona", attributes: ["nombre", "apellido"] }],
+  });
+
+const nombreCompleto = (usuario) =>
+  [usuario?.persona?.nombre, usuario?.persona?.apellido].filter(Boolean).join(" ") || "Usuario";
+
+// Consultas del ciudadano: las que hizo con su cuenta + las viejas que dejó como
+// visitante con el mismo email (antes de que fuera obligatorio iniciar sesión)
+const condicionConsultasDelCiudadano = (usuario) => ({
+  [Op.or]: [{ usuario_id: usuario.id }, { usuario_id: null, email: usuario.email_login }],
+});
+
+// Lo que se incluye al devolver una consulta con su conversación
+const incluirConversacion = [
+  { model: cursosModel, as: "curso", attributes: ["id", "titulo", "imagen_url"] },
+  { model: institucionesModel, as: "institucion", attributes: ["id", "nombre"] },
+  {
+    model: mensajesConsultaModel,
+    as: "mensajes",
+    attributes: ["id", "autor", "mensaje", "fecha_creacion"],
+    include: [
+      {
+        model: usuariosModel,
+        as: "autor_usuario",
+        attributes: ["id"],
+        include: [{ model: personasModel, as: "persona", attributes: ["nombre", "apellido"] }],
+      },
+    ],
+  },
+];
+// Se ordena por id (siempre crece) porque dos mensajes en el mismo segundo empatan en la fecha
+const ordenConversacion = [
+  ["fecha_creacion", "DESC"],
+  ["id", "DESC"],
+  [{ model: mensajesConsultaModel, as: "mensajes" }, "id", "ASC"],
+];
+
+const validarTexto = (texto, minimo) => {
+  if (texto.length < minimo) return `Escribí un mensaje (mínimo ${minimo} caracteres)`;
+  if (texto.length > MAX_MENSAJE) return `El mensaje no puede superar los ${MAX_MENSAJE} caracteres`;
+  return null;
+};
+
 // ============================================================
-// PÚBLICO: un visitante (sin cuenta) consulta sobre un curso.
-// POST /api/cursos/:id/consultas  { nombre, email, mensaje }
-//  1) se guarda en la BD (para gestionarla desde el panel)
-//  2) se avisa en la campanita de los representantes de la institución
-//  3) se les envía un email con "Responder a" = el correo del visitante
+// CIUDADANO: hace una consulta sobre un curso (requiere sesión).
+// POST /api/cursos/:id/consultas  { mensaje }
+//  1) se guarda en la BD con el usuario que la hizo
+//  2) se avisa en la campanita (y por email) a los representantes de la institución,
+//     que la responden desde su panel: la respuesta queda en la plataforma
 // ============================================================
 export const crearConsulta = async (req, res) => {
   try {
-    const nombre = String(req.body.nombre ?? "").trim();
-    const email = String(req.body.email ?? "").trim();
     const mensaje = String(req.body.mensaje ?? "").trim();
+    const error = validarTexto(mensaje, MIN_CONSULTA);
+    if (error) return res.status(400).json({ mensaje: error.replace("un mensaje", "tu consulta") });
 
-    // Honeypot: campo oculto que una persona nunca completa pero un bot sí.
-    // Respondemos "ok" igual para no darle pistas al bot, pero no guardamos nada.
-    if (req.body.sitio_web) {
-      return res.status(201).json({ mensaje: "¡Consulta enviada!" });
-    }
-
-    const errores = [];
-    if (nombre.length < 2 || nombre.length > 100) errores.push("Ingresá tu nombre (entre 2 y 100 caracteres)");
-    if (!REGEX_EMAIL.test(email) || email.length > 150) errores.push("Ingresá un correo de contacto válido");
-    if (mensaje.length < 10) errores.push("Escribí tu consulta (mínimo 10 caracteres)");
-    if (mensaje.length > 2000) errores.push("La consulta no puede superar los 2000 caracteres");
-    if (errores.length > 0) return res.status(400).json({ mensaje: errores[0], errores });
+    const usuario = await obtenerUsuarioConPersona(req.usuario.id);
+    if (!usuario) return res.status(404).json({ mensaje: "Usuario no encontrado" });
 
     const curso = await cursosModel.findByPk(req.params.id, {
       include: [{ model: institucionesModel, as: "institucion", attributes: ["id", "nombre"] }],
     });
     if (!curso) return res.status(404).json({ mensaje: "Curso no encontrado" });
 
+    const nombre = nombreCompleto(usuario).slice(0, 100);
     const consulta = await consultasCursoModel.create({
       curso_id: curso.id,
       institucion_id: curso.institucion_id,
+      usuario_id: usuario.id,
       nombre,
-      email,
+      email: usuario.email_login,
       mensaje,
     });
 
@@ -66,26 +111,157 @@ export const crearConsulta = async (req, res) => {
       url: "dashboard.html#consultas",
       email: {
         subject: `Nueva consulta sobre "${curso.titulo}" - AllCursos`,
-        replyTo: email, // el representante responde directo con "Responder"
         html: `
           <h2>Nueva consulta sobre tu curso</h2>
           <p><strong>Curso:</strong> ${escaparHtml(curso.titulo)}</p>
-          <p><strong>De:</strong> ${escaparHtml(nombre)} &lt;${escaparHtml(email)}&gt;</p>
-          <blockquote style="border-left:4px solid #0d6efd;margin:12px 0;padding:8px 12px;background:#f5f7fa;white-space:pre-wrap;">${escaparHtml(mensaje)}</blockquote>
-          <p>Podés responder directamente a este correo, o gestionar la consulta desde tu panel:</p>
-          <p><a href="${construirUrl("dashboard.html")}" style="background:#0d6efd;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;">Ir a mi panel</a></p>
+          <p><strong>De:</strong> ${escaparHtml(nombre)}</p>
+          <blockquote style="border-left:4px solid #2f7d6b;margin:12px 0;padding:8px 12px;background:#f5f7fa;white-space:pre-wrap;">${escaparHtml(mensaje)}</blockquote>
+          <p>Las consultas se responden desde tu panel de AllCursos (no respondas este correo):</p>
+          <p><a href="${construirUrl("dashboard.html#consultas")}" style="background:#1e3a5f;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;">Responder desde mi panel</a></p>
         `,
       },
     }).catch((e) => console.error("Error notificando consulta:", e.message));
 
     return res.status(201).json({
-      mensaje: "¡Consulta enviada! La institución se va a comunicar con vos al correo que dejaste.",
+      mensaje: "¡Consulta enviada! Te avisamos en la campanita cuando la institución responda. La podés seguir en Mi Panel › Mis consultas.",
       id: consulta.id,
     });
   } catch (error) {
     return res
       .status(500)
       .json({ mensaje: "No se pudo enviar la consulta", error: error.message });
+  }
+};
+
+// ============================================================
+// CIUDADANO: sus consultas con la conversación completa
+// GET /api/consultas/enviadas
+// ============================================================
+export const verConsultasEnviadas = async (req, res) => {
+  try {
+    const usuario = await obtenerUsuarioConPersona(req.usuario.id);
+    if (!usuario) return res.status(404).json({ mensaje: "Usuario no encontrado" });
+
+    const consultas = await consultasCursoModel.findAll({
+      where: condicionConsultasDelCiudadano(usuario),
+      include: incluirConversacion,
+      order: ordenConversacion,
+      limit: 100,
+    });
+    const novedades = consultas.filter((c) => c.novedad_ciudadano).length;
+    return res.status(200).json({ mensaje: "Tus consultas", novedades, consultas });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ mensaje: "Error al obtener tus consultas", error: error.message });
+  }
+};
+
+// CIUDADANO: marca que ya vio la respuesta (apaga el indicador de "respuesta nueva")
+// PUT /api/consultas/:id/vista
+export const marcarConsultaVista = async (req, res) => {
+  try {
+    const usuario = await obtenerUsuarioConPersona(req.usuario.id);
+    if (!usuario) return res.status(404).json({ mensaje: "Usuario no encontrado" });
+    await consultasCursoModel.update(
+      { novedad_ciudadano: false },
+      { where: { id: req.params.id, ...condicionConsultasDelCiudadano(usuario) } },
+    );
+    return res.status(200).json({ mensaje: "Consulta marcada como vista" });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ mensaje: "Error al actualizar la consulta", error: error.message });
+  }
+};
+
+// ============================================================
+// CIUDADANO o REPRESENTANTE: agrega un mensaje a la conversación
+// POST /api/consultas/:id/mensajes  { mensaje }
+// - Representante: responde -> la consulta queda "respondida" y se avisa al ciudadano
+// - Ciudadano: repregunta  -> la consulta vuelve a "nueva" y se avisa a la institución
+// ============================================================
+export const enviarMensajeConsulta = async (req, res) => {
+  try {
+    const texto = String(req.body.mensaje ?? "").trim();
+    const error = validarTexto(texto, MIN_MENSAJE);
+    if (error) return res.status(400).json({ mensaje: error });
+
+    const consulta = await consultasCursoModel.findByPk(req.params.id, {
+      include: [
+        { model: cursosModel, as: "curso", attributes: ["id", "titulo"] },
+        { model: institucionesModel, as: "institucion", attributes: ["id", "nombre"] },
+      ],
+    });
+    if (!consulta) return res.status(404).json({ mensaje: "Consulta no encontrada" });
+
+    const esRepresentante = req.usuario.rol === "representante";
+    const usuario = await obtenerUsuarioConPersona(req.usuario.id);
+    if (!usuario) return res.status(404).json({ mensaje: "Usuario no encontrado" });
+
+    // Sólo puede escribir la institución dueña del curso o el ciudadano que consultó
+    if (esRepresentante) {
+      const institucion_id = await obtenerInstitucionDeRepresentante(req.usuario);
+      if (consulta.institucion_id !== institucion_id) {
+        return res.status(404).json({ mensaje: "Consulta no encontrada en tu institución" });
+      }
+    } else {
+      const esDuenio =
+        consulta.usuario_id === usuario.id ||
+        (consulta.usuario_id === null && consulta.email === usuario.email_login);
+      if (!esDuenio) return res.status(404).json({ mensaje: "Consulta no encontrada" });
+    }
+
+    const nuevo = await mensajesConsultaModel.create({
+      consulta_id: consulta.id,
+      usuario_id: usuario.id,
+      autor: esRepresentante ? "representante" : "ciudadano",
+      mensaje: texto,
+    });
+
+    const tituloCurso = consulta.curso?.titulo || "el curso";
+    let aviso = "Mensaje enviado";
+
+    if (esRepresentante) {
+      await consulta.update({ estado: "respondida", novedad_ciudadano: true });
+
+      // Si la consulta es vieja (de visitante), se busca una cuenta con ese email
+      let destinatario = consulta.usuario_id;
+      if (!destinatario) {
+        const cuenta = await usuariosModel.findOne({ where: { email_login: consulta.email }, attributes: ["id"] });
+        destinatario = cuenta?.id || null;
+      }
+      if (destinatario) {
+        crearNotificacionUsuario({
+          usuario_id: destinatario,
+          tipo: "consulta",
+          titulo: `${consulta.institucion?.nombre || "La institución"} respondió tu consulta`,
+          mensaje: `Sobre "${tituloCurso}": ${texto}`,
+          url: "dashboard.html#mis-consultas",
+          agrupar: true,
+          mensajeAgrupado: (n) => `Tenés ${n} respuestas nuevas sobre "${tituloCurso}"`,
+        }).catch((e) => console.error("Error notificando respuesta de consulta:", e.message));
+        aviso = "Respuesta enviada. El ciudadano la va a ver en su panel.";
+      } else {
+        aviso = "Respuesta guardada. Esta persona todavía no tiene cuenta: la va a ver cuando inicie sesión con ese email.";
+      }
+    } else {
+      // Al vincular una consulta vieja por email, queda asociada a la cuenta
+      await consulta.update({ estado: "nueva", novedad_ciudadano: false, usuario_id: usuario.id });
+      notificarRepresentantes(consulta.institucion_id, {
+        tipo: "consulta",
+        titulo: `Nuevo mensaje en la consulta sobre "${tituloCurso}"`,
+        mensaje: `${nombreCompleto(usuario)}: ${texto}`,
+        url: "dashboard.html#consultas",
+      }).catch((e) => console.error("Error notificando mensaje de consulta:", e.message));
+      aviso = "Mensaje enviado a la institución.";
+    }
+
+    return res.status(201).json({ mensaje: aviso, id: nuevo.id });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ mensaje: "No se pudo enviar el mensaje", error: error.message });
   }
 };
 
@@ -100,8 +276,8 @@ export const verMisConsultas = async (req, res) => {
 
     const consultas = await consultasCursoModel.findAll({
       where,
-      include: [{ model: cursosModel, as: "curso", attributes: ["id", "titulo"] }],
-      order: [["fecha_creacion", "DESC"]],
+      include: incluirConversacion,
+      order: ordenConversacion,
       limit: 100,
     });
     const nuevas = await consultasCursoModel.count({ where: { institucion_id, estado: "nueva" } });

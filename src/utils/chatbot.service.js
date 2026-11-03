@@ -253,7 +253,7 @@ async function responderSimulado(
       mensajeNormalizado.includes(p),
     )
   ) {
-    return `Para contactar a ${curso.institucion?.nombre} usá el formulario "Consultar sobre este curso" que está en el detalle del curso; no hace falta tener cuenta.`; // MODIFICADO: respuesta fija que apunta al formulario de consultas
+    return `Para contactar a ${curso.institucion?.nombre} usá el formulario "Consultar sobre este curso" que está en el detalle del curso (tenés que iniciar sesión con tu cuenta de ciudadano); la respuesta te llega en Mi Panel › Mis consultas.`; // MODIFICADO: respuesta fija que apunta al formulario de consultas
   }
   if (["cupo", "vacante"].some((p) => mensajeNormalizado.includes(p))) {
     return `El curso "${curso.titulo}" tiene un cupo máximo de ${curso.cupo_maximo} personas.`;

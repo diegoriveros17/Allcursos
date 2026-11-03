@@ -151,36 +151,33 @@ document.addEventListener("DOMContentLoaded", async () => {
       ${
         !sesion || sesion.rol === "ciudadano"
           ? `
-      <!-- CONSULTAR SOBRE ESTE CURSO (público, no requiere cuenta) -->
+      <!-- CONSULTAR SOBRE ESTE CURSO (ciudadanos con sesión: la respuesta llega a su panel) -->
       <div class="card shadow-sm border-0 mt-4 text-start" id="seccionConsulta">
         <div class="card-body p-4">
           <h4 class="fw-bold mb-1"><i class="bi bi-chat-dots me-2"></i>Consultar sobre este curso</h4>
-          <p class="text-muted">¿Tenés dudas? Escribile a la institución. No necesitás tener una cuenta.</p>
+          ${
+            sesion
+              ? `<p class="text-muted">¿Tenés dudas? Escribile a la institución. La respuesta te llega a <a href="dashboard.html#mis-consultas">Mi Panel › Mis consultas</a> y te avisamos en la campanita.</p>
           <div id="msjConsulta"></div>
           <form id="formConsulta" novalidate>
             <div class="row g-3">
-              <div class="col-md-6">
-                <label for="consultaNombre" class="form-label fw-semibold">Nombre</label>
-                <input type="text" class="form-control" id="consultaNombre" maxlength="100" autocomplete="name" required>
-              </div>
-              <div class="col-md-6">
-                <label for="consultaEmail" class="form-label fw-semibold">Correo de contacto</label>
-                <input type="email" class="form-control" id="consultaEmail" maxlength="150" autocomplete="email" required>
-              </div>
               <div class="col-12">
-                <label for="consultaMensaje" class="form-label fw-semibold">Mensaje / Consulta</label>
-                <textarea class="form-control" id="consultaMensaje" rows="4" minlength="10" maxlength="2000" required></textarea>
+                <label for="consultaMensaje" class="form-label fw-semibold">Tu consulta</label>
+                <textarea class="form-control" id="consultaMensaje" rows="4" minlength="10" maxlength="2000" placeholder="Ej: ¿Qué días y en qué horario se dicta?" required></textarea>
                 <div class="form-text text-end"><span id="consultaContador">0</span>/2000</div>
               </div>
-              <!-- Campo trampa para bots: una persona no lo ve ni lo completa -->
-              <div style="position:absolute;left:-9999px;" aria-hidden="true">
-                <label>No completar este campo <input type="text" id="consultaSitioWeb" tabindex="-1" autocomplete="off"></label>
-              </div>
-              <div class="col-12 text-end">
+              <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <small class="text-muted"><i class="bi bi-person-check me-1"></i>Consultás como <strong id="consultaComo"></strong></small>
                 <button type="submit" class="btn btn-dark" id="btnEnviarConsulta"><i class="bi bi-send me-1"></i>Enviar consulta</button>
               </div>
             </div>
-          </form>
+          </form>`
+              : `<p class="text-muted mb-3">Para hacerle una pregunta a la institución tenés que iniciar sesión. Así la respuesta te llega a tu panel, dentro de la plataforma.</p>
+          <div class="d-flex flex-wrap gap-2">
+            <a href="login.html" class="btn btn-dark"><i class="bi bi-box-arrow-in-right me-1"></i>Iniciar sesión para consultar</a>
+            <a href="formulario_registro.html" class="btn btn-outline-secondary">Crear una cuenta</a>
+          </div>`
+          }
         </div>
       </div>`
           : ""
@@ -633,7 +630,7 @@ async function inicializarAccionesSociales(curso) {
 }
 
 // ============================================================
-// CONSULTAR SOBRE EL CURSO (usuarios no registrados)
+// CONSULTAR SOBRE EL CURSO (ciudadanos con sesión iniciada)
 // ============================================================
 function inicializarFormularioConsulta(curso) {
   const form = document.getElementById("formConsulta");
@@ -644,12 +641,9 @@ function inicializarFormularioConsulta(curso) {
   const contador = document.getElementById("consultaContador");
   const boton = document.getElementById("btnEnviarConsulta");
 
-  // Si ya inició sesión, le ahorramos tipear sus datos
+  // Los datos de contacto salen de la cuenta: sólo se muestra con qué nombre se consulta
   const sesion = obtenerSesion();
-  if (sesion) {
-    document.getElementById("consultaNombre").value = [sesion.nombre, sesion.apellido].filter(Boolean).join(" ");
-    document.getElementById("consultaEmail").value = sesion.email_login || "";
-  }
+  document.getElementById("consultaComo").textContent = [sesion?.nombre, sesion?.apellido].filter(Boolean).join(" ");
 
   campoMensaje.addEventListener("input", () => (contador.textContent = campoMensaje.value.length));
 
@@ -664,20 +658,14 @@ function inicializarFormularioConsulta(curso) {
     e.preventDefault();
     if (!form.checkValidity()) {
       form.classList.add("was-validated");
-      mostrarMensaje("warning", "Completá tu nombre, un correo válido y tu consulta (mínimo 10 caracteres).");
+      mostrarMensaje("warning", "Escribí tu consulta (mínimo 10 caracteres).");
       return;
     }
 
     boton.disabled = true;
     const { ok, data } = await apiFetch(`/cursos/${curso.id}/consultas`, {
       method: "POST",
-      auth: false,
-      body: {
-        nombre: document.getElementById("consultaNombre").value.trim(),
-        email: document.getElementById("consultaEmail").value.trim(),
-        mensaje: campoMensaje.value.trim(),
-        sitio_web: document.getElementById("consultaSitioWeb").value, // honeypot
-      },
+      body: { mensaje: campoMensaje.value.trim() },
     });
 
     if (ok) {

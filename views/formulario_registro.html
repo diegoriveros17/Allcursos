@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en" class="h-100">
+<html lang="es" class="h-100">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>InfoCursos</title>
+    <title>Crear cuenta - AllCursos</title>
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
       rel="stylesheet"
@@ -14,6 +14,9 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css"
     />
+      <link rel="preconnect" href="https://fonts.googleapis.com" /> <!-- Adelanta la conexión con Google Fonts para que las letras carguen antes -->
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+      <link rel="stylesheet" href="assets/css/style.css" /> <!-- Tema visual común (colores, tipografías, animaciones) -->
   </head>
   <body class="d-flex flex-column h-100">
     <header data-bs-theme="light">
@@ -40,214 +43,167 @@
       </nav>
     </header>
 
-    <main>
-      <section
-        class="container-fluid d-flex justify-content-center align-items-center"
-      >
-        <div class="container col-xl-10 col-xxl-8 px-4 py-5">
-          <div class="row align-items-center g-lg-5 py-5">
-            <div class="col-md-10 mx-auto col-lg-6">
-              <form
-                class="p-4 p-md-4 border rounded-3 bg-body-tertiary"
-                id="formRegistro"
-              >
-                <div class="row">
-                  <div class="col-sm-12">
-                    <div class="d-grid justify-content-center gap-2">
-                      <label class="form-label fw-bold mb-1"
-                        >Seleccione la opción con la que desea
-                        registrarse</label
-                      >
-                      <button
-                        type="button"
-                        id="btnRolCiudadano"
-                        class="btn btn-outline-secondary fw-bold fs-5 py-3"
-                      >
-                        <i class="bi bi-person-fill fs-2 mb-1"></i>
-                        Ciudadano
-                      </button>
+    <main class="pagina-auth">
+      <section class="container">
+        <div class="auth-tarjeta auth-registro">
+          <!-- Panel lateral con los pasos (sólo en pantallas grandes) -->
+          <div class="auth-lateral d-none d-lg-flex">
+            <div>
+              <span class="marca-icono auth-marca"><i class="bi bi-mortarboard-fill"></i></span>
+              <h2 class="auth-lateral-titulo">Creá tu cuenta en minutos</h2>
+              <p class="auth-lateral-texto">
+                Sumate para inscribirte a cursos o publicar los de tu institución.
+              </p>
+            </div>
+            <ol class="auth-pasos">
+              <li><span>1</span><div><strong>Elegí tu perfil</strong><small>Ciudadano o institución</small></div></li>
+              <li><span>2</span><div><strong>Verificá tu email</strong><small>Te enviamos un código de 6 dígitos</small></div></li>
+              <li><span>3</span><div><strong>Completá tus datos</strong><small>¡Y listo para empezar!</small></div></li>
+            </ol>
+          </div>
 
-                      <button
-                        type="button"
-                        id="btnRolRepresentante"
-                        class="btn btn-outline-secondary fw-bold fs-5 py-3"
-                      >
-                        <i class="bi bi-bank fs-2 mb-1"></i>
-                        Representante / Institución
-                      </button>
+          <!-- Formulario -->
+          <div class="auth-formulario">
+            <form id="formRegistro">
+              <h1 class="auth-titulo">Crear cuenta</h1>
+              <p class="auth-subtitulo">
+                ¿Ya tenés cuenta? <a href="login.html" class="enlace-auth">Iniciá sesión</a>
+              </p>
 
-                      <input
-                        type="hidden"
-                        id="regRol"
-                        name="rol"
-                        value=""
-                        required
-                      />
-                    </div>
+              <p class="form-label mb-2">¿Cómo querés registrarte?</p>
+              <div class="rol-opciones">
+                <button type="button" id="btnRolCiudadano" class="rol-opcion" aria-pressed="false">
+                  <span class="rol-icono"><i class="bi bi-person-fill"></i></span>
+                  <span class="rol-texto">
+                    <strong>Ciudadano</strong>
+                    <small>Quiero inscribirme a cursos</small>
+                  </span>
+                  <i class="bi bi-check-circle-fill rol-check"></i>
+                </button>
+                <button type="button" id="btnRolRepresentante" class="rol-opcion" aria-pressed="false">
+                  <span class="rol-icono"><i class="bi bi-bank"></i></span>
+                  <span class="rol-texto">
+                    <strong>Institución</strong>
+                    <small>Quiero publicar cursos</small>
+                  </span>
+                  <i class="bi bi-check-circle-fill rol-check"></i>
+                </button>
+              </div>
+              <input type="hidden" id="regRol" name="rol" value="" required />
+
+              <div id="camposFormulario" class="d-none row g-3 m-0 p-0 mt-2 campos-registro">
+                <div class="col-12 p-0"><p class="seccion-formulario"><i class="bi bi-person-vcard"></i>Datos personales</p></div>
+
+                <div class="col-sm-6 ps-0 pe-sm-2 pe-0">
+                  <label for="nombre" class="form-label">Nombres</label>
+                  <input type="text" class="form-control" id="nombre" placeholder="Juan" autocomplete="given-name" />
+                </div>
+                <div class="col-sm-6 pe-0 ps-sm-2 ps-0">
+                  <label for="apellido" class="form-label">Apellido</label>
+                  <input type="text" class="form-control" id="apellido" placeholder="Pérez" autocomplete="family-name" />
+                </div>
+
+                <div class="col-12 p-0"><p class="seccion-formulario"><i class="bi bi-shield-lock"></i>Datos de la cuenta</p></div>
+
+                <div class="col-12 p-0">
+                  <label for="email" class="form-label">Email</label>
+                  <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                    <input type="email" class="form-control" id="email" placeholder="nombre@ejemplo.com" autocomplete="email" />
+                    <button class="btn btn-outline-primary" type="button" id="btnEnviarCodigoEmail">
+                      <i class="bi bi-envelope-check me-1"></i> Verificar
+                    </button>
                   </div>
+                  <div id="msjEnvioCodigo" class="form-text mt-1"></div>
+                </div>
 
-                  <div id="camposFormulario" class="d-none row g-3 m-0 p-0">
-                    <div class="col-sm-12">
-                      <label for="nombre" class="form-label">Nombres</label>
+                <!-- Código de verificación -->
+                <div id="seccionCodigoVerificacion" class="col-12 p-0 d-none">
+                  <div class="caja-codigo">
+                    <label for="codigoVerificacion" class="form-label fw-semibold small mb-2">
+                      <i class="bi bi-shield-lock-fill me-1"></i> Ingresá el código de 6 dígitos que te enviamos
+                    </label>
+                    <div class="input-group">
                       <input
                         type="text"
-                        class="form-control"
-                        id="nombre"
-                        placeholder="Nombre"
+                        class="form-control text-center fw-bold fs-5 input-codigo"
+                        id="codigoVerificacion"
+                        maxlength="6"
+                        inputmode="numeric"
+                        autocomplete="one-time-code"
+                        placeholder="••••••"
                       />
+                      <button class="btn btn-success" type="button" id="btnConfirmarCodigoEmail">Confirmar</button>
                     </div>
+                    <div id="msjEstadoCodigo" class="mt-2 small"></div>
+                  </div>
+                </div>
+                <input type="hidden" id="verificacionId" value="" />
 
-                    <div class="col-sm-12">
-                      <label for="apellido" class="form-label">Apellido</label>
-                      <input
-                        type="text"
-                        class="form-control"
-                        id="apellido"
-                        placeholder="Apellido"
-                      />
-                    </div>
-
-                    <div class="col-sm-12">
-                      <label for="email" class="form-label">Email</label>
-                      <div class="input-group">
-                        <input
-                          type="email"
-                          class="form-control"
-                          id="email"
-                          placeholder="nombre@ejemplo.com"
-                        />
-                        <button
-                          class="btn btn-outline-primary"
-                          type="button"
-                          id="btnEnviarCodigoEmail"
-                        >
-                          <i class="bi bi-envelope-check me-1"></i> Verificar Email
-                        </button>
-                      </div>
-                      <div id="msjEnvioCodigo" class="form-text mt-1"></div>
-                    </div>
-
-                    <!-- Código de verificación -->
-                    <div id="seccionCodigoVerificacion" class="col-sm-12 d-none">
-                      <div class="p-3 bg-light border border-primary-subtle rounded">
-                        <label for="codigoVerificacion" class="form-label fw-bold text-primary small">
-                          <i class="bi bi-shield-lock-fill me-1"></i> Código de 6 dígitos enviado a tu correo
-                        </label>
-                        <div class="input-group">
-                          <input
-                            type="text"
-                            class="form-control text-center fw-bold fs-5"
-                            id="codigoVerificacion"
-                            maxlength="6"
-                            placeholder="123456"
-                          />
-                          <button class="btn btn-success" type="button" id="btnConfirmarCodigoEmail">
-                            Confirmar
-                          </button>
-                        </div>
-                        <div id="msjEstadoCodigo" class="mt-2 small"></div>
-                      </div>
-                    </div>
-                    <input type="hidden" id="verificacionId" value="" />
-
-                    <div class="col-sm-12">
-                      <label for="password" class="form-label"
-                        >Contraseña</label
-                      >
-                      <input
-                        type="password"
-                        class="form-control"
-                        id="password"
-                        placeholder="Mínimo 8 caracteres"
-                      />
-                    </div>
-
-                    <div id="camposCiudadano" class="d-none row g-3 m-0 p-0">
-                      <div class="col-sm-12">
-                        <label for="dni" class="form-label">Dni</label>
-                        <input
-                          type="text"
-                          class="form-control"
-                          id="dni"
-                          placeholder="DNI"
-                        />
-                      </div>
-                      <div class="col-sm-12">
-                        <label for="address" class="form-label"
-                          >Dirección</label
-                        >
-                        <input
-                          type="text"
-                          class="form-control"
-                          id="address"
-                          placeholder="B° Obrero, salta 1250"
-                        />
-                      </div>
-                      <div class="col-sm-12">
-                        <label for="canalNotificacion" class="form-label"
-                          >¿Cómo querés recibir avisos de cursos nuevos?</label
-                        >
-                        <select class="form-select" id="canalNotificacion">
-                          <option value="Email" selected>Correo electrónico</option>
-                          <option value="WhatsApp">WhatsApp</option>
-                          <option value="Ambos">Ambos</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div id="camposInstitucion" class="d-none row g-3 m-0 p-0">
-                      <div class="col-sm-12">
-                        <label for="institucionNombre" class="form-label"
-                          >Nombre de la Institución/Organismo</label
-                        >
-                        <input
-                          type="text"
-                          class="form-control"
-                          id="institucionNombre"
-                          placeholder="Ej: Instituto de Formación Profesional"
-                        />
-                      </div>
-                      <div class="col-sm-12">
-                        <label for="cuit" class="form-label"
-                          >CUIT de la Institución</label
-                        >
-                        <input
-                          type="text"
-                          class="form-control"
-                          id="cuit"
-                          placeholder="Ej: 30-12345678-9"
-                        />
-                      </div>
-                      <div class="col-sm-12">
-                        <label for="cargo" class="form-label"
-                          >Tu cargo en la institución</label
-                        >
-                        <input
-                          type="text"
-                          class="form-control"
-                          id="cargo"
-                          placeholder="Ej: Coordinador de Capacitaciones"
-                        />
-                      </div>
-                    </div>
-
-                    <div class="d-flex justify-content-center w-100">
-                      <button class="btn btn-primary mt-3" type="submit">
-                        Registrarme
-                      </button>
-                    </div>
-
-                    <div id="msjRegistro"></div>
+                <div class="col-12 p-0">
+                  <label for="password" class="form-label">Contraseña</label>
+                  <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                    <input
+                      type="password"
+                      class="form-control"
+                      id="password"
+                      placeholder="Mínimo 8 caracteres"
+                      autocomplete="new-password"
+                      data-fuerza
+                    />
                   </div>
                 </div>
 
-                <hr class="my-4" />
-                <small class="text-body-secondary"
-                  >Al hacer click en registrarme acepta los
-                  <a href="#">términos y condiciones</a> de uso
-                </small>
-              </form>
-            </div>
+                <div id="camposCiudadano" class="d-none row g-3 m-0 p-0">
+                  <div class="col-12 p-0"><p class="seccion-formulario"><i class="bi bi-geo-alt"></i>Tus datos de contacto</p></div>
+                  <div class="col-sm-6 ps-0 pe-sm-2 pe-0">
+                    <label for="dni" class="form-label">DNI</label>
+                    <input type="text" class="form-control" id="dni" placeholder="Sin puntos" inputmode="numeric" />
+                  </div>
+                  <div class="col-sm-6 pe-0 ps-sm-2 ps-0">
+                    <label for="canalNotificacion" class="form-label">Avisos de cursos nuevos</label>
+                    <select class="form-select" id="canalNotificacion">
+                      <option value="Email" selected>Correo electrónico</option>
+                      <option value="WhatsApp">WhatsApp</option>
+                      <option value="Ambos">Ambos</option>
+                    </select>
+                  </div>
+                  <div class="col-12 p-0">
+                    <label for="address" class="form-label">Dirección</label>
+                    <input type="text" class="form-control" id="address" placeholder="B° Obrero, Salta 1250" autocomplete="street-address" />
+                  </div>
+                </div>
+
+                <div id="camposInstitucion" class="d-none row g-3 m-0 p-0">
+                  <div class="col-12 p-0"><p class="seccion-formulario"><i class="bi bi-bank"></i>Datos de la institución</p></div>
+                  <div class="col-12 p-0">
+                    <label for="institucionNombre" class="form-label">Nombre de la institución u organismo</label>
+                    <input type="text" class="form-control" id="institucionNombre" placeholder="Ej: Instituto de Formación Profesional" />
+                  </div>
+                  <div class="col-sm-6 ps-0 pe-sm-2 pe-0">
+                    <label for="cuit" class="form-label">CUIT</label>
+                    <input type="text" class="form-control" id="cuit" placeholder="30-12345678-9" />
+                  </div>
+                  <div class="col-sm-6 pe-0 ps-sm-2 ps-0">
+                    <label for="cargo" class="form-label">Tu cargo</label>
+                    <input type="text" class="form-control" id="cargo" placeholder="Ej: Coordinador/a" />
+                  </div>
+                </div>
+
+                <div class="col-12 p-0">
+                  <button class="btn btn-auth w-100 mt-2" type="submit" id="btnRegistrarme">
+                    Crear mi cuenta<i class="bi bi-arrow-right ms-2"></i>
+                  </button>
+                </div>
+
+                <div id="msjRegistro" class="p-0" aria-live="polite"></div>
+              </div>
+
+              <p class="auth-legal">
+                Al crear tu cuenta aceptás los <a href="#">términos y condiciones</a> de uso.
+              </p>
+            </form>
           </div>
         </div>
       </section>
@@ -265,6 +221,7 @@
 
     <script src="assets/js/api.js"></script>
     <script src="assets/js/navbar.js"></script>
+    <script src="assets/js/ui.js"></script> <!-- Efectos visuales comunes (scroll, volver arriba) -->
     <script src="assets/js/login.js"></script>
   </body>
 </html>

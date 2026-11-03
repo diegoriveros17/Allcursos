@@ -37,6 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
     panelRepresentante?.classList.add("d-none");
     cargarTablaCiudadano();
     cargarEncuestasCiudadano();
+    cargarConsultasCiudadano(); // En consultas_representante.js
   } else if (sesion.rol === "representante") {
     if (tituloPanel) tituloPanel.textContent = "Panel Institucional / Representante";
     if (bajadaPanel)

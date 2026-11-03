@@ -100,6 +100,16 @@ export const consultaLimiter = rateLimit({
   message: mensajeLimite("Enviaste muchas consultas seguidas. Intentá nuevamente en un rato."),
 });
 
+// Limitador para los mensajes de la conversación de una consulta (más amplio: un
+// representante puede responder muchas consultas seguidas)
+export const mensajeConsultaLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: mensajeLimite("Enviaste muchos mensajes seguidos. Esperá unos minutos y volvé a intentar."),
+});
+
 // NUEVO: limitador del buscador de lugares (Nominatim pide no abusar: máximo 30 búsquedas por minuto por IP)
 export const lugaresLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minuto
