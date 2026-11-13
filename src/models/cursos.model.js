@@ -34,6 +34,16 @@ export const cursosModel = sequelize.define(
       type: DataTypes.STRING(255),
       allowNull: true
     },
+    // Fechas de cursado (opcionales). Cuando pasa fecha_fin, el cron
+    // (utils/cron.service.js) finaliza solas las inscripciones y habilita el certificado.
+    fecha_inicio: {
+      type: DataTypes.DATEONLY,
+      allowNull: true,
+    },
+    fecha_fin: {
+      type: DataTypes.DATEONLY,
+      allowNull: true,
+    },
     imagen_url: {
       type: DataTypes.STRING(255),
       allowNull: true

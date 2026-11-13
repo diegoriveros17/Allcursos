@@ -62,6 +62,25 @@ const incluirRequisitos = {
   through: { attributes: ["es_obligatorio"] },
 };
 
+// Fechas de cursado: vienen como "AAAA-MM-DD" (o vacías). Devuelve { inicio, fin, error }.
+const leerFechasCurso = (body, actual = {}) => {
+  const normalizar = (valor) => {
+    if (valor === undefined) return undefined; // No vino: no se toca
+    if (valor === null || String(valor).trim() === "") return null; // Vino vacía: se borra
+    const texto = String(valor).trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(texto) && !isNaN(new Date(texto)) ? texto : "invalida";
+  };
+  const inicio = normalizar(body.fecha_inicio);
+  const fin = normalizar(body.fecha_fin);
+  if (inicio === "invalida" || fin === "invalida")
+    return { error: "Las fechas del curso no tienen un formato válido" };
+  const inicioFinal = inicio === undefined ? actual.fecha_inicio : inicio;
+  const finFinal = fin === undefined ? actual.fecha_fin : fin;
+  if (inicioFinal && finFinal && finFinal < inicioFinal)
+    return { error: "La fecha de finalización no puede ser anterior a la de inicio" };
+  return { inicio, fin };
+};
+
 export const agregarCursos = async (req, res) => {
   try {
     const {
@@ -82,6 +101,8 @@ export const agregarCursos = async (req, res) => {
     if (!categoria_id) errores.push("Ingresa la categoría");
     if (!modalidad) errores.push("Modalidad obligatoria");
     if (!cupo_maximo) errores.push("Agrega el cupo maximo");
+    const fechas = leerFechasCurso(req.body);
+    if (fechas.error) errores.push(fechas.error);
 
     // El curso siempre pertenece a la institución del representante logueado,
     // nunca se confía en un institucion_id enviado desde el cliente.
@@ -138,6 +159,8 @@ export const agregarCursos = async (req, res) => {
       modalidad,
       cupo_maximo,
       link_difusion_original: link_difusion_original || null,
+      fecha_inicio: fechas.inicio || null,
+      fecha_fin: fechas.fin || null,
       imagen_url,
       institucion_id,
     });
@@ -292,6 +315,13 @@ export const editarCursos = async (req, res) => {
         .status(404)
         .json({ mensaje: "curso no encontrado en tu institución" });
     }
+
+    const fechas = leerFechasCurso(req.body, curso);
+    if (fechas.error) return res.status(400).json({ mensaje: fechas.error });
+    delete datos.fecha_inicio;
+    delete datos.fecha_fin;
+    if (fechas.inicio !== undefined) datos.fecha_inicio = fechas.inicio;
+    if (fechas.fin !== undefined) datos.fecha_fin = fechas.fin;
 
     if (req.imagen_url) datos.imagen_url = req.imagen_url;
     else if (req.file) datos.imagen_url = `/uploads/cursos/${req.file.filename}`;

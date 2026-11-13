@@ -23,11 +23,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   contenedor.innerHTML = `
       <div class="card shadow-lg border-0 overflow-hidden">
         <div class="row g-0">
-          <div class="col-md-5">
-            <img src="${curso.imagen_url || "assets/img/curso_programacion.webp"}" class="img-fluid h-100 w-100" style="object-fit: cover; min-height: 300px;" alt="${curso.titulo}">
+          <div class="col-md-4 detalle-imagen-col">
+            <img src="${curso.imagen_url || "assets/img/curso_programacion.webp"}" class="detalle-imagen" alt="${curso.titulo}">
           </div>
 
-          <div class="col-md-7 p-4 p-md-5 d-flex flex-column justify-content-between">
+          <div class="col-md-8 p-4 p-md-5 d-flex flex-column justify-content-between">
             <div>
               <div class="d-flex justify-content-between align-items-center mb-2">
                 <span class="badge bg-primary fs-6">${curso.categoria?.nombre || "General"}</span>
@@ -45,6 +45,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                   : ""
               }
               ${curso.duracion_horas ? `<p class="mb-1"><strong>⏱️ Duración:</strong> ${curso.duracion_horas} horas</p>` : ""}
+              ${curso.fecha_inicio ? `<p class="mb-1"><strong>📅 Inicia:</strong> ${fechaLarga(curso.fecha_inicio)}</p>` : ""}
+              ${curso.fecha_fin ? `<p class="mb-1"><strong>🏁 Finaliza:</strong> ${fechaLarga(curso.fecha_fin)}</p>` : ""}
               <p class="mb-1"><strong>👥 Cupos Disponibles:</strong> ${curso.cupos_disponibles} de ${curso.cupo_maximo}</p>
               ${
                 curso.requisitos && curso.requisitos.length > 0
@@ -62,11 +64,15 @@ document.addEventListener("DOMContentLoaded", async () => {
             </div>
 
             <div class="d-flex align-items-center justify-content-between border-top border-bottom py-3 my-3">
-              <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" id="btnLikeCurso">
+              ${
+                sesion?.rol === "representante"
+                  ? "<span></span>" /* El representante no da me gusta: sólo ve el curso */
+                  : `<button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" id="btnLikeCurso">
                 <i class="bi bi-hand-thumbs-up" id="iconoLike"></i>
                 <span id="contadorLikes">${curso.likes_count || 0}</span>
                 <span class="d-none d-sm-inline">Me gusta</span>
-              </button>
+              </button>`
+              }
 
               <div class="dropdown">
                 <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
@@ -531,6 +537,7 @@ async function inicializarAccionesSociales(curso) {
   const sesionActual = obtenerSesion();
 
   const pintarEstadoLike = () => {
+    if (!btnLike) return; // Representante: no hay botón de me gusta
     iconoLike.className = yaLikeado ? "bi bi-hand-thumbs-up-fill" : "bi bi-hand-thumbs-up";
     btnLike.classList.toggle("btn-outline-secondary", !yaLikeado);
     btnLike.classList.toggle("btn-dark", yaLikeado);
@@ -678,4 +685,11 @@ function inicializarFormularioConsulta(curso) {
     }
     boton.disabled = false;
   });
+}
+
+// "2027-03-18" -> "18 de marzo de 2027" (se arma con la fecha local para que no se corra un día)
+function fechaLarga(fecha) {
+  const [a, m, d] = String(fecha).slice(0, 10).split("-").map(Number);
+  if (!a || !m || !d) return "";
+  return new Date(a, m - 1, d).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
 }

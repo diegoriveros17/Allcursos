@@ -71,7 +71,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const sesion = obtenerSesion();
 
-  let enlaces = enlaceNav("index.html", "bi-house-door", "Inicio");
+  // El representante no ve el inicio público: su "inicio" es el panel con sus propios cursos
+  const esRepresentante = sesion?.rol === "representante";
+  let enlaces = esRepresentante ? "" : enlaceNav("index.html", "bi-house-door", "Inicio");
+  if (esRepresentante) document.querySelector(".marca-allcursos")?.setAttribute("href", "dashboard.html");
   let acciones = "";
 
   if (sesion) {

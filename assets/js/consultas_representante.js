@@ -179,6 +179,7 @@ async function cargarConsultasRepresentante() {
     insignia.textContent = data.nuevas;
     insignia.classList.toggle("d-none", !data.nuevas);
   }
+  if (typeof actualizarMetrica === "function") actualizarMetrica("consultas", data.nuevas || 0); // Tarjeta de métricas del panel
 
   const filtros = h(
     "div",
@@ -226,6 +227,7 @@ async function cargarConsultasRepresentante() {
             const restantes = Math.max(0, Number(insignia.textContent) - 1);
             insignia.textContent = restantes;
             insignia.classList.toggle("d-none", !restantes);
+            if (typeof actualizarMetrica === "function") actualizarMetrica("consultas", restantes);
           }
         },
         alEnviar: cargarConsultasRepresentante,
@@ -252,6 +254,7 @@ async function cargarConsultasCiudadano() {
     if (!insignia) return;
     insignia.textContent = n === 1 ? "1 respuesta nueva" : `${n} respuestas nuevas`;
     insignia.classList.toggle("d-none", !n);
+    if (typeof actualizarMetrica === "function") actualizarMetrica("respuestas", n); // Tarjeta de métricas del panel
   };
   let novedades = data.novedades || 0;
   pintarInsignia(novedades);

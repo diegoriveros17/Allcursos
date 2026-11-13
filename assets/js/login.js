@@ -1,6 +1,8 @@
 // --- 1. GUARDIÁN DE ACCESO: REDIRECCIÓN SI YA INICIÓ SESIÓN ---
+// El representante va directo a su panel; el resto, al inicio
+const paginaInicialSegunRol = (usuario) => (usuario?.rol === "representante" ? "dashboard.html" : "index.html");
 if (obtenerSesion()) {
-  window.location.href = "index.html";
+  window.location.href = paginaInicialSegunRol(obtenerSesion());
 }
 
 // --- 2. LÓGICA DE INICIO DE SESIÓN CONECTADA A LA API ---
@@ -51,13 +53,13 @@ if (formLogin) {
 
     if (ok) {
       guardarSesion(data.usuario, data.token);
-      mostrarAvisoFormulario(msjConfirmacion, "success", `¡Hola ${data.usuario.nombre}! Te estamos llevando al inicio...`);
+      mostrarAvisoFormulario(msjConfirmacion, "success", `¡Hola ${data.usuario.nombre}! ${data.usuario.rol === "representante" ? "Te estamos llevando a tu panel..." : "Te estamos llevando al inicio..."}`);
 
       const contenedor = document.getElementById("page-container");
       if (contenedor) contenedor.classList.add("fade-out");
 
       setTimeout(() => {
-        window.location.href = "index.html";
+        window.location.href = paginaInicialSegunRol(data.usuario);
       }, 1200);
     } else {
       botonCargando(btnLogin, false);

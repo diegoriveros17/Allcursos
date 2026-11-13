@@ -90,8 +90,14 @@ async function cargarEncuestasCiudadano() {
   }
 
   const encuestas = (data.encuestas || []).filter((e) => !e.yaRespondida);
+  if (typeof actualizarMetrica === "function") actualizarMetrica("encuestas", encuestas.length); // Tarjeta de métricas del panel
   if (encuestas.length === 0) {
-    contenedor.replaceChildren(h("p", { class: "text-muted small mb-0" }, "No tenés encuestas pendientes por ahora."));
+    contenedor.replaceChildren(
+      h("div", { class: "vacio-panel" },
+        h("i", { class: "bi bi-clipboard2-check" }),
+        h("p", { class: "fw-semibold mb-1" }, "Estás al día"),
+        h("p", { class: "small text-muted mb-0" }, "No tenés encuestas pendientes por ahora.")),
+    );
     return;
   }
 
@@ -125,7 +131,7 @@ async function cargarEncuestasCiudadano() {
 
       return h(
         "div",
-        { class: "border rounded p-3 mb-3" },
+        { class: "encuesta-pendiente" },
         h("p", { class: "fw-semibold mb-1" }, enc.titulo),
         h(
           "p",

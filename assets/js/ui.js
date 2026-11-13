@@ -119,7 +119,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // ---------- Aparición al hacer scroll ----------
   if (menosMovimiento || !("IntersectionObserver" in window)) return; // Sin animaciones si no corresponde o el navegador no lo soporta
 
-  const SELECTOR = "#cardCursos > *, main .card, .stats-box"; // Qué elementos aparecen con animación
+  const SELECTOR = "#cardCursos > *, main .card, .stats-box, main .panel-card, .panel-metricas > *"; // Qué elementos aparecen con animación
 
   const observador = new IntersectionObserver((entradas) => {
     entradas.forEach((entrada) => {
