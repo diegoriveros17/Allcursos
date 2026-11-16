@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  borrarTodasNotificaciones,
   marcarLeida,
   marcarTodasLeidas,
   verBandeja,
@@ -16,3 +17,4 @@ notificacionesRoutes.get("/notificaciones/mias", verificarToken, verMisNotificac
 notificacionesRoutes.get("/notificaciones/bandeja", verificarToken, verBandeja);
 notificacionesRoutes.put("/notificaciones/bandeja/leer-todas", verificarToken, marcarTodasLeidas);
 notificacionesRoutes.put("/notificaciones/bandeja/:id/leida", verificarToken, marcarLeida);
+notificacionesRoutes.delete("/notificaciones/bandeja", verificarToken, borrarTodasNotificaciones);

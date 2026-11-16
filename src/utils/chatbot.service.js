@@ -156,7 +156,7 @@ const GUIA_PLATAFORMA = `
 - Inscribirse: entrar al curso y tocar "Inscribirme a este Curso" (o pedírmelo a mí). Si no quedan cupos, se queda en lista de espera y se avisa cuando se libera un lugar.
 - Estados de una inscripción: En espera, Inscripto, Cursando, Finalizado o Cancelado. La inscripción se puede cancelar desde "Mi Panel".
 - Certificado: cuando el curso finaliza (al pasar su fecha de finalización la inscripción pasa sola a "Finalizado"), se descarga en PDF desde "Mi Panel". Tiene un código QR; cualquiera puede comprobar que es auténtico en "Verificar certificado".
-- Consultas a la institución: en la página del curso, sección "Consultar sobre este curso" (hay que iniciar sesión como ciudadano). La respuesta llega en Mi Panel > Mis consultas.
+- Consultas a la institución: en la página del curso, sección "Consultar sobre este curso" (hay que iniciar sesión como estudiante). La respuesta llega en Mi Panel > Mis consultas.
 - Encuestas: las instituciones publican encuestas de interés o de satisfacción; se responden desde Mi Panel (una sola vez cada una).
 - Datos personales (nombre, teléfono, foto, contraseña) se cambian en "Mi cuenta"; también ahí se puede dar de baja la cuenta.
 - Otras funciones: "Me gusta" a un curso, recomendarlo a un amigo por email, reportar un curso con problemas, ver la ubicación en el mapa ("Cómo llegar") y notificaciones con la campanita.`;
@@ -165,7 +165,7 @@ function armarInstrucciones(contextoCursos, usuario) {
   const sesion = !usuario
     ? "El usuario NO inició sesión."
     : usuario.rol === "ciudadano"
-      ? "El usuario inició sesión como ciudadano (no conocés sus datos personales y no los necesitás)."
+      ? "El usuario inició sesión como estudiante (no conocés sus datos personales y no los necesitás)."
       : `El usuario inició sesión como ${usuario.rol} (no puede inscribirse a cursos).`;
 
   return `Sos "Asistente AllCursos", el asistente virtual de la plataforma AllCursos. Ayudás a consultar los cursos y a usar la plataforma de forma segura, amable y clara.
@@ -320,11 +320,11 @@ async function responderConGemini(mensaje, historial, contextoCursos, usuario) {
 function armarAccion(nombre, args, cursos, usuario, textoIA) {
   if (!usuario)
     return {
-      respuesta: "Para eso primero tenés que iniciar sesión con tu cuenta de ciudadano. Si todavía no tenés una, podés registrarte en un minuto.",
+      respuesta: "Para eso primero tenés que iniciar sesión con tu cuenta de estudiante. Si todavía no tenés una, podés registrarte en un minuto.",
       accion: { tipo: "iniciar_sesion" },
     };
   if (usuario.rol !== "ciudadano")
-    return { respuesta: "Las inscripciones son sólo para cuentas de ciudadano." };
+    return { respuesta: "Las inscripciones son sólo para cuentas de estudiante." };
 
   if (nombre === "ver_mis_inscripciones")
     return {
@@ -373,7 +373,7 @@ function responderSimulado(m, cursos, curso_id) {
   if (/encuesta/.test(m))
     return sinCursos("Las encuestas de las instituciones están en Mi Panel › Encuestas disponibles. Cada una se responde una sola vez.");
   if (/consulta|contacto|telefono|email|correo/.test(m))
-    return sinCursos("Para hablar con la institución, entrá al curso y usá \"Consultar sobre este curso\" (con tu cuenta de ciudadano). La respuesta te llega en Mi Panel › Mis consultas.");
+    return sinCursos("Para hablar con la institución, entrá al curso y usá \"Consultar sobre este curso\" (con tu cuenta de estudiante). La respuesta te llega en Mi Panel › Mis consultas.");
 
   if (cursos.length === 0) return sinCursos("Por el momento no hay cursos publicados. ¡Volvé a consultar más adelante!");
   const actual = curso_id ? cursos.find((c) => c.id === Number(curso_id)) : null;

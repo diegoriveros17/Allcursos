@@ -82,3 +82,16 @@ export const marcarTodasLeidas = async (req, res) => {
       .json({ mensaje: "Error al marcar las notificaciones", error: error.message });
   }
 };
+
+// DELETE /api/notificaciones/bandeja  -> borra TODAS las notificaciones de la campanita del usuario
+export const borrarTodasNotificaciones = async (req, res) => {
+  try {
+    // El filtro por usuario_id hace que cada uno sólo pueda borrar las suyas
+    const borradas = await notificacionesUsuarioModel.destroy({ where: { usuario_id: req.usuario.id } });
+    return res.status(200).json({ mensaje: "Notificaciones borradas", borradas });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ mensaje: "Error al borrar las notificaciones", error: error.message });
+  }
+};

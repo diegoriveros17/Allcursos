@@ -81,6 +81,51 @@ const leerFechasCurso = (body, actual = {}) => {
   return { inicio, fin };
 };
 
+// ------------------------------------------------------------------
+// Requisitos de un curso. El representante los escribe (o toma una sugerencia)
+// y llegan como lista de textos. Por compatibilidad también se aceptan ids.
+// No existe una lista global visible: cada curso tiene los suyos y los que
+// ningún curso usa se borran solos (limpiarRequisitosSinUso).
+// ------------------------------------------------------------------
+const MAX_REQUISITOS_POR_CURSO = 15;
+
+function leerListaRequisitos(valor) {
+  let lista = valor;
+  if (typeof lista === "string") {
+    try {
+      lista = JSON.parse(lista);
+    } catch {
+      lista = [];
+    }
+  }
+  return Array.isArray(lista) ? lista : [];
+}
+
+async function guardarRequisitosDelCurso(cursoId, valor) {
+  const ids = new Set();
+  for (const item of leerListaRequisitos(valor).slice(0, MAX_REQUISITOS_POR_CURSO)) {
+    if (typeof item === "number") { // Sólo los números son ids: un texto como "18 años" es un requisito escrito
+      ids.add(Number(item)); // Formato viejo: id de un requisito existente
+      continue;
+    }
+    const texto = String(item?.descripcion ?? item ?? "").trim().replace(/\s+/g, " ").slice(0, 255);
+    if (texto.length < 3) continue;
+    const [requisito] = await requisitosModel.findOrCreate({ where: { descripcion: texto } });
+    ids.add(requisito.id);
+  }
+  await cursoRequisitoModel.destroy({ where: { curso_id: cursoId } });
+  if (ids.size) {
+    await cursoRequisitoModel.bulkCreate([...ids].map((requisito_id) => ({ curso_id: cursoId, requisito_id, es_obligatorio: true })));
+  }
+}
+
+// Borra los requisitos que ya no usa ningún curso (así no se acumulan textos sueltos)
+async function limpiarRequisitosSinUso() {
+  await sequelize.query(
+    "DELETE FROM requisitos WHERE id NOT IN (SELECT requisito_id FROM cursos_requisitos)",
+  );
+}
+
 export const agregarCursos = async (req, res) => {
   try {
     const {
@@ -165,29 +210,10 @@ export const agregarCursos = async (req, res) => {
       institucion_id,
     });
 
-    // Requisitos opcionales: req.body.requisitos puede venir como JSON string
-    // (form-data) o array (JSON puro) de ids, o de {requisito_id, es_obligatorio}
+    // Requisitos opcionales: lista de textos (o ids) en req.body.requisitos
     if (req.body.requisitos) {
-      let listaRequisitos = req.body.requisitos;
-      if (typeof listaRequisitos === "string") {
-        try {
-          listaRequisitos = JSON.parse(listaRequisitos);
-        } catch {
-          listaRequisitos = [];
-        }
-      }
-      if (Array.isArray(listaRequisitos) && listaRequisitos.length > 0) {
-        const filas = listaRequisitos.map((r) =>
-          typeof r === "object"
-            ? {
-                curso_id: curso.id,
-                requisito_id: r.requisito_id,
-                es_obligatorio: r.es_obligatorio !== false,
-              }
-            : { curso_id: curso.id, requisito_id: r, es_obligatorio: true },
-        );
-        await cursoRequisitoModel.bulkCreate(filas);
-      }
+      await guardarRequisitosDelCurso(curso.id, req.body.requisitos);
+      await limpiarRequisitosSinUso();
     }
 
     // Se dispara en segundo plano: no hace falta que el representante espere
@@ -286,6 +312,8 @@ export const borrarCursos = async (req, res) => {
       where: { id: req.params.id, institucion_id },
     });
     if (eliminarCursos) {
+      await cursoRequisitoModel.destroy({ where: { curso_id: req.params.id } });
+      await limpiarRequisitosSinUso();
       return res.status(200).json({ mensaje: "curso eliminado con exito" });
     } else {
       return res
@@ -329,24 +357,10 @@ export const editarCursos = async (req, res) => {
 
     // Si vino la lista de requisitos, la reemplazamos completa (permite
     // tanto agregar como sacar requisitos al editar).
+    // Si vino la lista de requisitos, se reemplaza completa (permite agregar y sacar)
     if (requisitos !== undefined) {
-      let listaRequisitos = requisitos;
-      if (typeof listaRequisitos === "string") {
-        try {
-          listaRequisitos = JSON.parse(listaRequisitos);
-        } catch {
-          listaRequisitos = [];
-        }
-      }
-      await cursoRequisitoModel.destroy({ where: { curso_id: curso.id } });
-      if (Array.isArray(listaRequisitos) && listaRequisitos.length > 0) {
-        const filas = listaRequisitos.map((r) => ({
-          curso_id: curso.id,
-          requisito_id: r,
-          es_obligatorio: true,
-        }));
-        await cursoRequisitoModel.bulkCreate(filas);
-      }
+      await guardarRequisitosDelCurso(curso.id, requisitos);
+      await limpiarRequisitosSinUso();
     }
 
     const updateCurso = await cursosModel.findByPk(curso.id, {
@@ -421,7 +435,7 @@ export const verAlumnosPorCurso = async (req, res) => {
 
     const inscripciones = await inscripcionesModel.findAll({
       where: { curso_id: curso.id },
-      attributes: ["id", "estado", "fecha_inscripcion", "contacto_verificado"],
+      attributes: ["id", "estado", "fecha_inscripcion", "contacto_verificado", "motivo_baja", "comentario_baja", "fecha_baja"],
       include: [
         {
           model: usuariosModel,
@@ -431,7 +445,7 @@ export const verAlumnosPorCurso = async (req, res) => {
             {
               model: personasModel,
               as: "persona",
-              attributes: ["nombre", "apellido", "dni", "telefono", "dni_verificado", "fecha_nacimiento"],
+              attributes: ["nombre", "apellido", "dni", "telefono", "dni_verificado", "fecha_nacimiento", "avatar_url"],
             },
           ],
         },
@@ -441,7 +455,16 @@ export const verAlumnosPorCurso = async (req, res) => {
 
     return res.status(200).json({
       mensaje: "Alumnos del curso",
-      curso: { id: curso.id, titulo: curso.titulo, cupo_maximo: curso.cupo_maximo },
+      curso: {
+        id: curso.id,
+        titulo: curso.titulo,
+        cupo_maximo: curso.cupo_maximo,
+        modalidad: curso.modalidad,
+        duracion_horas: curso.duracion_horas,
+        fecha_inicio: curso.fecha_inicio,
+        fecha_fin: curso.fecha_fin,
+        imagen_url: curso.imagen_url,
+      },
       inscripciones,
     });
   } catch (error) {

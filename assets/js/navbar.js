@@ -123,6 +123,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   } else {
     enlaces += enlaceNav("verificar_certificado.html", "bi-patch-check", "Verificar certificado");
+    // Visitantes: guía rápida de cómo usar la plataforma (menú + aviso en el inicio)
+    if (conBootstrap) document.getElementById("bannerNuevos")?.removeAttribute("hidden");
+    if (conBootstrap)
+      enlaces += `<li class="nav-item"><button type="button" class="nav-link" data-abrir-guia><i class="bi bi-question-circle me-1"></i>Cómo funciona</button></li>`;
     acciones = `
       <li class="nav-item"><a class="btn btn-nav-secundario" href="login.html"><i class="bi bi-box-arrow-in-right me-1"></i>Iniciar sesión</a></li>
       <li class="nav-item"><a class="btn btn-nav-principal" href="formulario_registro.html">Registrate<i class="bi bi-arrow-right ms-1"></i></a></li>`;
@@ -138,6 +142,11 @@ document.addEventListener("DOMContentLoaded", () => {
   } else {
     menuDinamico.innerHTML = enlaces + acciones;
   }
+
+  // Cualquier botón con data-abrir-guia (menú o banner del inicio) abre la guía
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("[data-abrir-guia]")) abrirGuiaPlataforma();
+  });
 
   const btnCerrarSesion = document.getElementById("btnCerrarSesion");
   btnCerrarSesion?.addEventListener("click", async () => {
@@ -194,7 +203,10 @@ function htmlCampanita() {
       <div class="dropdown-menu dropdown-menu-end p-0 shadow" style="width:360px;max-width:92vw;">
         <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-light">
           <strong>Notificaciones</strong>
-          <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" id="btnLeerTodasNotificaciones">Marcar todas como leídas</button>
+          <div class="d-flex align-items-center gap-3">
+            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" id="btnLeerTodasNotificaciones" title="Marcar todas como leídas"><i class="bi bi-check2-all me-1"></i>Marcar leídas</button>
+            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-danger" id="btnBorrarTodasNotificaciones" title="Borrar todas las notificaciones"><i class="bi bi-trash3 me-1"></i>Borrar todas</button>
+          </div>
         </div>
         <div id="listaNotificaciones" style="max-height:380px;overflow-y:auto;"></div>
       </div>
@@ -217,6 +229,7 @@ function iniciarCampanita() {
   const badge = document.getElementById("badgeNotificaciones");
   const lista = document.getElementById("listaNotificaciones");
   const btnTodas = document.getElementById("btnLeerTodasNotificaciones");
+  const btnBorrar = document.getElementById("btnBorrarTodasNotificaciones");
   const menu = document.getElementById("navNotificaciones");
 
   const pintarBadge = (n) => {
@@ -270,6 +283,7 @@ function iniciarCampanita() {
     if (!ok) return;
     pintarBadge(data.no_leidas);
     btnTodas.classList.toggle("d-none", data.no_leidas === 0);
+    btnBorrar.classList.toggle("d-none", data.notificaciones.length === 0);
 
     if (data.notificaciones.length === 0) {
       const vacio = document.createElement("div");
@@ -286,6 +300,18 @@ function iniciarCampanita() {
     cargar();
   });
 
+  btnBorrar.addEventListener("click", async () => {
+    const confirmado = await confirmarAccion("Se van a borrar todas tus notificaciones. Esta acción no se puede deshacer.", {
+      titulo: "Borrar notificaciones",
+      textoConfirmar: "Sí, borrar todas",
+    });
+    if (!confirmado) return;
+    const { ok, data } = await apiFetch("/notificaciones/bandeja", { method: "DELETE" });
+    if (ok) mostrarToast("Notificaciones borradas", "info");
+    else mostrarToast(data.mensaje || "No se pudieron borrar las notificaciones", "error");
+    cargar();
+  });
+
   // Al abrir el desplegable se refresca; además se consulta cada minuto (si la pestaña está visible)
   menu.addEventListener("show.bs.dropdown", cargar);
   setInterval(() => {
@@ -293,4 +319,88 @@ function iniciarCampanita() {
   }, INTERVALO_CAMPANITA_MS);
 
   cargar();
+}
+
+// ============================================================
+// GUÍA RÁPIDA "Cómo funciona" (para quien entra por primera vez)
+// Textos fijos de la plataforma: no incluye datos de usuarios.
+// ============================================================
+const PASOS_GUIA = {
+  estudiante: [
+    ["bi-search", "Buscá un curso", "En el inicio usá el buscador y los filtros por modalidad y categoría."],
+    ["bi-person-plus", "Creá tu cuenta", "Registrate como Estudiante y confirmá tu email con un código de 6 dígitos."],
+    ["bi-pencil-square", "Inscribite", "En la página del curso tocá \"Inscribirme\". Si no hay cupos, quedás en lista de espera."],
+    ["bi-award", "Cursá y certificá", "Seguí todo desde Mi Panel y, al terminar, descargá tu certificado con QR."],
+  ],
+  institucion: [
+    ["bi-bank", "Registrá tu institución", "Elegí \"Institución\" y completá el nombre, el CUIT y tu cargo."],
+    ["bi-shield-check", "Esperá la aprobación", "Un administrador revisa los datos y habilita tu cuenta."],
+    ["bi-plus-square", "Publicá tus cursos", "Cargá fechas, cupos, requisitos, imagen y la ubicación en el mapa."],
+    ["bi-people", "Gestioná a tus alumnos", "Mirá sus perfiles, respondé consultas, creá encuestas y finalizá la cursada."],
+  ],
+};
+const PREGUNTAS_GUIA = [
+  ["¿Tiene costo usar AllCursos?", "No. Registrarse e inscribirse es gratis. Si un curso tuviera costo, lo indica en su descripción."],
+  ["¿Puedo inscribirme sin crear una cuenta antes?", "Sí. En el curso completás tus datos, confirmás tu email o teléfono con un código y te creamos la cuenta automáticamente."],
+  ["¿Qué pasa si no quedan cupos?", "Quedás en la lista de espera y te avisamos apenas se libere un lugar."],
+  ["¿Cómo compruebo que un certificado es real?", "En \"Verificar certificado\" ingresás el código o escaneás el QR del PDF."],
+  ["Tengo una duda sobre un curso, ¿a quién le pregunto?", "Desde la página del curso podés escribirle a la institución, o preguntarle al asistente (el botón de chat abajo a la derecha)."],
+];
+
+function abrirGuiaPlataforma() {
+  if (!window.bootstrap) return;
+  let modalEl = document.getElementById("modalGuiaPlataforma");
+  if (!modalEl) {
+    const pasos = (lista) => lista.map(([icono, titulo, texto], i) => `
+      <li class="guia-paso">
+        <span class="guia-paso-numero">${i + 1}</span>
+        <div><strong><i class="bi ${icono} me-1"></i>${titulo}</strong><p>${texto}</p></div>
+      </li>`).join("");
+    const preguntas = PREGUNTAS_GUIA.map(([p, r], i) => `
+      <div class="accordion-item">
+        <h3 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#guiaPregunta${i}">${p}</button>
+        </h3>
+        <div id="guiaPregunta${i}" class="accordion-collapse collapse" data-bs-parent="#guiaPreguntas">
+          <div class="accordion-body small">${r}</div>
+        </div>
+      </div>`).join("");
+
+    document.body.insertAdjacentHTML("beforeend", `
+      <div class="modal fade" id="modalGuiaPlataforma" tabindex="-1" aria-labelledby="tituloGuia" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+          <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+              <div>
+                <h5 class="modal-title" id="tituloGuia"><i class="bi bi-compass me-2"></i>¿Cómo funciona AllCursos?</h5>
+                <small class="modal-subtitulo">Una guía rápida si es tu primera vez.</small>
+              </div>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+              <ul class="nav nav-pills guia-pestanas mb-3" role="tablist">
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#guiaEstudiante" type="button" role="tab"><i class="bi bi-mortarboard me-1"></i>Soy estudiante</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" data-bs-toggle="pill" data-bs-target="#guiaInstitucion" type="button" role="tab"><i class="bi bi-bank me-1"></i>Soy una institución</button>
+                </li>
+              </ul>
+              <div class="tab-content">
+                <div class="tab-pane fade show active" id="guiaEstudiante" role="tabpanel"><ol class="guia-pasos">${pasos(PASOS_GUIA.estudiante)}</ol></div>
+                <div class="tab-pane fade" id="guiaInstitucion" role="tabpanel"><ol class="guia-pasos">${pasos(PASOS_GUIA.institucion)}</ol></div>
+              </div>
+              <p class="guia-subtitulo">Preguntas frecuentes</p>
+              <div class="accordion" id="guiaPreguntas">${preguntas}</div>
+            </div>
+            <div class="modal-footer">
+              <a href="login.html" class="btn btn-outline-secondary">Ya tengo cuenta</a>
+              <a href="formulario_registro.html" class="btn btn-primary"><i class="bi bi-person-plus me-1"></i>Crear mi cuenta</a>
+            </div>
+          </div>
+        </div>
+      </div>`);
+    modalEl = document.getElementById("modalGuiaPlataforma");
+  }
+  bootstrap.Modal.getOrCreateInstance(modalEl).show();
 }

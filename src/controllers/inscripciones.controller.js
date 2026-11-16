@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import { Op } from "sequelize";
 import { sequelize } from "../config/database.js";
-import { inscripcionesModel } from "../models/inscripciones.model.js";
+import { inscripcionesModel, MOTIVOS_BAJA_CURSO } from "../models/inscripciones.model.js";
 import { usuariosModel } from "../models/usuario.model.js";
 import { personasModel } from "../models/persona.model.js";
 import { rolesModel } from "../models/rol.model.js";
@@ -365,13 +365,29 @@ export const editarInscripciones = async (req, res) => {
     }
 
     let { estado } = req.body;
-    if (esDueño && !esRepresentanteDelCurso) {
-      // Un ciudadano únicamente puede cancelar su propia inscripción
+    const cambios = {};
+    const esBajaDelAlumno = esDueño && !esRepresentanteDelCurso;
+    if (esBajaDelAlumno) {
+      // Un ciudadano únicamente puede darse de baja de su propia inscripción, contando por qué
       estado = "Cancelado";
+      if (inscripcion.estado === "Cancelado")
+        return res.status(400).json({ mensaje: "Ya te diste de baja de este curso" });
+      if (inscripcion.estado === "Finalizado")
+        return res.status(400).json({ mensaje: "No podés darte de baja de un curso que ya finalizaste" });
+      const motivo = String(req.body.motivo_baja || "").trim();
+      const comentario = String(req.body.comentario_baja || "").trim();
+      if (!MOTIVOS_BAJA_CURSO.includes(motivo))
+        return res.status(400).json({ mensaje: "Elegí el motivo por el que dejás el curso" });
+      if (motivo === "Otro motivo" && comentario.length < 5)
+        return res.status(400).json({ mensaje: "Contanos brevemente por qué dejás el curso" });
+      if (comentario.length > 500)
+        return res.status(400).json({ mensaje: "El comentario puede tener hasta 500 caracteres" });
+      Object.assign(cambios, { motivo_baja: motivo, comentario_baja: comentario || null, fecha_baja: new Date() });
     }
+    cambios.estado = estado;
 
     const [actualizados] = await inscripcionesModel.update(
-      { estado },
+      cambios,
       { where: { id: req.params.id } },
     );
     if (!actualizados)
@@ -384,10 +400,20 @@ export const editarInscripciones = async (req, res) => {
       );
     }
 
+    // Campanita del representante: un alumno se dio de baja (con el motivo)
+    if (esBajaDelAlumno) {
+      notificarRepresentantes(inscripcion.curso.institucion_id, {
+        tipo: "inscripcion",
+        titulo: `Baja en "${inscripcion.curso.titulo}"`,
+        mensaje: `Un alumno se dio de baja. Motivo: ${cambios.motivo_baja}.`,
+        url: `alumnos_x_curso.html?id=${inscripcion.curso_id}`,
+      }).catch((e) => console.error("Error notificando la baja:", e.message));
+    }
+
     const inscripcionActualizada = await inscripcionesModel.findByPk(req.params.id);
     return res
       .status(200)
-      .json({ mensaje: "Inscripción actualizada", inscripcionActualizada });
+      .json({ mensaje: esBajaDelAlumno ? "Te diste de baja del curso" : "Inscripción actualizada", inscripcionActualizada });
   } catch (error) {
     return res
       .status(500)

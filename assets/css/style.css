@@ -999,8 +999,12 @@ a:focus-visible,
   color: var(--brand-text-muted);
   font-variant-numeric: tabular-nums;
 }
-.opcion-filtro.vacia {
-  opacity: 0.5;
+/* Modalidad: se elige una sola, por eso la casilla es redonda */
+.opcion-filtro input[data-tipo="modalidades"] {
+  border-radius: 50%;
+}
+.opcion-filtro.vacia .opcion-cantidad {
+  opacity: 0.55; /* Sin cursos: se puede elegir igual (muestra "por ahora no hay cursos") */
 }
 
 /* Cabecera de resultados: contador + orden */
@@ -2923,6 +2927,52 @@ a:focus-visible,
 .btn-check:checked + .chip-requisito .bi::before {
   content: "\F633"; /* bi-check-lg */
 }
+/* Requisitos ya agregados al curso (con su "x" para quitarlos) */
+.chip-requisito.elegido {
+  color: var(--brand-accent-dark);
+  border-color: var(--brand-accent);
+  background: rgba(var(--brand-accent-rgb), 0.1);
+  cursor: default;
+  padding-right: 0.35rem;
+}
+.chip-requisito-quitar {
+  display: grid;
+  place-items: center;
+  width: 1.3rem;
+  height: 1.3rem;
+  margin-left: 0.15rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--brand-accent-dark);
+  background: transparent;
+}
+.chip-requisito-quitar:hover {
+  color: #fff;
+  background: #dc3545;
+}
+/* Sugerencias fijas: se ven punteadas para que no parezcan ya elegidas */
+.sugerencias-requisitos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+.sugerencias-titulo {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--brand-text-muted);
+}
+.chip-requisito.sugerencia {
+  border-style: dashed;
+  color: #475467;
+  background: transparent;
+}
+.chip-requisito.sugerencia:hover {
+  color: var(--brand-accent-dark);
+  border-color: var(--brand-accent);
+}
 .btn-check:focus-visible + .chip-requisito {
   outline: 2px solid rgba(var(--brand-accent-rgb), 0.5);
 }
@@ -2991,6 +3041,731 @@ a:focus-visible,
   .detalle-imagen {
     height: 300px;
   }
+}
+
+/* ============================================================
+   PÁGINA DEL CURSO (detalles.html): cabecera con degradé, tarjetas
+   de datos, estado de inscripción y ventana de agradecimiento
+   ============================================================ */
+.curso-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 6.5rem 0 6.5rem;
+  color: #fff;
+  text-align: left;
+  background: linear-gradient(120deg, var(--brand-primary-dark) 0%, var(--brand-primary) 55%, #24566e 80%, var(--brand-accent) 130%);
+}
+.curso-hero::after {
+  content: "";
+  position: absolute;
+  width: 30rem;
+  height: 30rem;
+  right: -10rem;
+  top: -12rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(var(--brand-accent-rgb), 0.5), transparent 70%);
+  pointer-events: none;
+}
+.curso-hero .container {
+  position: relative;
+  z-index: 1;
+}
+.curso-hero-imagen {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border-radius: 18px;
+  box-shadow: 0 20px 40px -18px rgba(0, 0, 0, 0.6);
+  animation: aparecer-abajo 0.6s ease-out both;
+}
+.curso-hero-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.85rem;
+}
+.chip-hero {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.08);
+}
+.chip-hero-solido {
+  color: var(--brand-primary);
+  background: #fff;
+  border-color: #fff;
+}
+.curso-hero-titulo {
+  margin: 0 0 0.6rem;
+  font-size: clamp(1.8rem, 3.6vw, 2.7rem);
+  font-weight: 800;
+  line-height: 1.15;
+  color: #fff;
+  animation: aparecer-abajo 0.6s 0.1s ease-out both;
+}
+.curso-hero-institucion {
+  margin-bottom: 1.5rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+.curso-hero-institucion strong {
+  color: #fff;
+}
+.btn-hero-inscribirse {
+  padding: 0.8rem 1.6rem;
+  border: 0;
+  border-radius: 12px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand-accent), #3fa088);
+  box-shadow: 0 10px 25px -8px rgba(var(--brand-accent-rgb), 0.8);
+  animation: latido-boton 2.4s ease-in-out infinite;
+}
+.btn-hero-inscribirse:hover,
+.btn-hero-inscribirse:focus-visible {
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px -8px rgba(var(--brand-accent-rgb), 0.9);
+}
+.btn-hero-inscribirse:disabled {
+  animation: none;
+  opacity: 0.6;
+}
+@keyframes latido-boton {
+  0%, 100% { box-shadow: 0 10px 25px -8px rgba(var(--brand-accent-rgb), 0.8), 0 0 0 0 rgba(111, 209, 184, 0.45); }
+  50% { box-shadow: 0 10px 25px -8px rgba(var(--brand-accent-rgb), 0.8), 0 0 0 10px rgba(111, 209, 184, 0); }
+}
+.curso-hero-nota {
+  margin: 0.75rem 0 0;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.75);
+}
+/* Aviso "Ya estás inscripto" dentro de la cabecera */
+.estado-hero {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  max-width: 34rem;
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(6px);
+  animation: aparecer-abajo 0.5s ease-out both;
+}
+.estado-hero > div {
+  flex: 1 1 14rem;
+}
+.estado-hero strong,
+.estado-hero span:not(.estado-hero-icono) {
+  display: block;
+}
+.estado-hero span:not(.estado-hero-icono) {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+.estado-hero-icono {
+  width: 2.6rem;
+  height: 2.6rem;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 1.3rem;
+  color: #fff;
+  background: var(--brand-accent);
+  box-shadow: 0 0 0 5px rgba(111, 209, 184, 0.25);
+}
+.estado-hero.espera .estado-hero-icono {
+  background: #d97706;
+  box-shadow: 0 0 0 5px rgba(245, 185, 66, 0.25);
+}
+
+/* Tarjetas de datos clave */
+.curso-datos {
+  position: relative;
+  z-index: 2;
+  margin-top: -4rem;
+  margin-bottom: 2rem;
+  text-align: left;
+}
+.tarjeta-dato {
+  height: 100%;
+  padding: 1.15rem 1.25rem;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid var(--brand-border);
+  box-shadow: 0 12px 30px -16px rgba(16, 24, 40, 0.3);
+  transition: transform var(--transicion), box-shadow var(--transicion);
+}
+.tarjeta-dato:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 34px -16px rgba(var(--brand-primary-rgb), 0.4);
+}
+.tarjeta-dato-etiqueta {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.6rem;
+  font-size: 0.82rem;
+  color: var(--brand-text-muted);
+}
+.tarjeta-dato-etiqueta .bi {
+  font-size: 1.05rem;
+  color: var(--brand-accent);
+}
+.tarjeta-dato-valor {
+  margin-bottom: 0.35rem;
+  font-family: var(--font-titulos);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #101828;
+}
+.tarjeta-dato-detalle {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #475467;
+}
+
+/* Secciones del cuerpo */
+.curso-seccion {
+  border: 1px solid var(--brand-border) !important;
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+.curso-seccion-titulo {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 1rem;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+.curso-seccion-titulo .bi {
+  color: var(--brand-accent);
+}
+.curso-descripcion {
+  font-size: 1.02rem;
+  line-height: 1.7;
+  color: #344054;
+  white-space: pre-line;
+}
+.curso-subtitulo {
+  margin: 1.5rem 0 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--brand-text-muted);
+}
+.lista-requisitos {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.lista-requisitos li {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.4rem 0;
+}
+.lista-requisitos .bi {
+  color: var(--brand-accent);
+}
+@media (min-width: 992px) {
+  .curso-aside {
+    position: sticky;
+    top: 90px;
+  }
+}
+
+/* Ventana "¡Gracias por inscribirte!" */
+.modal-gracias {
+  position: relative;
+  overflow: hidden;
+  border: 0;
+  border-radius: 20px;
+}
+.gracias-icono {
+  width: 5rem;
+  height: 5rem;
+  margin: 0 auto 1.25rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 2.4rem;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand-accent), #4fb39b);
+  box-shadow: 0 0 0 10px rgba(var(--brand-accent-rgb), 0.12);
+  animation: gracias-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.gracias-icono.espera {
+  background: linear-gradient(135deg, #d97706, #f5b942);
+  box-shadow: 0 0 0 10px rgba(217, 119, 6, 0.12);
+}
+@keyframes gracias-pop {
+  from { transform: scale(0.3); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.gracias-titulo {
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+}
+.gracias-texto {
+  color: #475467;
+}
+.gracias-pasos {
+  margin: 1.25rem 0 0;
+  padding: 1rem 1.1rem;
+  list-style: none;
+  text-align: left;
+  border-radius: 12px;
+  background: var(--brand-bg);
+}
+.gracias-pasos li {
+  display: flex;
+  gap: 0.65rem;
+  padding: 0.35rem 0;
+  font-size: 0.9rem;
+}
+.gracias-pasos .bi {
+  color: var(--brand-accent);
+}
+.confeti {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.confeti span {
+  position: absolute;
+  top: -12px;
+  width: 8px;
+  height: 14px;
+  border-radius: 2px;
+  opacity: 0;
+  animation: caer-confeti 2.2s ease-in forwards;
+}
+@keyframes caer-confeti {
+  0% { transform: translateY(0) rotate(0); opacity: 1; }
+  100% { transform: translateY(520px) rotate(var(--giro, 360deg)); opacity: 0; }
+}
+@media (max-width: 991.98px) {
+  .curso-hero {
+    padding: 5.5rem 0 5.5rem;
+  }
+}
+
+/* Formulario "Darme de baja del curso" */
+.opciones-baja {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.5rem;
+}
+.opcion-baja {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.65rem 0.8rem;
+  border: 1.5px solid var(--brand-border);
+  border-radius: 10px;
+  font-size: 0.88rem;
+  cursor: pointer;
+  background: #fff;
+  transition: border-color var(--transicion), background-color var(--transicion);
+}
+.opcion-baja .bi {
+  color: var(--brand-text-muted);
+}
+.opcion-baja:hover {
+  border-color: rgba(220, 53, 69, 0.4);
+}
+.btn-check:checked + .opcion-baja {
+  border-color: #dc3545;
+  background: #fff5f5;
+  color: #9f1d2a;
+  font-weight: 600;
+}
+.btn-check:checked + .opcion-baja .bi {
+  color: #dc3545;
+}
+.btn-check:focus-visible + .opcion-baja {
+  outline: 2px solid rgba(220, 53, 69, 0.45);
+}
+.aviso-baja {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  font-size: 0.83rem;
+  color: #475467;
+  background: var(--brand-bg);
+}
+.aviso-baja .bi {
+  color: var(--brand-accent);
+}
+
+/* ============================================================
+   GESTIÓN DE ALUMNOS (alumnos_x_curso.html)
+   ============================================================ */
+.alumnos-hero {
+  padding-top: 6rem;
+}
+.alumnos-curso-imagen {
+  width: 5.5rem;
+  height: 5.5rem;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 16px;
+  font-size: 2rem;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.15);
+}
+.alumnos-curso-imagen img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Avatar del alumno: foto o iniciales con color propio */
+.avatar-alumno {
+  width: 3rem;
+  height: 3rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.avatar-letras {
+  display: inline-grid;
+  place-items: center;
+  font-family: var(--font-titulos);
+  font-weight: 700;
+  color: #fff;
+}
+.avatar-alumno.grande {
+  width: 5rem;
+  height: 5rem;
+  font-size: 1.6rem;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.25);
+}
+
+/* Tarjeta de cada alumno */
+.tarjeta-alumno {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 1rem;
+  border: 1px solid var(--brand-border);
+  border-radius: 14px;
+  background: #fff;
+  animation: aparecer-abajo 0.4s ease-out both;
+  transition: border-color var(--transicion), box-shadow var(--transicion), transform var(--transicion);
+}
+.tarjeta-alumno:hover {
+  transform: translateY(-2px);
+  border-color: rgba(var(--brand-primary-rgb), 0.25);
+  box-shadow: 0 12px 26px -16px rgba(var(--brand-primary-rgb), 0.5);
+}
+.tarjeta-alumno.de-baja {
+  background: #fcfcfd;
+}
+.tarjeta-alumno.de-baja .avatar-alumno {
+  filter: grayscale(0.7);
+  opacity: 0.75;
+}
+.tarjeta-alumno-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.tarjeta-alumno-nombre {
+  margin: 0;
+  font-weight: 700;
+  color: #101828;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tarjeta-alumno-dato {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--brand-text-muted);
+}
+.tarjeta-alumno-lista {
+  margin: 0.9rem 0;
+  padding: 0.75rem 0 0;
+  list-style: none;
+  border-top: 1px dashed var(--brand-border);
+  font-size: 0.85rem;
+  color: #344054;
+}
+.tarjeta-alumno-lista li {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.2rem 0;
+  min-width: 0;
+}
+.tarjeta-alumno-lista .bi {
+  color: var(--brand-accent);
+  flex-shrink: 0;
+}
+.tarjeta-alumno-baja {
+  margin-bottom: 0.9rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  color: #7f1d1d;
+  background: #fef2f2;
+}
+.tarjeta-alumno-pie {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: auto;
+}
+
+/* Perfil del alumno (ventana) */
+.perfil-alumno-cabecera {
+  position: relative;
+  padding: 1.75rem 1.5rem 1.25rem;
+  text-align: center;
+  color: #fff;
+  background: linear-gradient(120deg, var(--brand-primary-dark), var(--brand-primary) 60%, #24566e);
+}
+.perfil-alumno-cabecera h5 {
+  font-family: var(--font-titulos);
+  font-weight: 700;
+  color: #fff;
+}
+.perfil-alumno-cabecera .estado-chip {
+  background: #fff;
+}
+.seccion-perfil {
+  margin: 1.1rem 0 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brand-text-muted);
+}
+.seccion-perfil:first-child {
+  margin-top: 0;
+}
+.fila-perfil {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid #f0f2f5;
+}
+.fila-perfil > .bi {
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  color: var(--brand-primary);
+  background: rgba(var(--brand-primary-rgb), 0.07);
+}
+.fila-perfil-etiqueta {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--brand-text-muted);
+}
+.fila-perfil-valor {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #101828;
+  overflow-wrap: anywhere;
+}
+.nota-privacidad {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  color: #475467;
+  background: var(--brand-bg);
+}
+.nota-privacidad .bi {
+  color: var(--brand-accent);
+}
+
+/* ============================================================
+   AYUDA PARA NUEVOS: aviso del inicio, guía "Cómo funciona"
+   e información de cada perfil en el registro
+   ============================================================ */
+.banner-nuevos {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding: 1rem 1.25rem;
+  border-radius: 16px;
+  border: 1px solid rgba(var(--brand-accent-rgb), 0.3);
+  background: linear-gradient(120deg, #ffffff, rgba(var(--brand-accent-rgb), 0.08));
+}
+.banner-nuevos strong,
+.banner-nuevos span:not(.banner-nuevos-icono) {
+  display: block;
+}
+.banner-nuevos span:not(.banner-nuevos-icono) {
+  font-size: 0.9rem;
+  color: var(--brand-text-muted);
+}
+.banner-nuevos-icono {
+  width: 2.75rem;
+  height: 2.75rem;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  font-size: 1.3rem;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand-accent), #4fb39b);
+}
+/* "Cómo funciona" en el menú se ve como los demás enlaces */
+.navbar-allcursos button.nav-link {
+  background: none;
+  border: 0;
+}
+.guia-pestanas .nav-link {
+  border-radius: 999px;
+  font-weight: 600;
+  color: #475467;
+}
+.guia-pestanas .nav-link.active {
+  color: #fff;
+  background: var(--brand-primary);
+}
+.guia-pasos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.guia-paso {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--brand-border);
+  border-radius: 12px;
+  background: #fff;
+}
+.guia-paso strong {
+  display: block;
+  margin-bottom: 0.2rem;
+}
+.guia-paso strong .bi {
+  color: var(--brand-accent);
+}
+.guia-paso p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--brand-text-muted);
+}
+.guia-paso-numero {
+  width: 1.8rem;
+  height: 1.8rem;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--brand-primary);
+}
+.guia-subtitulo {
+  margin: 1.5rem 0 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brand-text-muted);
+}
+
+/* Información del perfil elegido en el registro */
+.info-rol {
+  margin-top: 1rem;
+  padding: 1rem 1.1rem;
+  border-radius: 14px;
+  border: 1px solid rgba(var(--brand-accent-rgb), 0.3);
+  background: rgba(var(--brand-accent-rgb), 0.05);
+  font-size: 0.86rem;
+}
+.info-rol-animar {
+  animation: aparecer-abajo 0.35s ease-out both;
+}
+.info-rol-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+.info-rol-cabecera strong,
+.info-rol-cabecera small {
+  display: block;
+}
+.info-rol-cabecera small {
+  color: var(--brand-text-muted);
+}
+.info-rol-icono {
+  width: 2.4rem;
+  height: 2.4rem;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  font-size: 1.15rem;
+  color: #fff;
+  background: var(--brand-accent);
+}
+.info-rol-subtitulo {
+  margin-bottom: 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--brand-text-muted);
+}
+.info-rol-lista {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.info-rol-lista li {
+  display: flex;
+  gap: 0.45rem;
+  padding: 0.15rem 0;
+}
+.info-rol-lista .bi {
+  color: var(--brand-accent);
+  flex-shrink: 0;
+}
+.info-rol-importante {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: 10px;
+  color: #1d5f99;
+  background: #e8f2fc;
 }
 
 /* Si el usuario pidió menos movimiento en su sistema, se desactivan las animaciones */

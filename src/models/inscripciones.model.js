@@ -19,6 +19,10 @@ export const inscripcionesModel = sequelize.define(
       defaultValue: "Inscripto",
     },
     contacto_verificado: { type: DataTypes.BOOLEAN, defaultValue: false },
+    // Baja voluntaria del alumno: por qué dejó el curso (lo ve la institución)
+    motivo_baja: { type: DataTypes.STRING(100), allowNull: true },
+    comentario_baja: { type: DataTypes.TEXT, allowNull: true },
+    fecha_baja: { type: DataTypes.DATE, allowNull: true },
   },
   {
     tableName: "inscripciones",
@@ -27,3 +31,14 @@ export const inscripcionesModel = sequelize.define(
     updatedAt: "updated_at",
   },
 );
+
+// Motivos que el alumno puede elegir al darse de baja de un curso
+export const MOTIVOS_BAJA_CURSO = [
+  "Problemas de horario",
+  "Cambié de intereses",
+  "Motivos personales o de salud",
+  "Problemas de traslado o distancia",
+  "El curso no era lo que esperaba",
+  "Me inscribí por error",
+  "Otro motivo",
+];

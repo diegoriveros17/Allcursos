@@ -45,7 +45,7 @@ const tarjetaCurso = (curso) => {
                   <span class="curso-card-institucion text-truncate"><i class="bi bi-building me-1"></i>${escapar(institucion)}</span>
                   ${categoria ? `<span class="badge curso-card-categoria">${escapar(categoria)}</span>` : ""}
                 </div>
-                <span class="curso-card-ver">Ver detalles<i class="bi bi-arrow-right ms-1"></i></span>
+                <span class="curso-card-ver">Ver información del curso<i class="bi bi-arrow-right ms-1"></i></span>
               </div>
             </article>
           </div>`;
@@ -66,19 +66,31 @@ const tarjetasCargando = () =>
       </div>
     </div>`).join("");
 
-const mostrarMensaje = (mensaje, { conBoton = false } = {}) => {
+const mostrarMensaje = (mensaje, { conBoton = false, detalle = "Probá con otras palabras o quitá algunos filtros.", icono = "bi-search", textoBoton = "Borrar filtros" } = {}) => {
   contenedor.innerHTML = `<div class="col-12 w-100">
                             <div class="estado-vacio">
-                              <i class="bi bi-search"></i>
+                              <i class="bi ${icono}"></i>
                               <h5>${escapar(mensaje)}</h5>
-                              <p class="text-muted mb-3">Probá con otras palabras o quitá algunos filtros.</p>
-                              ${conBoton ? `<button type="button" class="btn btn-outline-primary btn-sm" data-accion="limpiar-filtros">Borrar filtros</button>` : ""}
+                              <p class="text-muted mb-3">${escapar(detalle)}</p>
+                              ${conBoton ? `<button type="button" class="btn btn-outline-primary btn-sm" data-accion="limpiar-filtros">${escapar(textoBoton)}</button>` : ""}
                             </div>
                           </div>`;
 };
 
 const cargarCursos = (listaCursos) => {
   if (!listaCursos.length) {
+    // Si eligió una modalidad que todavía no tiene ningún curso, se avisa con un mensaje propio
+    const modalidad = [...filtros.modalidades][0];
+    if (modalidad && !cursosCache.some((c) => c.modalidad === modalidad)) {
+      const icono = MODALIDADES.find((m) => m.valor === modalidad)?.icono || "bi-calendar-x";
+      mostrarMensaje(`Por ahora no hay cursos en modalidad ${modalidad}`, {
+        conBoton: true,
+        icono,
+        detalle: "Cuando una institución publique uno, lo vas a ver acá. Mientras tanto, mirá los cursos de las otras modalidades.",
+        textoBoton: "Ver todos los cursos",
+      });
+      return;
+    }
     mostrarMensaje("No encontramos cursos", { conBoton: hayFiltrosActivos() });
     return;
   }
@@ -107,7 +119,7 @@ async function iniciarListadoCursos() {
 
 document.addEventListener("DOMContentLoaded", iniciarListadoCursos);
 
-// --- Filtros: búsqueda de texto + categorías + modalidades (se pueden marcar varias) + orden ---
+// --- Filtros: búsqueda de texto + categorías (varias) + modalidad (una sola) + orden ---
 const inputBusqueda = document.getElementById("terminoBusqueda");
 const formBuscador = document.getElementById("formBuscador");
 const listaModalidades = document.getElementById("listaModalidades");
@@ -212,6 +224,13 @@ document.querySelector(".panel-filtros")?.addEventListener("change", (e) => {
   const input = e.target.closest("input[data-tipo]");
   if (!input) return;
   const conjunto = filtros[input.dataset.tipo];
+  // Modalidad: se elige una sola (al marcar una, se desmarcan las otras)
+  if (input.dataset.tipo === "modalidades" && input.checked) {
+    conjunto.clear();
+    document.querySelectorAll('.opcion-filtro input[data-tipo="modalidades"]').forEach((otro) => {
+      if (otro !== input) otro.checked = false;
+    });
+  }
   input.checked ? conjunto.add(input.value) : conjunto.delete(input.value);
   aplicarFiltros();
 });

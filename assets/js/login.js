@@ -118,6 +118,65 @@ function seleccionarRol(rol) {
     if (document.getElementById("dni"))
       document.getElementById("dni").required = false;
   }
+  mostrarInfoRol(rol);
+}
+
+// Qué implica cada perfil: se muestra al elegirlo, antes de completar los datos
+const INFO_ROLES = {
+  ciudadano: {
+    icono: "bi-mortarboard",
+    titulo: "Cuenta de Estudiante",
+    resumen: "Para encontrar cursos, inscribirte y obtener tus certificados.",
+    puede: [
+      "Inscribirte gratis a los cursos publicados (si no hay cupo, quedás en lista de espera).",
+      "Seguir tus cursos, consultas y encuestas desde Mi Panel.",
+      "Hacerle preguntas a cada institución desde la página del curso.",
+      "Descargar tu certificado en PDF con código QR al terminar.",
+    ],
+    necesita: ["Tu DNI", "Un email que uses (te enviamos un código)", "Una contraseña de al menos 8 caracteres"],
+    importante: "Tu cuenta queda activa al instante. Usá tus datos reales: tu nombre y DNI aparecen en el certificado.",
+  },
+  representante: {
+    icono: "bi-bank",
+    titulo: "Cuenta de Institución",
+    resumen: "Para que tu institución publique cursos y gestione a sus alumnos.",
+    puede: [
+      "Publicar cursos con fechas, cupos, requisitos, imagen y ubicación en el mapa.",
+      "Ver el perfil de tus alumnos, contactarlos y marcar quién terminó.",
+      "Responder las consultas de los estudiantes dentro de la plataforma.",
+      "Crear encuestas y ver sus estadísticas en gráficos.",
+    ],
+    necesita: ["Nombre de la institución", "CUIT de la institución", "Tu cargo en la institución", "Un email institucional o personal"],
+    importante: "Un administrador revisa los datos antes de habilitar la cuenta. Mientras tanto podés entrar a tu panel, pero todavía no publicar cursos.",
+  },
+};
+
+function mostrarInfoRol(rol) {
+  const caja = document.getElementById("infoRol");
+  const info = INFO_ROLES[rol];
+  if (!caja || !info) return;
+  const lista = (items, icono) => items.map((t) => `<li><i class="bi ${icono}"></i><span>${t}</span></li>`).join("");
+  // Textos fijos de la plataforma (no vienen del usuario)
+  caja.innerHTML = `
+    <div class="info-rol-cabecera">
+      <span class="info-rol-icono"><i class="bi ${info.icono}"></i></span>
+      <div><strong>${info.titulo}</strong><small>${info.resumen}</small></div>
+    </div>
+    <div class="row g-3">
+      <div class="col-md-7">
+        <p class="info-rol-subtitulo">Qué vas a poder hacer</p>
+        <ul class="info-rol-lista">${lista(info.puede, "bi-check2-circle")}</ul>
+      </div>
+      <div class="col-md-5">
+        <p class="info-rol-subtitulo">Qué vas a necesitar</p>
+        <ul class="info-rol-lista">${lista(info.necesita, "bi-dot")}</ul>
+      </div>
+    </div>
+    <div class="info-rol-importante"><i class="bi bi-info-circle-fill"></i><span>${info.importante}</span></div>`;
+  caja.classList.remove("d-none");
+  caja.classList.remove("info-rol-animar");
+  void caja.offsetWidth; // Reinicia la animación al cambiar de perfil
+  caja.classList.add("info-rol-animar");
 }
 
 if (btnCiudadano && btnRepresentante) {

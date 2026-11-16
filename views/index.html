@@ -76,6 +76,18 @@
         </form>
       </div>
 
+      <!-- Para visitantes (sin sesión): acceso a la guía "Cómo funciona". Lo muestra navbar.js -->
+      <div class="container" id="bannerNuevos" hidden>
+        <div class="banner-nuevos">
+          <span class="banner-nuevos-icono"><i class="bi bi-stars"></i></span>
+          <div class="flex-grow-1">
+            <strong>¿Es tu primera vez en AllCursos?</strong>
+            <span>Te mostramos en 4 pasos cómo encontrar un curso, inscribirte y obtener tu certificado.</span>
+          </div>
+          <button type="button" class="btn btn-primary btn-sm" data-abrir-guia><i class="bi bi-compass me-1"></i>Ver cómo funciona</button>
+        </div>
+      </div>
+
       <section class="container py-5" id="cursos">
         <div class="row g-4">
           <!-- Panel de filtros (en celular se despliega con un botón) -->

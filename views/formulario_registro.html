@@ -56,7 +56,7 @@
               </p>
             </div>
             <ol class="auth-pasos">
-              <li><span>1</span><div><strong>Elegí tu perfil</strong><small>Ciudadano o institución</small></div></li>
+              <li><span>1</span><div><strong>Elegí tu perfil</strong><small>Estudiante o institución</small></div></li>
               <li><span>2</span><div><strong>Verificá tu email</strong><small>Te enviamos un código de 6 dígitos</small></div></li>
               <li><span>3</span><div><strong>Completá tus datos</strong><small>¡Y listo para empezar!</small></div></li>
             </ol>
@@ -75,7 +75,7 @@
                 <button type="button" id="btnRolCiudadano" class="rol-opcion" aria-pressed="false">
                   <span class="rol-icono"><i class="bi bi-person-fill"></i></span>
                   <span class="rol-texto">
-                    <strong>Ciudadano</strong>
+                    <strong>Estudiante</strong>
                     <small>Quiero inscribirme a cursos</small>
                   </span>
                   <i class="bi bi-check-circle-fill rol-check"></i>
@@ -90,6 +90,9 @@
                 </button>
               </div>
               <input type="hidden" id="regRol" name="rol" value="" required />
+
+              <!-- Qué implica el perfil elegido (lo completa login.js al tocar una opción) -->
+              <div id="infoRol" class="info-rol d-none" aria-live="polite"></div>
 
               <div id="camposFormulario" class="d-none row g-3 m-0 p-0 mt-2 campos-registro">
                 <div class="col-12 p-0"><p class="seccion-formulario"><i class="bi bi-person-vcard"></i>Datos personales</p></div>

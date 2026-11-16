@@ -19,128 +19,57 @@ document.addEventListener("DOMContentLoaded", async () => {
   window.__cursoIdActual = curso.id;
   const sesion = obtenerSesion();
   const sinCupos = curso.cupos_disponibles === 0;
+  const estadoInscripcion = await buscarMiInscripcion(curso.id, sesion); // ¿Ya está inscripto?
+  window.__zonaInscripcion = { curso, sesion, sinCupos }; // Para redibujar el estado después de inscribirse
 
   contenedor.innerHTML = `
-      <div class="card shadow-lg border-0 overflow-hidden">
-        <div class="row g-0">
-          <div class="col-md-4 detalle-imagen-col">
-            <img src="${curso.imagen_url || "assets/img/curso_programacion.webp"}" class="detalle-imagen" alt="${curso.titulo}">
-          </div>
-
-          <div class="col-md-8 p-4 p-md-5 d-flex flex-column justify-content-between">
-            <div>
-              <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="badge bg-primary fs-6">${curso.categoria?.nombre || "General"}</span>
-                <span class="badge bg-dark fs-6">${curso.modalidad}</span>
+      <!-- CABECERA DEL CURSO: imagen, título y botón / estado de inscripción -->
+      <section class="curso-hero">
+        <div class="container">
+          <div class="row g-4 g-lg-5 align-items-center">
+            <div class="col-lg-5">
+              <img src="${escaparDetalle(curso.imagen_url || "assets/img/curso_programacion.webp")}" class="curso-hero-imagen" alt="${escaparDetalle(curso.titulo)}">
+            </div>
+            <div class="col-lg-7">
+              <div class="curso-hero-chips">
+                <span class="chip-hero chip-hero-solido">Curso</span>
+                <span class="chip-hero">${escaparDetalle(curso.categoria?.nombre || "General")}</span>
               </div>
-
-              <h1 class="display-6 fw-bold text-dark mb-3">${curso.titulo}</h1>
-              <p class="text-muted mb-2"><strong>Dictado por:</strong> ${curso.institucion?.nombre || "Institución"}</p>
-              <p class="fs-5 text-secondary mb-4">${curso.descripcion}</p>
-
-              <h5 class="fw-bold mb-2">Información de Cursada:</h5>
-              ${
-                curso.direccion_dictado
-                  ? `<p class="mb-1"><strong>📍 Lugar:</strong> ${curso.direccion_dictado.calle} ${curso.direccion_dictado.numero || ""}, ${curso.direccion_dictado.ciudad}</p>`
-                  : ""
-              }
-              ${curso.duracion_horas ? `<p class="mb-1"><strong>⏱️ Duración:</strong> ${curso.duracion_horas} horas</p>` : ""}
-              ${curso.fecha_inicio ? `<p class="mb-1"><strong>📅 Inicia:</strong> ${fechaLarga(curso.fecha_inicio)}</p>` : ""}
-              ${curso.fecha_fin ? `<p class="mb-1"><strong>🏁 Finaliza:</strong> ${fechaLarga(curso.fecha_fin)}</p>` : ""}
-              <p class="mb-1"><strong>👥 Cupos Disponibles:</strong> ${curso.cupos_disponibles} de ${curso.cupo_maximo}</p>
-              ${
-                curso.requisitos && curso.requisitos.length > 0
-                  ? `<h6 class="fw-bold mt-3 mb-1">Requisitos:</h6>
-                     <ul class="mb-0">
-                       ${curso.requisitos
-                         .map(
-                           (r) =>
-                             `<li>${r.descripcion}${r.cursos_requisitos?.es_obligatorio === false ? " <span class=\"text-muted\">(opcional)</span>" : ""}</li>`,
-                         )
-                         .join("")}
-                     </ul>`
-                  : ""
-              }
-            </div>
-
-            <div class="d-flex align-items-center justify-content-between border-top border-bottom py-3 my-3">
-              ${
-                sesion?.rol === "representante"
-                  ? "<span></span>" /* El representante no da me gusta: sólo ve el curso */
-                  : `<button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" id="btnLikeCurso">
-                <i class="bi bi-hand-thumbs-up" id="iconoLike"></i>
-                <span id="contadorLikes">${curso.likes_count || 0}</span>
-                <span class="d-none d-sm-inline">Me gusta</span>
-              </button>`
-              }
-
-              <div class="dropdown">
-                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                  <i class="bi bi-share me-1"></i>Compartir
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-                  <li><button class="dropdown-item" id="btnCompartirNativo"><i class="bi bi-phone me-2"></i>Compartir...</button></li>
-                  <li><a class="dropdown-item" id="linkCompartirWhatsapp" href="#" target="_blank"><i class="bi bi-whatsapp me-2"></i>WhatsApp</a></li>
-                  <li><a class="dropdown-item" id="linkCompartirFacebook" href="#" target="_blank"><i class="bi bi-facebook me-2"></i>Facebook</a></li>
-                  <li><a class="dropdown-item" id="linkCompartirX" href="#" target="_blank"><i class="bi bi-twitter-x me-2"></i>X / Twitter</a></li>
-                  <li><hr class="dropdown-divider"></li>
-                  <li><button class="dropdown-item" id="btnCopiarLink"><i class="bi bi-link-45deg me-2"></i>Copiar link</button></li>
-                  <li><button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#modalRecomendar"><i class="bi bi-envelope me-2"></i>Recomendar por email</button></li>
-                </ul>
-              </div>
-            </div>
-
-            <div class="mt-4">
-              ${
-                sesion && sesion.rol !== "ciudadano"
-                  ? `<div class="alert alert-secondary text-center mb-0">
-                       Los representantes de instituciones no pueden inscribirse a cursos.
-                     </div>`
-                  : `<button class="btn btn-dark btn-lg w-100" id="btnInscribirse">
-                       ${sinCupos ? "Anotarme en lista de espera" : "Inscribirme a este Curso"}
-                     </button>`
-              }
-            </div>
-
-            <div class="mt-3 text-center">
-              <button class="btn btn-sm btn-link text-muted text-decoration-none" data-bs-toggle="modal" data-bs-target="#modalReportarCurso">
-                <i class="bi bi-flag me-1 text-danger"></i> Reportar este curso
-              </button>
-            </div>
-
-            <!-- MODAL RECOMENDAR POR EMAIL -->
-            <div class="modal fade" id="modalRecomendar" tabindex="-1" aria-hidden="true">
-              <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-                  <div class="modal-header">
-                    <h5 class="modal-title">Recomendar este curso</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                  </div>
-                  <div class="modal-body text-start">
-                    <div id="msjRecomendar" class="mb-2"></div>
-                    <form id="formRecomendar">
-                      <div class="mb-3">
-                        <label class="form-label small fw-semibold">Tu nombre (opcional)</label>
-                        <input type="text" class="form-control" id="recomendarNombre" placeholder="Ej: María">
-                      </div>
-                      <div class="mb-3">
-                        <label class="form-label small fw-semibold">Email de tu amigo/a</label>
-                        <input type="email" class="form-control" id="recomendarEmail" required placeholder="nombre@ejemplo.com">
-                      </div>
-                      <div class="mb-3">
-                        <label class="form-label small fw-semibold">Mensaje (opcional)</label>
-                        <textarea class="form-control" id="recomendarMensaje" rows="2" placeholder="Che, mirá este curso..."></textarea>
-                      </div>
-                      <button type="submit" class="btn btn-dark w-100">Enviar recomendación</button>
-                    </form>
-                  </div>
-                </div>
-              </div>
+              <h1 class="curso-hero-titulo">${escaparDetalle(curso.titulo)}</h1>
+              <p class="curso-hero-institucion"><i class="bi bi-building me-1"></i>Dictado por <strong>${escaparDetalle(curso.institucion?.nombre || "Institución")}</strong></p>
+              <div id="zonaInscripcion">${htmlZonaInscripcion(estadoInscripcion, curso, sesion, sinCupos)}</div>
             </div>
           </div>
         </div>
+      </section>
+
+      <!-- DATOS CLAVE (tarjetas que se superponen a la cabecera) -->
+      <div class="container curso-datos">
+        <div class="row g-3">
+          ${tarjetaDatoCurso("bi-laptop", "Modalidad", curso.modalidad, TEXTO_MODALIDAD[curso.modalidad] || "")}
+          ${tarjetaDatoCurso("bi-calendar-event", "Inicio de clases", curso.fecha_inicio ? fechaLarga(curso.fecha_inicio) : "A confirmar", curso.fecha_fin ? `Finaliza el ${fechaLarga(curso.fecha_fin)}` : "La institución informará la fecha de cierre")}
+          ${tarjetaDatoCurso("bi-clock-history", "Cursada", curso.duracion_horas ? `${curso.duracion_horas} horas` : "Duración a confirmar", curso.direccion_dictado ? `En ${curso.direccion_dictado.calle} ${curso.direccion_dictado.numero || ""}, ${curso.direccion_dictado.ciudad}` : `${curso.cupos_disponibles} de ${curso.cupo_maximo} cupos disponibles`)}
+          ${tarjetaDatoCurso("bi-mortarboard", "Certificación", curso.institucion?.nombre || "Institución", "Certificado digital con código QR verificable")}
+        </div>
       </div>
 
+      <div class="container pb-5 text-start">
+        <div class="row g-4">
+          <div class="col-lg-8">
+            <div class="card curso-seccion">
+              <div class="card-body p-4">
+                <h2 class="curso-seccion-titulo"><i class="bi bi-info-circle"></i>Información del curso</h2>
+                <p class="curso-descripcion">${escaparDetalle(curso.descripcion)}</p>
+                <h3 class="curso-subtitulo">Requisitos</h3>
+                ${
+                  curso.requisitos && curso.requisitos.length > 0
+                    ? `<ul class="lista-requisitos">${curso.requisitos
+                        .map((r) => `<li><i class="bi bi-check2-circle"></i><span>${escaparDetalle(r.descripcion)}${r.cursos_requisitos?.es_obligatorio === false ? ' <span class="text-muted">(opcional)</span>' : ""}</span></li>`)
+                        .join("")}</ul>`
+                    : `<p class="text-muted mb-0"><i class="bi bi-emoji-smile me-1"></i>Este curso no tiene requisitos especiales: cualquier persona puede inscribirse.</p>`
+                }
+              </div>
+            </div>
       ${
         curso.mapa_embed_url || curso.latitud != null // NUEVO: si la institución cargó ubicación (pin o Google Maps)...
           ? `
@@ -188,6 +117,91 @@ document.addEventListener("DOMContentLoaded", async () => {
       </div>`
           : ""
       }
+          </div>
+
+          <!-- COLUMNA LATERAL: cupos, me gusta, compartir y reportar -->
+          <div class="col-lg-4">
+            <aside class="curso-aside">
+              <div class="card curso-seccion">
+                <div class="card-body p-4">
+                  <p class="curso-subtitulo mt-0 mb-2">Cupos</p>
+                  <div class="d-flex justify-content-between small mb-1">
+                    <strong>${curso.cupos_disponibles} disponibles</strong>
+                    <span class="text-muted">de ${curso.cupo_maximo}</span>
+                  </div>
+                  <div class="ocupacion-barra ${porcentajeOcupado(curso) >= 100 ? "llena" : porcentajeOcupado(curso) >= 75 ? "alta" : ""}"><span style="width: ${porcentajeOcupado(curso)}%"></span></div>
+                  <p class="small text-muted mt-2 mb-0">${sinCupos ? "No quedan cupos: podés anotarte en la lista de espera." : curso.cupos_disponibles <= 5 ? "¡Quedan pocos lugares!" : "Inscripción abierta."}</p>
+            <div class="d-flex align-items-center justify-content-between border-top pt-3 mt-3">
+              ${
+                sesion?.rol === "representante"
+                  ? "<span></span>" /* El representante no da me gusta: sólo ve el curso */
+                  : `<button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" id="btnLikeCurso">
+                <i class="bi bi-hand-thumbs-up" id="iconoLike"></i>
+                <span id="contadorLikes">${curso.likes_count || 0}</span>
+                <span class="d-none d-sm-inline">Me gusta</span>
+              </button>`
+              }
+
+              <div class="dropdown">
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                  <i class="bi bi-share me-1"></i>Compartir
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                  <li><button class="dropdown-item" id="btnCompartirNativo"><i class="bi bi-phone me-2"></i>Compartir...</button></li>
+                  <li><a class="dropdown-item" id="linkCompartirWhatsapp" href="#" target="_blank"><i class="bi bi-whatsapp me-2"></i>WhatsApp</a></li>
+                  <li><a class="dropdown-item" id="linkCompartirFacebook" href="#" target="_blank"><i class="bi bi-facebook me-2"></i>Facebook</a></li>
+                  <li><a class="dropdown-item" id="linkCompartirX" href="#" target="_blank"><i class="bi bi-twitter-x me-2"></i>X / Twitter</a></li>
+                  <li><hr class="dropdown-divider"></li>
+                  <li><button class="dropdown-item" id="btnCopiarLink"><i class="bi bi-link-45deg me-2"></i>Copiar link</button></li>
+                  <li><button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#modalRecomendar"><i class="bi bi-envelope me-2"></i>Recomendar por email</button></li>
+                </ul>
+              </div>
+            </div>
+
+                  ${
+                    sesion?.rol === "representante"
+                      ? "" /* El representante no reporta cursos: sólo ve la vista previa */
+                      : `<div class="text-center mt-3">
+                    <button class="btn btn-sm btn-link text-muted text-decoration-none" data-bs-toggle="modal" data-bs-target="#modalReportarCurso">
+                      <i class="bi bi-flag me-1 text-danger"></i> Reportar este curso
+                    </button>
+                  </div>`
+                  }
+                </div>
+              </div>
+            <!-- MODAL RECOMENDAR POR EMAIL -->
+            <div class="modal fade" id="modalRecomendar" tabindex="-1" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title">Recomendar este curso</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                  </div>
+                  <div class="modal-body text-start">
+                    <div id="msjRecomendar" class="mb-2"></div>
+                    <form id="formRecomendar">
+                      <div class="mb-3">
+                        <label class="form-label small fw-semibold">Tu nombre (opcional)</label>
+                        <input type="text" class="form-control" id="recomendarNombre" placeholder="Ej: María">
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label small fw-semibold">Email de tu amigo/a</label>
+                        <input type="email" class="form-control" id="recomendarEmail" required placeholder="nombre@ejemplo.com">
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label small fw-semibold">Mensaje (opcional)</label>
+                        <textarea class="form-control" id="recomendarMensaje" rows="2" placeholder="Che, mirá este curso..."></textarea>
+                      </div>
+                      <button type="submit" class="btn btn-dark w-100">Enviar recomendación</button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+            </aside>
+          </div>
+        </div>
+      </div>
 
       <!-- MODAL DE CONFIRMACIÓN (PARA USUARIOS LOGUEADOS) -->
       <div class="modal fade" id="modalChoice" tabindex="-1" aria-hidden="true">
@@ -323,8 +337,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
     if (ok) {
       modalChoiceBS.hide();
-      mostrarToast(resp.mensaje, "exito");
-      setTimeout(() => (window.location.href = "dashboard.html"), 1200);
+      mostrarGraciasInscripcion(curso, resp, true);
     } else {
       document.getElementById("modalChoiceError").textContent =
         resp.mensaje || (resp.errores ? resp.errores.join(", ") : "No se pudo completar la inscripción");
@@ -426,10 +439,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const msj = document.getElementById("msjInscripcionGuest");
     if (ok) {
       modalInscripcionBS.hide();
-      mostrarToast(
-        `${resp.mensaje}${resp.aviso ? "<br><small>" + resp.aviso + "</small>" : ""}`,
-        "exito",
-      );
+      mostrarGraciasInscripcion(curso, resp, false);
       document.getElementById("formInscripcion").reset();
       verificacionActual = null;
       btnConfirmarInscripcionGuest.disabled = true;
@@ -501,11 +511,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 function mensajeNoEncontrado() {
   return `
+      <div class="container" style="padding-top: 7rem; padding-bottom: 3rem;">
       <div class="alert alert-danger text-center shadow-sm" role="alert">
         <h4 class="alert-heading">¡Curso no encontrado!</h4>
         <p>El curso que estás intentando buscar no existe o no está disponible en este momento.</p>
         <hr>
         <a href="index.html" class="btn btn-outline-danger">Volver al Inicio</a>
+      </div>
       </div>
     `;
 }
@@ -550,7 +562,7 @@ async function inicializarAccionesSociales(curso) {
       return;
     }
     if (sesionActual.rol !== "ciudadano") {
-      mostrarToast("Sólo los ciudadanos pueden dar me gusta a los cursos", "advertencia");
+      mostrarToast("Sólo los estudiantes pueden dar me gusta a los cursos", "advertencia");
       return;
     }
 
@@ -692,4 +704,128 @@ function fechaLarga(fecha) {
   const [a, m, d] = String(fecha).slice(0, 10).split("-").map(Number);
   if (!a || !m || !d) return "";
   return new Date(a, m - 1, d).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
+}
+
+// ============================================================
+// CABECERA DEL CURSO: datos, estado de inscripción y agradecimiento
+// ============================================================
+
+// Escapa texto antes de meterlo en HTML (títulos, descripciones, etc. los cargan los usuarios)
+function escaparDetalle(texto) {
+  return String(texto ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+const TEXTO_MODALIDAD = {
+  Presencial: "Clases en la sede de la institución, con acompañamiento docente.",
+  Virtual: "100% a distancia: cursás desde donde estés.",
+  Híbrido: "Combina clases presenciales y actividades a distancia.",
+};
+
+function tarjetaDatoCurso(icono, etiqueta, valor, detalle) {
+  return `
+    <div class="col-6 col-lg-3">
+      <div class="tarjeta-dato">
+        <p class="tarjeta-dato-etiqueta"><i class="bi ${icono}"></i>${escaparDetalle(etiqueta)}</p>
+        <p class="tarjeta-dato-valor">${escaparDetalle(valor)}</p>
+        ${detalle ? `<p class="tarjeta-dato-detalle">${escaparDetalle(detalle)}</p>` : ""}
+      </div>
+    </div>`;
+}
+
+function porcentajeOcupado(curso) {
+  if (!curso.cupo_maximo) return 0;
+  return Math.min(100, Math.round(((curso.cupo_maximo - curso.cupos_disponibles) / curso.cupo_maximo) * 100));
+}
+
+// Busca si el ciudadano logueado ya está inscripto (o en lista de espera) en este curso
+async function buscarMiInscripcion(cursoId, sesion) {
+  if (!sesion || sesion.rol !== "ciudadano") return null;
+  const { ok, data } = await apiFetch("/inscripciones/mias");
+  if (!ok) return null;
+  const inscripcion = (data.inscripciones || []).find((i) => Number(i.curso_id ?? i.curso?.id) === Number(cursoId) && i.estado !== "Cancelado");
+  if (inscripcion) return { estado: inscripcion.estado };
+  const enEspera = (data.listaEspera || []).some((le) => Number(le.curso_id ?? le.curso?.id) === Number(cursoId));
+  return enEspera ? { estado: "Lista de espera" } : null;
+}
+
+// Botón de inscripción, o el aviso de que ya está inscripto
+function htmlZonaInscripcion(estado, curso, sesion, sinCupos) {
+  if (sesion && sesion.rol !== "ciudadano") {
+    return `<div class="estado-hero"><span class="estado-hero-icono"><i class="bi bi-info-lg"></i></span>
+      <div><strong>Sólo los estudiantes pueden inscribirse</strong><span>Los representantes y administradores ven el curso como vista previa.</span></div></div>`;
+  }
+  if (!estado) {
+    return `
+      <button class="btn btn-hero-inscribirse" id="btnInscribirse">
+        <i class="bi ${sinCupos ? "bi-hourglass-split" : "bi-pencil-square"} me-2"></i>${sinCupos ? "Anotarme en lista de espera" : "Inscribirme a este curso"}
+      </button>
+      <p class="curso-hero-nota">${sinCupos ? "No quedan cupos: te avisamos si se libera un lugar." : `<i class="bi bi-people me-1"></i>Quedan ${curso.cupos_disponibles} ${curso.cupos_disponibles === 1 ? "lugar" : "lugares"} · inscripción gratuita`}</p>`;
+  }
+  const estados = {
+    "Lista de espera": { icono: "bi-hourglass-split", titulo: "Estás en la lista de espera", texto: "Te avisamos apenas se libere un lugar.", clase: "espera" },
+    "En espera": { icono: "bi-hourglass-split", titulo: "Tu inscripción está en espera", texto: "La institución la va a confirmar pronto.", clase: "espera" },
+    Inscripto: { icono: "bi-check-lg", titulo: "¡Ya estás inscripto en este curso!", texto: "Seguí tu inscripción y las novedades desde Mi Panel.", clase: "" },
+    Cursando: { icono: "bi-play-fill", titulo: "Estás cursando este curso", texto: "¡Éxitos! Las novedades te llegan a Mi Panel.", clase: "" },
+    Finalizado: { icono: "bi-award-fill", titulo: "¡Completaste este curso!", texto: "Descargá tu certificado desde Mi Panel.", clase: "" },
+  };
+  const e = estados[estado.estado] || estados.Inscripto;
+  return `
+    <div class="estado-hero ${e.clase}">
+      <span class="estado-hero-icono"><i class="bi ${e.icono}"></i></span>
+      <div><strong>${e.titulo}</strong><span>${e.texto}</span></div>
+      <a href="dashboard.html" class="btn btn-sm btn-light ms-auto fw-semibold">Ir a Mi Panel</a>
+    </div>`;
+}
+
+// Ventana de agradecimiento después de inscribirse (con un poco de confeti)
+function mostrarGraciasInscripcion(curso, resp, conSesion) {
+  const enEspera = !!resp.listaEspera;
+  // Actualiza la cabecera: el botón pasa a "Ya estás inscripto"
+  const zona = document.getElementById("zonaInscripcion");
+  if (zona && conSesion) zona.innerHTML = htmlZonaInscripcion({ estado: enEspera ? "Lista de espera" : "Inscripto" }, curso, obtenerSesion(), false);
+  else if (zona) document.getElementById("btnInscribirse")?.setAttribute("disabled", "true");
+
+  document.getElementById("modalGracias")?.remove();
+  const colores = ["#2f7d6b", "#6fd1b8", "#1e3a5f", "#f5b942", "#e85d75"];
+  const confeti = Array.from({ length: 18 }, (_, i) =>
+    `<span style="left:${5 + ((i * 53) % 90)}%; background:${colores[i % colores.length]}; animation-delay:${(i % 6) * 0.08}s; --giro:${(i % 2 ? 1 : -1) * (180 + i * 20)}deg"></span>`,
+  ).join("");
+
+  document.body.insertAdjacentHTML(
+    "beforeend",
+    `
+    <div class="modal fade" id="modalGracias" tabindex="-1" aria-labelledby="graciasTitulo" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content modal-gracias">
+          <div class="confeti" aria-hidden="true">${confeti}</div>
+          <button type="button" class="btn-close position-absolute top-0 end-0 m-3" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+          <div class="modal-body text-center p-4 p-md-5">
+            <div class="gracias-icono ${enEspera ? "espera" : ""}"><i class="bi ${enEspera ? "bi-hourglass-split" : "bi-check-lg"}"></i></div>
+            <h3 class="gracias-titulo" id="graciasTitulo">${enEspera ? "¡Te anotamos en la lista de espera!" : "¡Gracias por inscribirte!"}</h3>
+            <p class="gracias-texto">${
+              enEspera
+                ? `Por ahora no quedan cupos en <strong>"${escaparDetalle(curso.titulo)}"</strong>, pero ya tenés tu lugar en la fila.`
+                : `Ya tenés tu lugar en <strong>"${escaparDetalle(curso.titulo)}"</strong>. ¡Nos alegra que aprendas con nosotros!`
+            }</p>
+            <ul class="gracias-pasos">
+              <li><i class="bi bi-bell"></i><span>${enEspera ? "Te avisamos en cuanto se libere un lugar." : "Te avisamos las novedades del curso por la campanita y por email."}</span></li>
+              <li><i class="bi bi-speedometer2"></i><span>Seguí tu inscripción desde <strong>Mi Panel</strong>.</span></li>
+              <li><i class="bi bi-award"></i><span>Al terminar, descargás tu certificado con código QR.</span></li>
+            </ul>
+            ${resp.aviso ? `<div class="alert alert-info small text-start py-2">${escaparDetalle(resp.aviso)}</div>` : ""}
+            <div class="d-grid gap-2 mt-4">
+              ${conSesion ? `<a href="dashboard.html" class="btn btn-primary btn-lg"><i class="bi bi-speedometer2 me-2"></i>Ir a Mi Panel</a>` : `<a href="login.html" class="btn btn-primary btn-lg"><i class="bi bi-box-arrow-in-right me-2"></i>Iniciar sesión para ver mis cursos</a>`}
+              <a href="index.html" class="btn btn-outline-secondary">Seguir explorando cursos</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`,
+  );
+  new bootstrap.Modal(document.getElementById("modalGracias")).show();
 }

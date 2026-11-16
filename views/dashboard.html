@@ -71,18 +71,6 @@
                   <div id="infoPerfilCiudadano"></div>
                 </div>
 
-                <div class="panel-card mt-4">
-                  <div class="panel-card-cuerpo d-flex align-items-center gap-3">
-                    <div class="anillo-progreso" id="anilloProgreso" style="--p: 0">
-                      <span id="anilloProgresoTexto">0%</span>
-                    </div>
-                    <div>
-                      <p class="fw-bold mb-1">Tu progreso</p>
-                      <p class="small text-muted mb-0" id="textoProgreso">Inscribite a un curso para empezar.</p>
-                    </div>
-                  </div>
-                </div>
-
                 <div class="panel-card mt-4 overflow-hidden">
                   <p class="panel-card-etiqueta">Accesos rápidos</p>
                   <nav class="accesos-rapidos">
@@ -369,8 +357,14 @@
                   <i class="bi bi-info-circle me-1"></i>Se muestra la imagen actual. Subí una nueva sólo si querés reemplazarla.
                 </div>
 
-                <label class="form-label d-block mt-3">Requisitos para inscribirse</label>
+                <label class="form-label d-block mt-3 mb-1">Requisitos para inscribirse</label>
+                <div class="form-text mt-0 mb-2">Tocá una sugerencia o escribí el tuyo abajo. Se guardan sólo para este curso, cuando lo publicás o guardás.</div>
                 <div id="cursoRequisitos" class="d-flex flex-wrap gap-2"></div>
+                <div class="input-group mt-3">
+                  <span class="input-group-text"><i class="bi bi-list-check"></i></span>
+                  <input type="text" class="form-control" id="nuevoRequisito" maxlength="255" placeholder="Nuevo requisito (ej: Ser mayor de 18 años)" />
+                  <button type="button" class="btn btn-outline-primary" id="btnAgregarRequisito"><i class="bi bi-plus-lg me-1"></i>Agregar</button>
+                </div>
               </fieldset>
 
               <!-- 4. Ubicación -->

@@ -84,7 +84,7 @@ function dibujarCabeceraPanel(sesion) {
     : "Seguí tus cursos, descargá tus certificados y hablá con las instituciones desde un solo lugar.";
 
   const chips = [
-    h("span", { class: "panel-chip" }, h("i", { class: `bi ${esRepresentante ? "bi-building" : "bi-mortarboard"} me-1` }), esRepresentante ? "Representante" : "Ciudadano"),
+    h("span", { class: "panel-chip" }, h("i", { class: `bi ${esRepresentante ? "bi-building" : "bi-mortarboard"} me-1` }), esRepresentante ? "Representante" : "Estudiante"),
   ];
   if (esRepresentante && sesion.institucion?.nombre) {
     chips.push(h("span", { class: "panel-chip" }, h("i", { class: "bi bi-geo-alt me-1" }), sesion.institucion.nombre));
@@ -193,7 +193,7 @@ function dibujarPerfilCiudadano(sesion) {
     h("div", { class: "perfil-panel" },
       h("div", { class: "perfil-panel-avatar" }, avatarDe(sesion)),
       h("p", { class: "perfil-panel-nombre" }, [sesion.nombre, sesion.apellido].filter(Boolean).join(" ")),
-      h("span", { class: "rol-chip" }, h("i", { class: "bi bi-mortarboard me-1" }), "Ciudadano"),
+      h("span", { class: "rol-chip" }, h("i", { class: "bi bi-mortarboard me-1" }), "Estudiante"),
       h("ul", { class: "perfil-datos" },
         dato("bi-envelope", sesion.email_login || sesion.email),
         dato("bi-person-vcard", sesion.dni ? `DNI ${sesion.dni}` : ""),
@@ -208,7 +208,7 @@ const GRUPOS_CURSOS = [
   { clave: "todos", texto: "Todos", estados: null },
   { clave: "activos", texto: "En marcha", estados: ["En espera", "Inscripto", "Cursando"] },
   { clave: "finalizados", texto: "Finalizados", estados: ["Finalizado"] },
-  { clave: "cancelados", texto: "Cancelados", estados: ["Cancelado"] },
+  { clave: "cancelados", texto: "Dados de baja", estados: ["Cancelado"] },
 ];
 
 const ESTILO_ESTADO_INSCRIPCION = {
@@ -238,23 +238,10 @@ async function cargarTablaCiudadano() {
   const finalizados = cuenta(["Finalizado"]);
   actualizarMetrica("activos", activos);
   actualizarMetrica("finalizados", finalizados);
-  dibujarProgreso(finalizados, activos + finalizados);
 
   dibujarFiltrosMisCursos();
   dibujarMisCursos();
   dibujarListaEspera(data.listaEspera || []);
-}
-
-function dibujarProgreso(finalizados, total) {
-  const anillo = document.getElementById("anilloProgreso");
-  const texto = document.getElementById("textoProgreso");
-  if (!anillo || !texto) return;
-  const porcentaje = total ? Math.round((finalizados / total) * 100) : 0;
-  anillo.style.setProperty("--p", porcentaje);
-  document.getElementById("anilloProgresoTexto").textContent = `${porcentaje}%`;
-  texto.textContent = total
-    ? `Terminaste ${finalizados} de ${total} ${total === 1 ? "curso" : "cursos"}. ${porcentaje === 100 ? "¡Excelente trabajo!" : "¡Seguí así!"}`
-    : "Inscribite a un curso para empezar.";
 }
 
 function dibujarFiltrosMisCursos() {
@@ -322,11 +309,14 @@ function tarjetaMiCurso(item) {
   }
   acciones.push(h("a", { href: enlace, class: "btn btn-sm btn-outline-primary" }, "Ver curso"));
   if (item.estado !== "Finalizado" && item.estado !== "Cancelado") {
-    acciones.push(h("button", { type: "button", class: "btn btn-sm btn-link text-danger text-decoration-none", onClick: () => cancelarInscripcion(item.id) }, "Cancelar"));
+    acciones.push(h("button", { type: "button", class: "btn btn-sm btn-link text-danger text-decoration-none", onClick: () => cancelarInscripcion(item.id, curso.titulo) },
+      h("i", { class: "bi bi-box-arrow-right me-1" }), "Darme de baja"));
   }
 
   let avance;
-  if (item.estado === "Cancelado") avance = h("p", { class: "mi-curso-aviso" }, h("i", { class: "bi bi-info-circle me-1" }), "Cancelaste esta inscripción.");
+  if (item.estado === "Cancelado")
+    avance = h("p", { class: "mi-curso-aviso" }, h("i", { class: "bi bi-info-circle me-1" }),
+      "Te diste de baja de este curso.", item.motivo_baja && ` Motivo: ${item.motivo_baja}.`);
   else if (item.estado === "En espera") avance = h("p", { class: "mi-curso-aviso" }, h("i", { class: "bi bi-hourglass-split me-1" }), "Tu inscripción está pendiente de confirmación.");
   else avance = pasosDelCurso(item.estado);
 
@@ -344,7 +334,7 @@ function tarjetaMiCurso(item) {
             periodoCurso(curso) && h("span", {}, h("i", { class: "bi bi-calendar-event me-1" }), periodoCurso(curso)),
           ),
         ),
-        h("span", { class: `estado-chip ${estilo.clase}` }, h("i", { class: `bi ${estilo.icono}` }), item.estado),
+        h("span", { class: `estado-chip ${estilo.clase}` }, h("i", { class: `bi ${estilo.icono}` }), item.estado === "Cancelado" ? "Dado de baja" : item.estado),
       ),
       avance,
       h("div", { class: "mi-curso-pie" },
@@ -371,22 +361,97 @@ function dibujarListaEspera(listaEspera) {
   );
 }
 
-async function cancelarInscripcion(id) {
-  const confirmado = await confirmarAccion("¿Seguro que deseas cancelar esta inscripción? Vas a liberar tu lugar en el curso.", {
-    titulo: "Cancelar inscripción",
-    textoConfirmar: "Sí, cancelar",
+// Motivos para darse de baja (los mismos que valida el servidor)
+const MOTIVOS_BAJA_CURSO = [
+  { texto: "Problemas de horario", icono: "bi-clock" },
+  { texto: "Cambié de intereses", icono: "bi-arrow-left-right" },
+  { texto: "Motivos personales o de salud", icono: "bi-heart-pulse" },
+  { texto: "Problemas de traslado o distancia", icono: "bi-geo-alt" },
+  { texto: "El curso no era lo que esperaba", icono: "bi-emoji-neutral" },
+  { texto: "Me inscribí por error", icono: "bi-x-circle" },
+  { texto: "Otro motivo", icono: "bi-three-dots" },
+];
+
+// Formulario para darse de baja: el alumno elige un motivo y puede explicarlo
+function cancelarInscripcion(id, tituloCurso = "este curso") {
+  document.getElementById("modalBajaCurso")?.remove();
+  const msj = h("div");
+  const comentario = h("textarea", { class: "form-control", id: "bajaComentario", rows: "3", maxlength: "500", placeholder: "Contanos con tus palabras por qué dejás el curso (opcional)" });
+  const contador = h("div", { class: "form-text text-end" }, "0 / 500");
+  const etiquetaComentario = h("label", { for: "bajaComentario", class: "form-label" }, "Comentario ", h("span", { class: "text-muted fw-normal" }, "(opcional)"));
+  comentario.addEventListener("input", () => (contador.textContent = `${comentario.value.length} / 500`));
+
+  const opciones = MOTIVOS_BAJA_CURSO.map((m, i) => [
+    h("input", { type: "radio", class: "btn-check", name: "motivoBaja", id: `motivoBaja${i}`, value: m.texto, autocomplete: "off" }),
+    h("label", { class: "opcion-baja", for: `motivoBaja${i}` }, h("i", { class: `bi ${m.icono}` }), m.texto),
+  ]);
+  const boton = h("button", { type: "submit", class: "btn btn-danger", form: "formBajaCurso" }, h("i", { class: "bi bi-box-arrow-right me-1" }), "Confirmar baja");
+
+  const form = h("form", { id: "formBajaCurso", novalidate: true },
+    msj,
+    h("p", { class: "fw-semibold mb-2" }, "¿Por qué dejás el curso?"),
+    h("div", { class: "opciones-baja mb-3", role: "radiogroup", "aria-label": "Motivo de la baja" }, opciones),
+    etiquetaComentario, comentario, contador,
+    h("div", { class: "aviso-baja mt-3" }, h("i", { class: "bi bi-info-circle" }),
+      h("span", {}, "Al darte de baja liberás tu lugar para otra persona. Tu respuesta le llega a la institución para mejorar sus cursos.")),
+  );
+
+  // Si elige "Otro motivo", el comentario pasa a ser obligatorio
+  form.addEventListener("change", () => {
+    const otro = form.querySelector('input[name="motivoBaja"]:checked')?.value === "Otro motivo";
+    etiquetaComentario.lastChild.textContent = otro ? "(obligatorio)" : "(opcional)";
+    comentario.placeholder = otro ? "Contanos por qué dejás el curso" : "Contanos con tus palabras por qué dejás el curso (opcional)";
   });
-  if (!confirmado) return;
-  const { ok, data } = await apiFetch(`/inscripciones/${id}`, {
-    method: "PUT",
-    body: { estado: "Cancelado" },
+
+  const modalEl = h("div", { class: "modal fade", id: "modalBajaCurso", tabindex: "-1", "aria-labelledby": "tituloBajaCurso", "aria-hidden": "true" },
+    h("div", { class: "modal-dialog modal-dialog-centered modal-dialog-scrollable" },
+      h("div", { class: "modal-content" },
+        h("div", { class: "modal-header bg-danger text-white" },
+          h("div", {},
+            h("h5", { class: "modal-title", id: "tituloBajaCurso" }, h("i", { class: "bi bi-box-arrow-right me-2" }), "Darme de baja del curso"),
+            h("small", { class: "modal-subtitulo" }, tituloCurso),
+          ),
+          h("button", { type: "button", class: "btn-close btn-close-white", "data-bs-dismiss": "modal", "aria-label": "Cerrar" }),
+        ),
+        h("div", { class: "modal-body text-start" }, form),
+        h("div", { class: "modal-footer" },
+          h("button", { type: "button", class: "btn btn-outline-secondary", "data-bs-dismiss": "modal" }, "Seguir en el curso"),
+          boton,
+        ),
+      ),
+    ),
+  );
+  document.body.appendChild(modalEl);
+  const modal = new bootstrap.Modal(modalEl);
+  modalEl.addEventListener("hidden.bs.modal", () => modalEl.remove());
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const motivo = form.querySelector('input[name="motivoBaja"]:checked')?.value;
+    const texto = comentario.value.trim();
+    const error = (t) => msj.replaceChildren(h("div", { class: "alert alert-danger py-2 small" }, h("i", { class: "bi bi-exclamation-triangle me-1" }), t));
+    if (!motivo) return error("Elegí un motivo para continuar.");
+    if (motivo === "Otro motivo" && texto.length < 5) {
+      comentario.focus();
+      return error("Contanos brevemente por qué dejás el curso.");
+    }
+
+    boton.disabled = true;
+    const { ok, data } = await apiFetch(`/inscripciones/${id}`, {
+      method: "PUT",
+      body: { estado: "Cancelado", motivo_baja: motivo, comentario_baja: texto },
+    });
+    boton.disabled = false;
+    if (ok) {
+      modal.hide();
+      mostrarToast("Te diste de baja del curso. ¡Gracias por contarnos el motivo!", "info");
+      cargarTablaCiudadano();
+    } else {
+      error(data.mensaje || "No se pudo completar la baja");
+    }
   });
-  if (ok) {
-    mostrarToast("Inscripción cancelada", "info");
-    cargarTablaCiudadano();
-  } else {
-    mostrarToast(data.mensaje || "No se pudo cancelar la inscripción", "error");
-  }
+
+  modal.show();
 }
 
 // La descarga del PDF necesita el header Authorization, por eso no puede ser
@@ -630,25 +695,106 @@ async function cargarCategoriasEnSelect() {
   selectCategoria.appendChild(h("option", { value: "__nueva__" }, "+ Agregar categoría nueva..."));
 }
 
-// Requisitos como "chips" que se marcan y desmarcan con un clic
-async function cargarRequisitosEnFormulario(idsSeleccionados = []) {
-  const contenedorRequisitos = document.getElementById("cursoRequisitos");
-  if (!contenedorRequisitos) return;
+// ---------- Requisitos del curso ----------
+// Cada curso tiene su propia lista (textos). No se muestra ninguna lista global:
+// sólo estas sugerencias fijas para elegir rápido, y lo que el representante escriba.
+// Nada se guarda hasta que se publica o guarda el curso.
+const SUGERENCIAS_REQUISITOS = [
+  "Ser mayor de 18 años",
+  "Secundario completo",
+  "Primario completo",
+  "DNI vigente",
+  "Conocimientos básicos de computación",
+  "Traer notebook propia",
+];
+const MAX_REQUISITOS = 15;
+let requisitosCurso = []; // Textos de los requisitos del curso que se está cargando
 
-  const { ok, data } = await apiFetch("/requisitos", { auth: false });
-  if (!ok) return;
+const normalizarRequisito = (texto) => String(texto || "").trim().replace(/\s+/g, " ");
+const yaTieneRequisito = (texto) => requisitosCurso.some((r) => r.toLowerCase() === texto.toLowerCase());
 
-  const requisitos = data.requisitos || [];
-  if (!requisitos.length) {
-    contenedorRequisitos.replaceChildren(h("p", { class: "text-muted small mb-0" }, "Todavía no hay requisitos cargados en el sistema."));
-    return;
+function agregarRequisitoAlCurso(texto) {
+  const limpio = normalizarRequisito(texto).slice(0, 255);
+  if (limpio.length < 3) {
+    mostrarToast("Escribí el requisito (al menos 3 letras)", "advertencia");
+    return false;
   }
-  contenedorRequisitos.replaceChildren(
-    ...requisitos.map((r) => [
-      h("input", { type: "checkbox", class: "btn-check", value: r.id, id: `req-${r.id}`, autocomplete: "off", checked: idsSeleccionados.includes(r.id) }),
-      h("label", { class: "chip-requisito", for: `req-${r.id}` }, h("i", { class: "bi bi-plus-lg" }), r.descripcion),
-    ]),
+  if (yaTieneRequisito(limpio)) {
+    mostrarToast("Ese requisito ya está en el curso", "info");
+    return false;
+  }
+  if (requisitosCurso.length >= MAX_REQUISITOS) {
+    mostrarToast(`Podés cargar hasta ${MAX_REQUISITOS} requisitos`, "advertencia");
+    return false;
+  }
+  requisitosCurso.push(limpio);
+  dibujarRequisitosCurso();
+  return true;
+}
+
+function dibujarRequisitosCurso() {
+  const contenedor = document.getElementById("cursoRequisitos");
+  if (!contenedor) return;
+
+  const elegidos = requisitosCurso.length
+    ? requisitosCurso.map((texto, i) =>
+        h("span", { class: "chip-requisito elegido" },
+          h("i", { class: "bi bi-check2" }), texto,
+          h("button", {
+            type: "button",
+            class: "chip-requisito-quitar",
+            "aria-label": `Quitar requisito ${texto}`,
+            onClick: () => {
+              requisitosCurso.splice(i, 1);
+              dibujarRequisitosCurso();
+            },
+          }, h("i", { class: "bi bi-x" })),
+        ),
+      )
+    : [h("span", { class: "text-muted small" }, "Este curso todavía no tiene requisitos. Si no pide ninguno, dejalo así.")];
+
+  const pendientes = SUGERENCIAS_REQUISITOS.filter((s) => !yaTieneRequisito(s));
+  contenedor.replaceChildren(
+    h("div", { class: "d-flex flex-wrap gap-2 w-100" }, elegidos),
+    pendientes.length &&
+      h("div", { class: "sugerencias-requisitos w-100" },
+        h("span", { class: "sugerencias-titulo" }, h("i", { class: "bi bi-lightbulb me-1" }), "Sugerencias:"),
+        pendientes.map((s) =>
+          h("button", { type: "button", class: "chip-requisito sugerencia", onClick: () => agregarRequisitoAlCurso(s) },
+            h("i", { class: "bi bi-plus-lg" }), s),
+        ),
+      ),
   );
+}
+
+// Escribir un requisito propio y sumarlo al curso
+function prepararNuevoRequisito() {
+  const campo = document.getElementById("nuevoRequisito");
+  const boton = document.getElementById("btnAgregarRequisito");
+  if (!campo || !boton) return;
+
+  const agregar = () => {
+    if (agregarRequisitoAlCurso(campo.value)) campo.value = "";
+    campo.focus();
+  };
+
+  boton.addEventListener("click", agregar);
+  // Enter en el campo agrega el requisito (en vez de enviar el formulario del curso)
+  campo.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      agregar();
+    }
+  });
+}
+
+// Carga en el modal los requisitos del curso (textos). Vacío al publicar uno nuevo.
+async function cargarRequisitosEnFormulario(textos = []) {
+  requisitosCurso = [];
+  textos.map(normalizarRequisito).filter((t) => t.length >= 3).forEach((t) => {
+    if (!yaTieneRequisito(t)) requisitosCurso.push(t);
+  });
+  dibujarRequisitosCurso();
 }
 
 let institucionIdModal = null; // NUEVO: id de la institución del representante (para guardar su ubicación)
@@ -881,8 +1027,7 @@ async function abrirModalEditarCurso(id) {
   document.getElementById("cursoImagenActualWrap").classList.toggle("d-none", !curso.imagen_url);
   mostrarVistaPreviaImagen(curso.imagen_url || null, curso.imagen_url ? "Imagen actual · cambiar imagen" : null);
 
-  const idsRequisitos = (curso.requisitos || []).map((r) => r.id);
-  await cargarRequisitosEnFormulario(idsRequisitos);
+  await cargarRequisitosEnFormulario((curso.requisitos || []).map((r) => r.descripcion));
   cargarUbicacionEnModal(); // También al editar un curso, muestra la ubicación de la institución
 
   bootstrap.Modal.getOrCreateInstance(document.getElementById("modalNuevoCurso")).show();
@@ -906,6 +1051,7 @@ async function prepararFormularioNuevoCurso() {
   prepararBuscadorLugares(); // Activa el buscador de lugares con sugerencias
   prepararZonaImagen();
   document.getElementById("cursoDescripcion")?.addEventListener("input", actualizarContadorDescripcion);
+  prepararNuevoRequisito();
   ["cursoFechaInicio", "cursoFechaFin"].forEach((id) => document.getElementById(id)?.addEventListener("change", actualizarFechasCurso));
   document.getElementById("btnQuitarPinCurso").addEventListener("click", () => quitarPin("cursoSelectorPin")); // El botón "Quitar pin" borra el pin
 
@@ -955,9 +1101,6 @@ async function prepararFormularioNuevoCurso() {
 
       if (!(await guardarUbicacionDelModal())) return; // Guarda la ubicación primero; si falla, no sigue con el curso
 
-      const requisitosSeleccionados = Array.from(
-        document.querySelectorAll('#cursoRequisitos input[type="checkbox"]:checked'),
-      ).map((chk) => Number(chk.value));
 
       const formData = new FormData();
       formData.append("titulo", document.getElementById("cursoTitulo").value.trim());
@@ -970,7 +1113,7 @@ async function prepararFormularioNuevoCurso() {
       formData.append("fecha_inicio", fechaInicio);
       formData.append("fecha_fin", fechaFin);
       // Siempre se manda (incluso vacío) para poder sacar requisitos al editar
-      formData.append("requisitos", JSON.stringify(requisitosSeleccionados));
+      formData.append("requisitos", JSON.stringify(requisitosCurso)); // Textos de los requisitos de este curso
 
       const archivoImagen = document.getElementById("cursoImagen").files[0];
       if (archivoImagen) formData.append("imagen", archivoImagen);
