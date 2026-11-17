@@ -16,6 +16,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" /> <!-- Adelanta la conexión con Google Fonts para que las letras carguen antes -->
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="assets/css/style.css" /> <!-- Tema visual común (colores, tipografías, animaciones) -->
+    <link rel="stylesheet" href="assets/css/tema_fondos.css" /> <!-- Fondos en tonos suaves (borrar esta línea para volver al blanco) -->
   </head>
   <body class="d-flex flex-column h-100 bg-light">
     <header data-bs-theme="light">
@@ -367,29 +368,45 @@
                 </div>
               </fieldset>
 
-              <!-- 4. Ubicación -->
+              <!-- 4. Equipo docente -->
               <fieldset class="seccion-modal">
-                <legend class="seccion-modal-titulo"><span class="numero">4</span>Ubicación de la institución <span class="opcional">opcional</span></legend>
-                <div class="form-text mb-2 mt-0">Hacé clic en el mapa para marcar el punto exacto (podés arrastrar el pin). Se guarda en tu institución y se muestra en todos tus cursos.</div>
+                <legend class="seccion-modal-titulo"><span class="numero">4</span>Equipo docente <span class="opcional">opcional</span></legend>
+                <div class="form-text mt-0 mb-2">Quiénes dictan el curso. Se muestran en la página del curso con su foto y una breve presentación. Podés cargar uno o varios.</div>
+                <div id="listaDocentesCurso" class="lista-docentes-form"></div>
+                <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="btnAgregarDocente"><i class="bi bi-person-plus me-1"></i>Agregar docente</button>
+                <datalist id="sugerenciasCargoDocente">
+                  <option value="Profesor"></option>
+                  <option value="Profesora"></option>
+                  <option value="Coordinador / Profesor"></option>
+                  <option value="Coordinadora / Profesora"></option>
+                  <option value="Tutor"></option>
+                  <option value="Ayudante"></option>
+                </datalist>
+              </fieldset>
+
+              <!-- 5. Ubicación -->
+              <fieldset class="seccion-modal">
+                <legend class="seccion-modal-titulo"><span class="numero">5</span>Ubicación del curso <span class="opcional">opcional</span></legend>
+                <div class="form-text mb-2 mt-0">Buscá el lugar o hacé clic en el mapa para marcar el punto exacto (podés arrastrar el pin). Se guarda sólo en este curso: cada curso puede tener su propio lugar.</div>
                 <div class="position-relative mb-2">
                   <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-geo-alt"></i></span>
-                    <input type="text" class="form-control" id="buscadorLugar" autocomplete="off" placeholder="Buscar dirección o lugar (ej: Av. 25 de Mayo 500, Formosa)" />
+                    <input type="text" class="form-control" id="buscadorLugar" autocomplete="off" placeholder="Buscar dirección o lugar en Formosa (ej: Av. 25 de Mayo 500, IPF, Plaza San Martín)" />
                   </div>
                   <div class="list-group position-absolute w-100 shadow d-none" id="sugerenciasLugar" style="z-index: 2000"></div>
+                </div>
+                <div class="mb-2">
+                  <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-crosshair"></i></span>
+                    <input type="text" class="form-control" id="cursoCoordenadas" autocomplete="off" placeholder="O pegá las coordenadas de Google Maps (ej: -26.079947, -58.277096)" />
+                  </div>
+                  <div class="form-text" id="cursoCoordenadasAyuda">En Google Maps: clic derecho sobre el lugar → clic en los números para copiarlos → pegalos acá. El pin se mueve solo.</div>
                 </div>
                 <div id="cursoSelectorPin" class="mb-1"></div>
                 <div class="d-flex justify-content-between align-items-center mb-3">
                   <span id="cursoPinCoordenadas" class="small text-muted"></span>
                   <button type="button" class="btn btn-outline-secondary btn-sm" id="btnQuitarPinCurso"><i class="bi bi-x-lg me-1"></i>Quitar pin</button>
                 </div>
-                <details class="detalle-alternativa">
-                  <summary>Prefiero pegar un mapa de Google Maps</summary>
-                  <label for="cursoUbicacionMaps" class="form-label mt-2">Dirección, coordenadas o código de Google Maps</label>
-                  <textarea class="form-control" id="cursoUbicacionMaps" rows="2" maxlength="2000" placeholder="Ej: Av. 25 de Mayo 500, Formosa  |  -26.1857, -58.1756  |  código de Compartir > Insertar un mapa"></textarea>
-                  <div class="form-text">Si marcás un pin, los estudiantes ven el pin; el mapa de Google se usa cuando no hay pin. Los links cortos (maps.app.goo.gl) no sirven.</div>
-                  <div id="cursoMapaPreview" class="mt-2 text-muted small"></div>
-                </details>
               </fieldset>
             </form>
           </div>
@@ -414,7 +431,7 @@
           <div class="modal-header bg-dark text-white">
             <div>
               <h5 class="modal-title" id="modalNuevaEncuestaLabel">Nueva encuesta</h5>
-              <small class="modal-subtitulo">Armá las preguntas y publicala para los ciudadanos.</small>
+              <small class="modal-subtitulo">Para los alumnos de un curso o para todos: vos decidís hasta cuándo dura.</small>
             </div>
             <button
               type="button"
@@ -427,25 +444,32 @@
             <div id="msjNuevaEncuesta"></div>
             <form id="formNuevaEncuesta">
               <fieldset class="seccion-modal">
-                <legend class="seccion-modal-titulo"><span class="numero">1</span>Tipo y datos</legend>
+                <legend class="seccion-modal-titulo"><span class="numero">1</span>¿Para quién es?</legend>
                 <div class="row g-3">
                   <div class="col-12">
                     <div class="tipo-encuesta">
-                      <input type="radio" class="btn-check" name="tipoEncuesta" id="tipoInteres" value="Interes" checked>
+                      <input type="radio" class="btn-check" name="tipoEncuesta" id="tipoSatisfaccion" value="Satisfaccion" checked>
+                      <label class="tipo-encuesta-opcion" for="tipoSatisfaccion">
+                        <i class="bi bi-mortarboard"></i>
+                        <span><strong>Para un curso</strong><small>Sólo la ven los alumnos de ese curso</small></span>
+                      </label>
+                      <input type="radio" class="btn-check" name="tipoEncuesta" id="tipoInteres" value="Interes">
                       <label class="tipo-encuesta-opcion" for="tipoInteres">
                         <i class="bi bi-lightbulb"></i>
-                        <span><strong>Interés</strong><small>Antes de lanzar un curso</small></span>
-                      </label>
-                      <input type="radio" class="btn-check" name="tipoEncuesta" id="tipoSatisfaccion" value="Satisfaccion">
-                      <label class="tipo-encuesta-opcion" for="tipoSatisfaccion">
-                        <i class="bi bi-star"></i>
-                        <span><strong>Satisfacción</strong><small>Sobre un curso ya dictado</small></span>
+                        <span><strong>General: ¿qué curso traemos?</strong><small>La ven todos los estudiantes y votan ideas</small></span>
                       </label>
                     </div>
                   </div>
+                  <div class="col-12" id="grupoEncuestaCurso">
+                    <label for="encuestaCurso" class="form-label">Curso</label>
+                    <select class="form-select" id="encuestaCurso">
+                      <option value="">Seleccionar...</option>
+                    </select>
+                    <div class="form-text" id="ayudaEncuestaCurso">Podés elegir un curso que se está dictando o uno que ya terminó. Sólo sus alumnos van a ver la encuesta.</div>
+                  </div>
                   <div class="col-12">
                     <label for="encuestaTitulo" class="form-label">Título de la encuesta</label>
-                    <input type="text" class="form-control" id="encuestaTitulo" maxlength="150" placeholder="Ej: Opinión sobre el curso de Excel" required />
+                    <input type="text" class="form-control" id="encuestaTitulo" maxlength="150" placeholder="Ej: ¿Cómo te está yendo en el curso?" required />
                   </div>
                   <div class="col-12">
                     <label for="encuestaDescripcion" class="form-label">Descripción (opcional)</label>
@@ -457,17 +481,56 @@
                       <option value="">Cualquiera</option>
                     </select>
                   </div>
-                  <div class="col-md-6 d-none" id="grupoEncuestaCurso">
-                    <label for="encuestaCurso" class="form-label">Curso a evaluar</label>
-                    <select class="form-select" id="encuestaCurso">
-                      <option value="">Seleccionar...</option>
-                    </select>
-                  </div>
                 </div>
               </fieldset>
 
               <fieldset class="seccion-modal">
-                <legend class="seccion-modal-titulo"><span class="numero">2</span>Preguntas de la encuesta</legend>
+                <legend class="seccion-modal-titulo"><span class="numero">2</span>¿Hasta cuándo?</legend>
+                <div class="duracion-encuesta">
+                  <input type="radio" class="btn-check" name="duracionEncuesta" id="duracionManual" value="manual" checked>
+                  <label class="duracion-opcion" for="duracionManual">
+                    <i class="bi bi-hand-index-thumb"></i>
+                    <span><strong>Hasta que yo la finalice</strong><small>La cerrás desde tu panel cuando quieras</small></span>
+                  </label>
+                  <input type="radio" class="btn-check" name="duracionEncuesta" id="duracionFecha" value="fecha">
+                  <label class="duracion-opcion" for="duracionFecha">
+                    <i class="bi bi-calendar-event"></i>
+                    <span><strong>Hasta una fecha</strong><small>Se cierra sola ese día (o antes, si la finalizás)</small></span>
+                  </label>
+                </div>
+                <div class="mt-2 d-none" id="grupoFechaCierre">
+                  <label for="encuestaFechaCierre" class="form-label small fw-semibold mb-1">Último día para responder</label>
+                  <input type="date" class="form-control" id="encuestaFechaCierre" style="max-width: 220px" />
+                </div>
+                <div class="form-text">Cuando la encuesta finaliza, los estudiantes dejan de verla. Vos seguís viendo los resultados.</div>
+              </fieldset>
+
+              <fieldset class="seccion-modal d-none" id="seccionIdeasEncuesta">
+                <legend class="seccion-modal-titulo"><span class="numero">3</span>Ideas de cursos para votar</legend>
+                <div class="form-text mt-0 mb-2">Cargá los cursos que estás pensando traer. Los estudiantes votan sus favoritos (hasta 3) y vos ves cuáles son los más pedidos.</div>
+                <div id="listaIdeasEncuesta" class="mb-2"></div>
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                  <div class="input-group input-group-sm" style="max-width: 420px">
+                    <span class="input-group-text"><i class="bi bi-stars"></i></span>
+                    <input type="text" class="form-control" id="nuevaIdeaEncuesta" maxlength="150" placeholder="Curso nuevo (ej: Robótica para principiantes)" />
+                    <button type="button" class="btn btn-outline-primary" id="btnAgregarIdea"><i class="bi bi-plus-lg"></i> Agregar</button>
+                  </div>
+                  <div class="input-group input-group-sm" style="max-width: 420px">
+                    <span class="input-group-text"><i class="bi bi-arrow-repeat"></i></span>
+                    <select class="form-select" id="ideaVolverCurso">
+                      <option value="">Traer de vuelta un curso...</option>
+                    </select>
+                    <button type="button" class="btn btn-outline-primary" id="btnAgregarIdeaVolver"><i class="bi bi-plus-lg"></i> Agregar</button>
+                  </div>
+                </div>
+                <div class="form-check mt-3">
+                  <input class="form-check-input" type="checkbox" id="encuestaPermitePropuestas" checked>
+                  <label class="form-check-label" for="encuestaPermitePropuestas">Dejar que los estudiantes propongan sus propias ideas (los demás también las pueden votar)</label>
+                </div>
+              </fieldset>
+
+              <fieldset class="seccion-modal">
+                <legend class="seccion-modal-titulo"><span class="numero" id="numeroSeccionPreguntas">3</span><span id="tituloSeccionPreguntas">Preguntas de la encuesta</span></legend>
                 <div id="constructorPreguntas"></div>
               </fieldset>
             </form>

@@ -383,8 +383,18 @@ export const editarInscripciones = async (req, res) => {
       if (comentario.length > 500)
         return res.status(400).json({ mensaje: "El comentario puede tener hasta 500 caracteres" });
       Object.assign(cambios, { motivo_baja: motivo, comentario_baja: comentario || null, fecha_baja: new Date() });
+    } else if (!["Inscripto", "Cursando", "Finalizado", "Cancelado"].includes(estado)) {
+      return res.status(400).json({ mensaje: "Estado no válido" });
     }
     cambios.estado = estado;
+
+    // Si el representante saca al alumno de "Finalizado", su certificado deja de ser válido
+    if (!esBajaDelAlumno && estado !== "Finalizado") {
+      await certificadosModel.update(
+        { anulado: true, fecha_anulacion: new Date() },
+        { where: { inscripcion_id: inscripcion.id, anulado: false } },
+      );
+    }
 
     const [actualizados] = await inscripcionesModel.update(
       cambios,

@@ -14,7 +14,7 @@ import {
   bajasCuentaModel, // NUEVO: modelo donde se guardan los motivos de baja
 } from "../models/index.js";
 import { MOTIVOS_BAJA } from "../models/baja_cuenta.model.js"; // NUEVO: lista de motivos válidos
-import { enviarEmail } from "../utils/email.service.js";
+import { enviarEmail, mostrarCodigoEnTerminal } from "../utils/email.service.js";
 import { verificacionValida } from "./verificacion.controller.js";
 
 const generarToken = (usuario) => {
@@ -358,6 +358,8 @@ export const solicitarRecuperacion = async (req, res) => {
       fecha_expiracion,
       usado: false,
     });
+
+    mostrarCodigoEnTerminal({ para: usuario.email_login, codigo, motivo: "Recuperar contraseña" });
 
     await enviarEmail({
       to: usuario.email_login,

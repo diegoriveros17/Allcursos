@@ -186,6 +186,14 @@ encuestasRespuestasModel.belongsTo(personasModel, { foreignKey: "persona_id", as
 
 // --- Encuestas dinámicas: preguntas y respuestas por pregunta ---
 import { encuestasPreguntasModel } from "./encuesta_pregunta.model.js";
+import { encuestasIdeasModel } from "./encuesta_idea.model.js";
+import { encuestasIdeasVotosModel } from "./encuesta_idea_voto.model.js";
+// Ideas de cursos de las encuestas generales y sus votos
+encuestasModel.hasMany(encuestasIdeasModel, { foreignKey: "encuesta_id", as: "ideas", onDelete: "CASCADE" });
+encuestasIdeasModel.belongsTo(encuestasModel, { foreignKey: "encuesta_id", as: "encuesta" });
+encuestasIdeasModel.belongsTo(cursosModel, { foreignKey: "curso_id", as: "curso", constraints: false });
+encuestasIdeasModel.hasMany(encuestasIdeasVotosModel, { foreignKey: "idea_id", as: "votos", onDelete: "CASCADE" });
+encuestasIdeasVotosModel.belongsTo(encuestasIdeasModel, { foreignKey: "idea_id", as: "idea" });
 import { encuestasRespuestasDetalleModel } from "./encuesta_respuesta_detalle.model.js";
 
 encuestasModel.hasMany(encuestasPreguntasModel, {
@@ -265,7 +273,16 @@ cursoLikeModel.belongsTo(cursosModel, { foreignKey: "curso_id", as: "curso" });
 usuariosModel.hasMany(cursoLikeModel, { foreignKey: "usuario_id", as: "cursos_likeados" });
 cursoLikeModel.belongsTo(usuariosModel, { foreignKey: "usuario_id", as: "usuario" });
 
+// --- Equipo docente de cada curso ---
+import { docentesCursoModel } from "./docente_curso.model.js";
+cursosModel.hasMany(docentesCursoModel, { foreignKey: "curso_id", as: "docentes", onDelete: "CASCADE" });
+docentesCursoModel.belongsTo(cursosModel, { foreignKey: "curso_id", as: "curso" });
+
+// --- Quién emitió cada certificado ---
+certificadosModel.belongsTo(usuariosModel, { foreignKey: "emitido_por", as: "emisor", constraints: true, onDelete: "SET NULL" });
+
 export {
+  docentesCursoModel,
   notificacionesModel,
   enviosNotificacionModel,
   requisitosModel,
@@ -279,6 +296,8 @@ export {
   cursoLikeModel,
   encuestasPreguntasModel,
   encuestasRespuestasDetalleModel,
+  encuestasIdeasModel,
+  encuestasIdeasVotosModel,
   consultasCursoModel,
   mensajesConsultaModel,
   notificacionesUsuarioModel,

@@ -4,6 +4,8 @@ import { direccionesModel } from "../models/direcciones.model.js";
 import { representanteInstituModel } from "../models/representante_institucion.model.js"; // Modelo que vincula usuarios representantes con instituciones (para chequear permisos)
 import { construirUrlMapa } from "../utils/mapas.js"; // Función que valida el texto y arma la URL segura del mapa
 import { buscarLugares } from "../utils/geocoding.service.js"; // NUEVO: función que busca lugares por texto (buscador del mapa)
+import { cursosModel } from "../models/cursos.model.js";
+import { Op } from "sequelize";
 
 export const agregarInstituciones = async (req, res) => {
   try {
@@ -179,9 +181,58 @@ export const verUbicacion = async (req, res) => { // Controlador async para cons
 }; // Cierra el controlador
 
 // NUEVO: sugerencias de lugares para el buscador del mapa (GET /api/lugares/buscar?q=texto)
+// Lugares ya guardados en AllCursos: pins de cursos cuya institución coincide con lo buscado.
+// Sirve para lugares que OpenStreetMap no tiene (ej. "Instituto Politécnico Formosa"):
+// alcanza con que un representante lo marque una vez para que aparezca en el buscador.
+async function buscarLugaresGuardados(texto) {
+  const palabras = String(texto || "")
+    .toLowerCase()
+    .split(/[\s,.;]+/)
+    .filter((p) => p.length >= 3 && !["instituto", "de", "del", "la", "los", "las"].includes(p))
+    .slice(0, 5);
+  if (palabras.length === 0) return [];
+  // La comparación de MySQL (utf8mb4_*_ci) ignora mayúsculas y acentos: "politecnico" encuentra "Politécnico"
+  const cursos = await cursosModel.findAll({
+    where: { latitud: { [Op.ne]: null }, longitud: { [Op.ne]: null } },
+    attributes: ["titulo", "latitud", "longitud", "updated_at"],
+    include: [{
+      model: institucionesModel,
+      as: "institucion",
+      attributes: ["nombre"],
+      required: true,
+      where: { [Op.and]: palabras.map((p) => ({ nombre: { [Op.like]: `%${p.replace(/[%_\\]/g, "")}%` } })) },
+    }],
+    order: [["updated_at", "DESC"]],
+    limit: 30,
+  });
+  const vistos = new Set();
+  const lugares = [];
+  for (const c of cursos) {
+    const lat = Number(c.latitud);
+    const lng = Number(c.longitud);
+    const clave = `${c.institucion.nombre}|${lat.toFixed(3)},${lng.toFixed(3)}`; // Pins a menos de ~100 m se cuentan como el mismo lugar
+    if (vistos.has(clave)) continue;
+    vistos.add(clave);
+    lugares.push({
+      nombre: c.institucion.nombre,
+      detalle: `Guardado en AllCursos · usado en el curso «${c.titulo}»`,
+      latitud: lat,
+      longitud: lng,
+      guardado: true,
+    });
+    if (lugares.length >= 3) break;
+  }
+  return lugares;
+}
+
 export const sugerirLugares = async (req, res) => { // Controlador async porque consulta un servicio externo
   try { // Intenta ejecutar
-    const lugares = await buscarLugares(req.query.q); // Busca hasta 5 lugares con el texto recibido en la URL
+    const [guardados, delMapa] = await Promise.all([
+      buscarLugaresGuardados(req.query.q).catch(() => []),
+      buscarLugares(req.query.q),
+    ]);
+    // Primero los lugares ya marcados en la plataforma; si hay, del mapa sólo se suman los de Formosa
+    const lugares = [...guardados, ...(guardados.length ? delMapa.filter((l) => l.en_formosa) : delMapa)];
     return res.status(200).json({ lugares }); // Responde con la lista (vacía si no hubo resultados)
   } catch (error) { // Si algo falla...
     return res.status(500).json({ mensaje: "Error al buscar el lugar", error: error.message }); // ...responde 500

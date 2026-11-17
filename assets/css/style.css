@@ -3292,6 +3292,23 @@ a:focus-visible,
   border: 0;
   border-radius: 20px;
 }
+/* La X va por encima del contenido (si no, el .modal-body la tapa y no se puede tocar) */
+.gracias-cerrar {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  z-index: 5;
+  padding: 0.6rem;
+  border-radius: 50%;
+  opacity: 0.6;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+.gracias-cerrar:hover,
+.gracias-cerrar:focus-visible {
+  opacity: 1;
+  background-color: rgba(30, 58, 95, 0.1);
+}
 .gracias-icono {
   width: 5rem;
   height: 5rem;
@@ -3768,6 +3785,214 @@ a:focus-visible,
   background: #e8f2fc;
 }
 
+/* ==========================================================
+   CERTIFICADOS EMITIDOS POR LA INSTITUCIÓN (página de alumnos)
+   ========================================================== */
+.aviso-certificados {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+  padding: 1rem 1.15rem;
+  border-radius: 14px;
+  border: 1px solid #cfe5df;
+  background: #eef7f4;
+  color: #1f4d43;
+  font-size: 0.9rem;
+}
+.aviso-certificados > .bi {
+  font-size: 1.4rem;
+  color: var(--brand-accent);
+  line-height: 1;
+  margin-top: 0.1rem;
+}
+.aviso-certificados.con-pendientes {
+  border-color: #f5d9a8;
+  background: #fff8eb;
+  color: #7a4a06;
+}
+.aviso-certificados.con-pendientes > .bi {
+  color: #d97706;
+}
+.tarjeta-alumno-certificado {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.9rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.tarjeta-alumno-certificado.emitido {
+  color: #1f5f50;
+  background: #e7f5f0;
+}
+.tarjeta-alumno-certificado.pendiente {
+  color: #8a5300;
+  background: #fff4e0;
+}
+
+/* ==========================================================
+   EQUIPO DOCENTE
+   ========================================================== */
+/* Editor dentro del modal del curso */
+.lista-docentes-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.docente-form {
+  display: flex;
+  gap: 0.9rem;
+  align-items: flex-start;
+  padding: 0.9rem;
+  border: 1px solid var(--brand-border);
+  border-radius: 12px;
+  background: #fff;
+}
+.docente-form-foto {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+.docente-form-elegir {
+  position: relative;
+  cursor: pointer;
+}
+.docente-form-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--brand-primary);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+.docente-form-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.docente-form-camara {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--brand-accent);
+  color: #fff;
+  font-size: 0.75rem;
+  border: 2px solid #fff;
+}
+.docente-form-elegir:focus-within .docente-form-avatar,
+.docente-form-elegir:hover .docente-form-avatar {
+  box-shadow: 0 0 0 3px rgba(var(--brand-accent-rgb), 0.35);
+}
+.docente-form-datos {
+  flex: 1;
+  min-width: 0;
+}
+.docente-form-acciones {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+@media (max-width: 575.98px) {
+  .docente-form {
+    flex-wrap: wrap;
+  }
+  .docente-form-acciones {
+    flex-direction: row;
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+/* Tarjetas en la página del curso */
+.docente-tarjeta {
+  height: 100%;
+  padding: 1.25rem;
+  border: 1px solid var(--brand-border);
+  border-radius: 12px;
+  background: #fff;
+  transition: box-shadow var(--transicion), transform var(--transicion);
+}
+.docente-tarjeta:hover {
+  box-shadow: 0 8px 22px rgba(16, 24, 40, 0.08);
+}
+.docente-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin-bottom: 0.85rem;
+}
+.docente-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.docente-iniciales {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+.docente-nombre {
+  margin: 0;
+  font-family: var(--font-titulos);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #101828;
+}
+.docente-cargo {
+  margin: 0.15rem 0 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--brand-text-muted);
+}
+.docente-bio {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: #475467;
+  white-space: pre-line;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.docente-bio.abierta {
+  display: block;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+}
+.docente-ver-mas {
+  margin-top: 0.4rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--brand-primary);
+  text-decoration: underline;
+}
+
 /* Si el usuario pidió menos movimiento en su sistema, se desactivan las animaciones */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -3778,3 +4003,171 @@ a:focus-visible,
   }
   .revelar { opacity: 1; transform: none; }
 }
+
+/* ============================================================
+   ENCUESTAS: duración, ideas de cursos y votación
+   ============================================================ */
+/* "¿Hasta cuándo?" usa el mismo estilo de tarjetas que el tipo de encuesta */
+.duracion-encuesta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.75rem;
+}
+.duracion-opcion {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.75rem 1rem;
+  border: 1.5px solid var(--brand-border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color var(--transicion), background-color var(--transicion);
+}
+.duracion-opcion .bi { font-size: 1.25rem; color: var(--brand-primary); }
+.duracion-opcion strong, .duracion-opcion small { display: block; }
+.duracion-opcion small { color: var(--brand-text-muted); }
+.duracion-opcion:hover { border-color: rgba(var(--brand-primary-rgb), 0.35); }
+.btn-check:checked + .duracion-opcion {
+  border-color: var(--brand-primary);
+  background: rgba(var(--brand-primary-rgb), 0.06);
+}
+.btn-check:focus-visible + .duracion-opcion { outline: 2px solid rgba(var(--brand-primary-rgb), 0.45); }
+
+/* Ideas cargadas por el representante (modal) */
+.ideas-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.idea-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.35rem 0.3rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--brand-primary);
+  background: rgba(var(--brand-primary-rgb), 0.08);
+  border: 1px solid rgba(var(--brand-primary-rgb), 0.18);
+}
+.idea-chip.volver {
+  color: var(--brand-accent-dark);
+  background: rgba(var(--brand-accent-rgb), 0.1);
+  border-color: rgba(var(--brand-accent-rgb), 0.3);
+}
+.idea-chip small { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em; opacity: 0.8; }
+.idea-chip-quitar {
+  display: grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: inherit;
+  background: transparent;
+}
+.idea-chip-quitar:hover { background: rgba(var(--bs-danger-rgb), 0.15); color: var(--bs-danger); }
+
+/* Tarjeta de encuesta del estudiante */
+.encuesta-pendiente.de-curso { border-left-color: var(--brand-primary); }
+.encuesta-pendiente.general { border-left-color: var(--brand-accent); }
+.encuesta-etiquetas { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 0.45rem; }
+.encuesta-etiqueta {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.encuesta-etiqueta.curso { color: var(--brand-primary); background: rgba(var(--brand-primary-rgb), 0.09); }
+.encuesta-etiqueta.general { color: var(--brand-accent-dark); background: rgba(var(--brand-accent-rgb), 0.12); }
+.encuesta-institucion { font-size: 0.75rem; color: var(--brand-text-muted); }
+.encuesta-titulo { font-size: 1.02rem; }
+.encuesta-vigencia { font-size: 0.78rem; color: var(--brand-text-muted); margin-bottom: 0.6rem; }
+.encuesta-preguntas { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px dashed var(--brand-border); }
+
+/* Votación de ideas */
+.ideas-votacion {
+  padding: 0.85rem;
+  margin-bottom: 0.25rem;
+  border-radius: 12px;
+  background: rgba(var(--brand-accent-rgb), 0.05);
+  border: 1px solid rgba(var(--brand-accent-rgb), 0.18);
+}
+.ideas-votacion-cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.6rem;
+  font-size: 0.9rem;
+}
+.ideas-votos-restantes {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  color: var(--brand-accent-dark);
+  background: rgba(var(--brand-accent-rgb), 0.12);
+}
+.ideas-votos-restantes.agotados { color: #6b7280; background: rgba(107, 114, 128, 0.12); }
+.ideas-lista { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.45rem; }
+.idea-fila {
+  display: grid;
+  grid-template-columns: 2rem 1fr auto auto;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid var(--brand-border);
+  transition: border-color var(--transicion), box-shadow var(--transicion);
+}
+.idea-fila.votada { border-color: rgba(var(--brand-accent-rgb), 0.55); box-shadow: 0 0 0 3px rgba(var(--brand-accent-rgb), 0.08); }
+.idea-puesto {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--brand-primary);
+  background: rgba(var(--brand-primary-rgb), 0.07);
+}
+.idea-puesto.primero { color: #fff; background: linear-gradient(135deg, #c9952b 0%, #e2b450 100%); }
+.idea-info { min-width: 0; }
+.idea-titulo { font-weight: 600; font-size: 0.9rem; line-height: 1.25; }
+.idea-mia {
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--brand-primary);
+  background: rgba(var(--brand-primary-rgb), 0.08);
+}
+.idea-origen { font-size: 0.72rem; color: var(--brand-text-muted); margin-top: 0.1rem; }
+.idea-barra { height: 5px; margin-top: 0.35rem; border-radius: 999px; background: rgba(var(--brand-primary-rgb), 0.08); overflow: hidden; }
+.idea-barra > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--brand-accent) 0%, #4fb39b 100%); transition: width 0.4s ease; }
+.idea-votos { font-size: 0.8rem; color: var(--brand-text-muted); white-space: nowrap; }
+.idea-votos strong { font-size: 1rem; color: var(--bs-body-color); }
+.btn-votar-idea {
+  border-radius: 999px;
+  font-weight: 600;
+  color: var(--brand-accent-dark);
+  border: 1px solid rgba(var(--brand-accent-rgb), 0.45);
+  background: transparent;
+  white-space: nowrap;
+}
+.btn-votar-idea:hover { color: #fff; background: var(--brand-accent); border-color: var(--brand-accent); }
+.btn-votar-idea.votado { color: #fff; background: var(--brand-accent); border-color: var(--brand-accent); }
+.idea-proponer { margin-top: 0.85rem; }
+@media (max-width: 575.98px) {
+  .idea-fila { grid-template-columns: 2rem 1fr; }
+  .idea-votos, .btn-votar-idea { grid-column: 2; justify-self: start; }
+}
+
+/* Panel del representante: encuestas finalizadas más apagadas */
+.fila-encuesta-finalizada > td { opacity: 0.65; }
+.fila-encuesta-finalizada > td:last-child { opacity: 1; }

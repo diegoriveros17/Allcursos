@@ -12,6 +12,8 @@ import { requisitosModel } from "../models/requisito.model.js";
 import { cursoRequisitoModel } from "../models/curso_requisito.model.js";
 import { reportesCursosModel } from "../models/reporte_curso.model.js";
 import { cursoLikeModel } from "../models/curso_like.model.js";
+import { docentesCursoModel, MAX_DOCENTES_POR_CURSO } from "../models/docente_curso.model.js";
+import { certificadosModel } from "../models/certificado.model.js";
 import { notificarNuevoCurso } from "../utils/notificaciones.service.js";
 import { enviarEmail } from "../utils/email.service.js";
 import { construirUrl } from "../config/appUrl.js";
@@ -81,6 +83,36 @@ const leerFechasCurso = (body, actual = {}) => {
   return { inicio, fin };
 };
 
+// Ubicación propia del curso: texto de Google Maps y/o pin (latitud/longitud).
+// Devuelve { cambios } con sólo los campos que llegaron, o { error }.
+const leerUbicacionCurso = (body) => {
+  const cambios = {};
+  const vacio = (v) => v === null || v === undefined || String(v).trim() === "" || String(v) === "null";
+  if (body.ubicacion_maps !== undefined) {
+    const texto = String(body.ubicacion_maps ?? "").trim();
+    if (texto.length > 2000) return { error: "La ubicación es demasiado larga" };
+    if (texto && !construirUrlMapa(texto))
+      return { error: 'Ingresá una dirección, coordenadas (ej: -26.1857, -58.1756) o el código de "Insertar un mapa" de Google Maps' };
+    cambios.ubicacion_maps = texto || null;
+  }
+  if (body.latitud !== undefined || body.longitud !== undefined) {
+    if (vacio(body.latitud) && vacio(body.longitud)) {
+      cambios.latitud = null;
+      cambios.longitud = null;
+    } else {
+      const lat = Number(body.latitud);
+      const lng = Number(body.longitud);
+      if (vacio(body.latitud) || vacio(body.longitud) || !Number.isFinite(lat) || !Number.isFinite(lng))
+        return { error: "La latitud y la longitud deben ser números" };
+      if (lat < -90 || lat > 90 || lng < -180 || lng > 180)
+        return { error: "Coordenadas fuera de rango (latitud -90 a 90, longitud -180 a 180)" };
+      cambios.latitud = lat;
+      cambios.longitud = lng;
+    }
+  }
+  return { cambios };
+};
+
 // ------------------------------------------------------------------
 // Requisitos de un curso. El representante los escribe (o toma una sugerencia)
 // y llegan como lista de textos. Por compatibilidad también se aceptan ids.
@@ -126,6 +158,53 @@ async function limpiarRequisitosSinUso() {
   );
 }
 
+// ------------------------------------------------------------
+// EQUIPO DOCENTE
+// ------------------------------------------------------------
+const incluirDocentes = {
+  model: docentesCursoModel,
+  as: "docentes",
+  attributes: ["id", "nombre", "cargo", "biografia", "foto_url", "orden"],
+  separate: true,
+  order: [["orden", "ASC"], ["id", "ASC"]],
+};
+
+// Lee y valida la lista de docentes que manda el formulario (JSON). Devuelve { lista } o { error }.
+// Cada docente: { nombre, cargo, biografia, foto_url (foto que ya tenía), foto_nueva (índice de la foto subida) }
+function leerListaDocentes(valor, fotosNuevas = []) {
+  let lista;
+  try {
+    lista = typeof valor === "string" ? JSON.parse(valor) : valor;
+  } catch {
+    return { error: "La lista de docentes no tiene un formato válido" };
+  }
+  if (!Array.isArray(lista)) return { error: "La lista de docentes no tiene un formato válido" };
+  if (lista.length > MAX_DOCENTES_POR_CURSO) return { error: `Podés cargar hasta ${MAX_DOCENTES_POR_CURSO} docentes por curso` };
+
+  const docentes = [];
+  for (const [i, d] of lista.entries()) {
+    const nombre = String(d?.nombre || "").trim().slice(0, 100);
+    const cargo = String(d?.cargo || "").trim().slice(0, 100) || "Profesor";
+    const biografia = String(d?.biografia || "").trim();
+    if (!nombre) return { error: `Falta el nombre del docente ${i + 1}` };
+    if (biografia.length > 1500) return { error: `La presentación de ${nombre} puede tener hasta 1500 caracteres` };
+
+    let foto_url = null;
+    if (Number.isInteger(d?.foto_nueva) && fotosNuevas[d.foto_nueva]) foto_url = fotosNuevas[d.foto_nueva];
+    // Sólo se aceptan fotos que ya estén guardadas en el servidor (nunca un enlace externo)
+    else if (typeof d?.foto_url === "string" && /^\/uploads\/docentes\/[\w.-]+$/.test(d.foto_url)) foto_url = d.foto_url;
+
+    docentes.push({ nombre, cargo, biografia: biografia || null, foto_url, orden: i });
+  }
+  return { lista: docentes };
+}
+
+// Reemplaza el equipo docente completo del curso por la lista recibida
+async function guardarDocentesDelCurso(cursoId, docentes) {
+  await docentesCursoModel.destroy({ where: { curso_id: cursoId } });
+  if (docentes.length) await docentesCursoModel.bulkCreate(docentes.map((d) => ({ ...d, curso_id: cursoId })));
+}
+
 export const agregarCursos = async (req, res) => {
   try {
     const {
@@ -148,6 +227,10 @@ export const agregarCursos = async (req, res) => {
     if (!cupo_maximo) errores.push("Agrega el cupo maximo");
     const fechas = leerFechasCurso(req.body);
     if (fechas.error) errores.push(fechas.error);
+    const docentesLeidos = req.body.docentes !== undefined ? leerListaDocentes(req.body.docentes, req.fotos_docentes) : null;
+    if (docentesLeidos?.error) errores.push(docentesLeidos.error);
+    const ubicacion = leerUbicacionCurso(req.body);
+    if (ubicacion.error) errores.push(ubicacion.error);
 
     // El curso siempre pertenece a la institución del representante logueado,
     // nunca se confía en un institucion_id enviado desde el cliente.
@@ -208,6 +291,7 @@ export const agregarCursos = async (req, res) => {
       fecha_fin: fechas.fin || null,
       imagen_url,
       institucion_id,
+      ...ubicacion.cambios, // Ubicación propia de este curso (no toca a los demás cursos)
     });
 
     // Requisitos opcionales: lista de textos (o ids) en req.body.requisitos
@@ -215,6 +299,7 @@ export const agregarCursos = async (req, res) => {
       await guardarRequisitosDelCurso(curso.id, req.body.requisitos);
       await limpiarRequisitosSinUso();
     }
+    if (docentesLeidos) await guardarDocentesDelCurso(curso.id, docentesLeidos.lista);
 
     // Se dispara en segundo plano: no hace falta que el representante espere
     // a que se les mande el mail a todos los ciudadanos para recibir su respuesta.
@@ -291,6 +376,7 @@ export const verMisCursos = async (req, res) => {
       include: [
         { model: categoriasModel, as: "categoria", attributes: ["id", "nombre"] },
         incluirRequisitos,
+        incluirDocentes,
       ],
       order: [["created_at", "DESC"]],
     });
@@ -333,7 +419,7 @@ export const editarCursos = async (req, res) => {
       req.usuario,
     );
     // No permitimos cambiar el curso de institución desde este endpoint
-    const { institucion_id: _ignorar, requisitos, ...datos } = req.body;
+    const { institucion_id: _ignorar, requisitos, docentes, ubicacion_maps: _u, latitud: _la, longitud: _lo, ...datos } = req.body;
 
     const curso = await cursosModel.findOne({
       where: { id: req.params.id, institucion_id },
@@ -350,6 +436,11 @@ export const editarCursos = async (req, res) => {
     delete datos.fecha_fin;
     if (fechas.inicio !== undefined) datos.fecha_inicio = fechas.inicio;
     if (fechas.fin !== undefined) datos.fecha_fin = fechas.fin;
+    const docentesLeidos = docentes !== undefined ? leerListaDocentes(docentes, req.fotos_docentes) : null;
+    if (docentesLeidos?.error) return res.status(400).json({ mensaje: docentesLeidos.error });
+    const ubicacion = leerUbicacionCurso(req.body);
+    if (ubicacion.error) return res.status(400).json({ mensaje: ubicacion.error });
+    Object.assign(datos, ubicacion.cambios); // Sólo cambia la ubicación de ESTE curso
 
     if (req.imagen_url) datos.imagen_url = req.imagen_url;
     else if (req.file) datos.imagen_url = `/uploads/cursos/${req.file.filename}`;
@@ -362,9 +453,10 @@ export const editarCursos = async (req, res) => {
       await guardarRequisitosDelCurso(curso.id, requisitos);
       await limpiarRequisitosSinUso();
     }
+    if (docentesLeidos) await guardarDocentesDelCurso(curso.id, docentesLeidos.lista);
 
     const updateCurso = await cursosModel.findByPk(curso.id, {
-      include: [incluirRequisitos],
+      include: [incluirRequisitos, incluirDocentes],
     });
     return res.status(200).json({ mensaje: "curso actualizado", updateCurso });
   } catch (error) {
@@ -390,6 +482,7 @@ export const verPorIdCursos = async (req, res) => {
           attributes: ["id", "calle", "numero", "barrio", "ciudad", "provincia"],
         },
         incluirRequisitos,
+        incluirDocentes,
       ],
     });
     if (curso) {
@@ -404,9 +497,14 @@ export const verPorIdCursos = async (req, res) => {
       } else {
         curso.dataValues.yaMeGusta = false;
       }
-      curso.dataValues.mapa_embed_url = construirUrlMapa(curso.institucion?.ubicacion_maps); // NUEVO: agrega al curso la URL segura del mapa (null si la institución no cargó ubicación)
-      curso.dataValues.latitud = curso.institucion?.latitud == null ? null : Number(curso.institucion.latitud); // NUEVO: latitud del pin de la institución como número (o null)
-      curso.dataValues.longitud = curso.institucion?.longitud == null ? null : Number(curso.institucion.longitud); // NUEVO: longitud del pin de la institución como número (o null)
+      // La ubicación es la PROPIA del curso. Sólo si el curso nunca tuvo una
+      // (cursos viejos) se usa la de la institución como respaldo.
+      const tienePropia = curso.ubicacion_maps || curso.latitud != null;
+      const origen = tienePropia ? curso : curso.institucion || {};
+      curso.dataValues.ubicacion_maps = origen.ubicacion_maps || null;
+      curso.dataValues.mapa_embed_url = construirUrlMapa(origen.ubicacion_maps);
+      curso.dataValues.latitud = origen.latitud == null ? null : Number(origen.latitud);
+      curso.dataValues.longitud = origen.longitud == null ? null : Number(origen.longitud);
       return res.status(200).json({ mensaje: "curso encontrado", curso });
     } else {
       return res.status(404).json({ mensaje: "curso no encontrado" });
@@ -448,6 +546,11 @@ export const verAlumnosPorCurso = async (req, res) => {
               attributes: ["nombre", "apellido", "dni", "telefono", "dni_verificado", "fecha_nacimiento", "avatar_url"],
             },
           ],
+        },
+        {
+          model: certificadosModel,
+          as: "certificado",
+          attributes: ["id", "fecha_emision", "anulado", "codigo_verificacion"],
         },
       ],
       order: [["fecha_inscripcion", "ASC"]],

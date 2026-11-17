@@ -7,7 +7,7 @@ export const institucionesModel = sequelize.define(
   {
     id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
     nombre: { type: DataTypes.STRING(150), allowNull: false },
-    cuit: { type: DataTypes.STRING(20), allowNull: true, unique: true },
+    cuit: { type: DataTypes.STRING(20), allowNull: true, unique: "cuit" },
     direccion_id: { type: DataTypes.INTEGER, allowNull: true },
     estado_aprobacion: {
       type: DataTypes.ENUM("pendiente", "aprobado", "rechazado"),

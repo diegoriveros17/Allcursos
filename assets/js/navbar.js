@@ -330,7 +330,7 @@ const PASOS_GUIA = {
     ["bi-search", "Buscá un curso", "En el inicio usá el buscador y los filtros por modalidad y categoría."],
     ["bi-person-plus", "Creá tu cuenta", "Registrate como Estudiante y confirmá tu email con un código de 6 dígitos."],
     ["bi-pencil-square", "Inscribite", "En la página del curso tocá \"Inscribirme\". Si no hay cupos, quedás en lista de espera."],
-    ["bi-award", "Cursá y certificá", "Seguí todo desde Mi Panel y, al terminar, descargá tu certificado con QR."],
+    ["bi-award", "Cursá y certificá", "Seguí todo desde Mi Panel. Si cumplís con el curso, la institución te emite el certificado con QR."],
   ],
   institucion: [
     ["bi-bank", "Registrá tu institución", "Elegí \"Institución\" y completá el nombre, el CUIT y tu cargo."],

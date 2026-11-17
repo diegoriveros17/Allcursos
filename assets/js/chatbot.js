@@ -61,6 +61,7 @@
     }
     .chatbot-escribiendo span:nth-child(2) { animation-delay: .15s; }
     .chatbot-escribiendo span:nth-child(3) { animation-delay: .3s; }
+    .chatbot-escribiendo em { margin-left: 8px; font-size: .8rem; color: #667085; }
     @keyframes chatbotPunto { 0%, 80%, 100% { opacity: .3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
     .chatbot-tarjetas { display: flex; flex-direction: column; gap: 6px; margin: -2px 0 10px; max-width: 88%; }
     .chatbot-tarjeta {
@@ -206,14 +207,23 @@
 
   const recordar = (rol, texto) => historial.push({ rol, texto });
 
-  async function llamarApi(ruta, opciones = {}) {
+  // Con un límite de espera: si el servidor no contesta a tiempo, se corta
+  // la espera y se avisa (así el chat nunca queda "colgado" con los puntitos)
+  async function llamarApi(ruta, opciones = {}, segundos = 30) {
     const token = localStorage.getItem("token");
-    const respuesta = await fetch(`${window.location.origin}/api${ruta}`, {
-      ...opciones,
-      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    });
-    const datos = await respuesta.json().catch(() => ({}));
-    return { ok: respuesta.ok, datos };
+    const controlador = new AbortController();
+    const limite = setTimeout(() => controlador.abort(), segundos * 1000);
+    try {
+      const respuesta = await fetch(`${window.location.origin}/api${ruta}`, {
+        ...opciones,
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        signal: controlador.signal,
+      });
+      const datos = await respuesta.json().catch(() => ({}));
+      return { ok: respuesta.ok, datos };
+    } finally {
+      clearTimeout(limite);
+    }
   }
 
   function mostrarAccion(accion) {
@@ -318,6 +328,12 @@
     escribiendo.append(el("span"), el("span"), el("span"));
     contenedorMensajes.appendChild(escribiendo);
     bajar();
+    // Si tarda, se avisa qué está haciendo en vez de mostrar sólo los puntitos
+    const avisoBuscando = setTimeout(() => {
+      escribiendo.classList.add("con-texto");
+      escribiendo.append(el("em", "", "Buscando en los cursos…"));
+      bajar();
+    }, 2500);
 
     let datos = {};
     let ok = false;
@@ -328,9 +344,15 @@
       });
       ok = r.ok;
       datos = r.datos;
-    } catch {
-      datos = { respuesta: "No pude conectarme con el servidor. Probá de nuevo." };
+    } catch (error) {
+      datos = {
+        respuesta:
+          error?.name === "AbortError"
+            ? "Estoy tardando más de lo normal en responder. Probá de nuevo en un momento, o buscá el curso con el buscador del Inicio."
+            : "No pude conectarme con el servidor. Probá de nuevo.",
+      };
     } finally {
+      clearTimeout(avisoBuscando);
       escribiendo.remove();
       const texto = datos.respuesta || datos.mensaje || "No pude responderte en este momento.";
       agregarMensaje(texto, "bot");

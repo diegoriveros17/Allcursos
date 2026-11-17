@@ -105,14 +105,31 @@ function cajaRespuesta(consultaId, placeholder, alEnviar) {
 }
 
 // Tarjeta desplegable de una consulta: arriba el resumen, adentro la conversación
-function tarjetaConsulta({ c, autorPropio, titulo, subtitulo, etiqueta, destacada, abrirAlInicio = false, placeholder, alAbrir, alEnviar }) {
+// Borra la conversación del panel de quien la borra (el otro lado la sigue viendo)
+async function borrarConversacion(c, conQuien, alBorrar) {
+  const confirmado = await confirmarAccion(
+    `Se va a borrar de tu panel la conversación con ${conQuien}. ${conQuien} la va a seguir viendo en el suyo. Si te vuelve a escribir, la conversación reaparece.`,
+    { titulo: "¿Borrar conversación?", textoConfirmar: "Borrar" },
+  );
+  if (!confirmado) return;
+  const { ok, data } = await apiFetch(`/consultas/${c.id}`, { method: "DELETE" });
+  if (!ok) {
+    mostrarToast(data.mensaje || "No se pudo borrar la conversación", "error");
+    return;
+  }
+  consultasAbiertas.delete(c.id);
+  mostrarToast("Conversación borrada", "exito");
+  alBorrar();
+}
+
+function tarjetaConsulta({ c, autorPropio, titulo, subtitulo, etiqueta, destacada, abrirAlInicio = false, placeholder, alAbrir, alEnviar, conQuien, alBorrar }) {
   const mensajes = mensajesDeConsulta(c);
   const ultimo = mensajes[mensajes.length - 1];
   const conversacion = h("div", { class: "conversacion" }, mensajes.map((m) => burbujaMensaje(m, autorPropio)));
 
   const detalle = h(
     "details",
-    { class: `consulta-item ${destacada ? "destacada" : ""}`, open: consultasAbiertas.has(c.id) || abrirAlInicio },
+    { class: `consulta-item ${destacada ? "destacada" : ""} ${c.estado ? `estado-${c.estado}` : ""}`, open: consultasAbiertas.has(c.id) || abrirAlInicio },
     h(
       "summary",
       {},
@@ -126,7 +143,17 @@ function tarjetaConsulta({ c, autorPropio, titulo, subtitulo, etiqueta, destacad
       h("span", { class: "consulta-meta" }, etiqueta, h("small", { class: "text-muted" }, tiempoRelativo(ultimo.fecha))),
       h("i", { class: "bi bi-chevron-down consulta-flecha" }),
     ),
-    h("div", { class: "consulta-cuerpo" }, conversacion, cajaRespuesta(c.id, placeholder, alEnviar)),
+    h(
+      "div",
+      { class: "consulta-cuerpo" },
+      conversacion,
+      cajaRespuesta(c.id, placeholder, alEnviar),
+      alBorrar
+        ? h("div", { class: "consulta-acciones" },
+            h("button", { type: "button", class: "btn btn-link btn-sm text-danger p-0", onClick: () => borrarConversacion(c, conQuien, alBorrar) },
+              h("i", { class: "bi bi-trash3 me-1" }), "Borrar conversación"))
+        : null,
+    ),
   );
 
   detalle.addEventListener("toggle", () => {
@@ -164,6 +191,24 @@ async function cambiarEstadoConsulta(id, estado, { recargar = true } = {}) {
   if (recargar) cargarConsultasRepresentante();
 }
 
+// Vacía la bandeja (todas o sólo las de un estado). Los ciudadanos las siguen viendo en su panel.
+async function vaciarConsultas(estado, cantidad) {
+  const que = { respondida: "las consultas respondidas", leida: "las consultas leídas sin responder" }[estado] || "todas las consultas";
+  const confirmado = await confirmarAccion(
+    `Se van a borrar de tu panel ${que} (${cantidad}). Los estudiantes las siguen viendo en el suyo, y si alguno vuelve a escribir, su conversación reaparece.`,
+    { titulo: "¿Vaciar consultas?", textoConfirmar: "Vaciar" },
+  );
+  if (!confirmado) return;
+  const { ok, data } = await apiFetch(`/consultas/mias${estado ? `?estado=${estado}` : ""}`, { method: "DELETE" });
+  if (!ok) {
+    mostrarToast(data.mensaje || "No se pudieron borrar las consultas", "error");
+    return;
+  }
+  consultasAbiertas.clear();
+  mostrarToast(data.mensaje, "exito");
+  cargarConsultasRepresentante();
+}
+
 async function cargarConsultasRepresentante() {
   const contenedor = document.getElementById("listaConsultasRepresentante");
   if (!contenedor) return;
@@ -181,9 +226,9 @@ async function cargarConsultasRepresentante() {
   }
   if (typeof actualizarMetrica === "function") actualizarMetrica("consultas", data.nuevas || 0); // Tarjeta de métricas del panel
 
-  const filtros = h(
+  const filtrosBotones = h(
     "div",
-    { class: "btn-group btn-group-sm mb-3", role: "group" },
+    { class: "btn-group btn-group-sm filtro-consultas", role: "group" },
     [["todas", "Todas"], ["nuevas", "Sólo nuevas"]].map(([valor, texto]) =>
       h(
         "button",
@@ -201,6 +246,25 @@ async function cargarConsultasRepresentante() {
   );
 
   const consultas = data.consultas || [];
+  const cuenta = (estado) => consultas.filter((c) => c.estado === estado).length;
+  const opcionVaciar = (texto, icono, estado, cantidad) =>
+    h("li", {},
+      h("button", { type: "button", class: `dropdown-item ${estado ? "" : "text-danger"}`, disabled: cantidad === 0, onClick: () => vaciarConsultas(estado, cantidad) },
+        h("i", { class: `bi ${icono} me-2` }), texto, h("span", { class: "badge rounded-pill text-bg-light border ms-2" }, cantidad)));
+  const menuVaciar = filtroConsultas === "nuevas"
+    ? null
+    : h("div", { class: "dropdown" },
+        h("button", { type: "button", class: "btn btn-sm btn-vaciar-consultas dropdown-toggle", "data-bs-toggle": "dropdown", "aria-expanded": "false", disabled: consultas.length === 0 },
+          h("i", { class: "bi bi-trash3 me-1" }), "Vaciar"),
+        h("ul", { class: "dropdown-menu dropdown-menu-end shadow" },
+          h("li", {}, h("h6", { class: "dropdown-header" }, "Borrar de tu panel")),
+          opcionVaciar("Respondidas", "bi-check2-all", "respondida", cuenta("respondida")),
+          opcionVaciar("Leídas sin responder", "bi-eye", "leida", cuenta("leida")),
+          h("li", {}, h("hr", { class: "dropdown-divider" })),
+          opcionVaciar("Vaciar todas", "bi-trash3", null, consultas.length),
+        ));
+  const filtros = h("div", { class: "barra-consultas" }, filtrosBotones, menuVaciar);
+
   if (consultas.length === 0) {
     contenedor.replaceChildren(filtros, h("p", { class: "text-muted small mb-0" }, filtroConsultas === "nuevas" ? "No tenés consultas nuevas." : "Todavía no recibiste consultas."));
     return;
@@ -231,6 +295,8 @@ async function cargarConsultasRepresentante() {
           }
         },
         alEnviar: cargarConsultasRepresentante,
+        conQuien: c.nombre,
+        alBorrar: cargarConsultasRepresentante,
       });
     }),
   );
@@ -295,6 +361,8 @@ async function cargarConsultasCiudadano() {
           pintarInsignia(novedades);
         },
         alEnviar: cargarConsultasCiudadano,
+        conQuien: c.institucion?.nombre || "la institución",
+        alBorrar: cargarConsultasCiudadano,
       });
     }),
   );

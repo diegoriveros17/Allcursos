@@ -14,6 +14,10 @@ export const consultasCursoModel = sequelize.define(
     usuario_id: { type: DataTypes.INTEGER, allowNull: true },
     // true cuando la institución respondió y el ciudadano todavía no lo vio
     novedad_ciudadano: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+    // Cada lado puede borrar la conversación de SU panel sin borrársela al otro.
+    // Si los dos la borran, se elimina de la base de datos.
+    oculta_representante: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+    oculta_ciudadano: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     nombre: { type: DataTypes.STRING(100), allowNull: false },
     email: { type: DataTypes.STRING(150), allowNull: false },
     mensaje: { type: DataTypes.TEXT, allowNull: false },

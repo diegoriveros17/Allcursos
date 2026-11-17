@@ -35,6 +35,14 @@ async function cargarEstadisticas(id) {
   graficos.clear();
 
   const { encuesta, totalRespuestas, preguntas } = data;
+  const ideas = data.ideas || [];
+  const general = encuesta.tipo !== "Satisfaccion";
+  const vigente = encuesta.vigente ?? encuesta.activo;
+  const vigencia = !vigente
+    ? "Finalizada: los estudiantes ya no la ven"
+    : encuesta.fecha_cierre
+      ? `Activa hasta el ${formatearDia(encuesta.fecha_cierre)}`
+      : "Activa hasta que la finalices";
   document.title = `Estadísticas: ${encuesta.titulo} - AllCursos`;
 
   cabecera.replaceChildren(
@@ -51,9 +59,11 @@ async function cargarEstadisticas(id) {
           h(
             "p",
             { class: "text-muted mb-0" },
-            encuesta.tipo === "Satisfaccion" ? `Satisfacción · ${encuesta.curso?.titulo || ""}` : `Interés · ${encuesta.categoria?.nombre || "General"}`,
+            general ? "General · la ven todos los estudiantes" : `Para los alumnos de: ${encuesta.curso?.titulo || ""}`,
             " · Creada el ",
-            formatearFecha(encuesta.fecha_creacion),
+            formatearDia(encuesta.fecha_creacion),
+            " · ",
+            vigencia,
           ),
           encuesta.descripcion && h("p", { class: "mt-2 mb-0" }, encuesta.descripcion),
         ),
@@ -61,25 +71,35 @@ async function cargarEstadisticas(id) {
           "div",
           { class: "d-flex gap-2 flex-wrap" },
           h("button", { class: "btn btn-outline-secondary btn-sm", onClick: () => cargarEstadisticas(id) }, h("i", { class: "bi bi-arrow-clockwise me-1" }), "Actualizar"),
-          encuesta.activo && h("button", { class: "btn btn-outline-danger btn-sm", onClick: () => cerrarDesdeEstadisticas(id) }, h("i", { class: "bi bi-lock me-1" }), "Cerrar encuesta"),
+          vigente && h("button", { class: "btn btn-outline-danger btn-sm", onClick: () => cerrarDesdeEstadisticas(id) }, h("i", { class: "bi bi-flag-fill me-1" }), "Finalizar encuesta"),
         ),
       ),
       h(
         "div",
         { class: "row g-3 mt-2" },
-        tarjetaKpi("Respuestas recibidas", totalRespuestas, "bi-people-fill", "primary"),
-        tarjetaKpi("Preguntas", preguntas.length, "bi-list-check", "success"),
-        tarjetaKpi("Estado", encuesta.activo ? "Activa" : "Cerrada", encuesta.activo ? "bi-unlock" : "bi-lock", encuesta.activo ? "success" : "secondary"),
+        general && ideas.length
+          ? tarjetaKpi("Estudiantes que votaron", data.totalVotantes || 0, "bi-hand-thumbs-up-fill", "primary")
+          : tarjetaKpi("Respuestas recibidas", totalRespuestas, "bi-people-fill", "primary"),
+        general && ideas.length
+          ? tarjetaKpi("Ideas de cursos", ideas.length, "bi-lightbulb-fill", "success")
+          : tarjetaKpi("Preguntas", preguntas.length, "bi-list-check", "success"),
+        tarjetaKpi("Estado", vigente ? "Activa" : "Finalizada", vigente ? "bi-broadcast" : "bi-lock", vigente ? "success" : "secondary"),
       ),
     ),
   );
 
-  if (totalRespuestas === 0) {
-    cuerpo.replaceChildren(h("div", { class: "alert alert-info" }, h("i", { class: "bi bi-info-circle me-2" }), "Todavía no hay respuestas. Los gráficos aparecerán apenas los estudiantes respondan."));
+  const bloqueRanking = general && (ideas.length || encuesta.permite_propuestas) ? rankingIdeas(ideas) : null;
+  if (totalRespuestas === 0 || preguntas.length === 0) {
+    cuerpo.replaceChildren(
+      bloqueRanking || "",
+      preguntas.length
+        ? h("div", { class: "alert alert-info" }, h("i", { class: "bi bi-info-circle me-2" }), "Todavía nadie respondió las preguntas. Los gráficos aparecerán apenas los estudiantes respondan.")
+        : "",
+    );
     return;
   }
 
-  cuerpo.replaceChildren(...preguntas.map((p, i) => tarjetaPregunta(p, i + 1)));
+  cuerpo.replaceChildren(bloqueRanking || "", ...preguntas.map((p, i) => tarjetaPregunta(p, i + 1)));
   // Los gráficos se dibujan cuando el <canvas> ya está en el documento
   preguntas.forEach((p) => {
     if (p.tipo === "opcion_multiple") dibujarGrafico(p, "bar");
@@ -101,19 +121,67 @@ function tarjetaKpi(titulo, valor, icono, color) {
 }
 
 async function cerrarDesdeEstadisticas(id) {
-  const confirmado = await confirmarAccion("¿Cerrar esta encuesta? Ya no se podrán enviar más respuestas.", {
-    titulo: "Cerrar encuesta",
-    textoConfirmar: "Sí, cerrar",
+  const confirmado = await confirmarAccion("Al finalizarla, los estudiantes dejan de verla y ya no se pueden enviar respuestas ni votos. Vos vas a seguir viendo los resultados.", {
+    titulo: "¿Finalizar encuesta?",
+    textoConfirmar: "Sí, finalizar",
     peligroso: false,
   });
   if (!confirmado) return;
   const { ok, data } = await apiFetch(`/encuestas/${id}/cerrar`, { method: "PUT" });
   if (ok) {
-    mostrarToast("Encuesta cerrada", "info");
+    mostrarToast("Encuesta finalizada", "info");
     cargarEstadisticas(id);
   } else {
-    mostrarToast(data.mensaje || "No se pudo cerrar la encuesta", "error");
+    mostrarToast(data.mensaje || "No se pudo finalizar la encuesta", "error");
   }
+}
+
+// Ranking de ideas de cursos (encuestas generales): qué cursos piden más los estudiantes
+const ORIGEN_IDEA_RESULTADOS = {
+  nuevo: { texto: "Curso nuevo", icono: "bi-stars" },
+  volver: { texto: "Traer de vuelta", icono: "bi-arrow-repeat" },
+  propuesta: { texto: "Propuesta de un estudiante", icono: "bi-person-raised-hand" },
+};
+function rankingIdeas(ideas) {
+  const max = Math.max(1, ...ideas.map((i) => i.votos));
+  const total = ideas.reduce((acc, i) => acc + i.votos, 0);
+  return h(
+    "div",
+    { class: "card shadow-sm mb-4" },
+    h(
+      "div",
+      { class: "card-header d-flex justify-content-between align-items-center flex-wrap gap-2" },
+      h("span", { class: "fw-semibold" }, h("i", { class: "bi bi-trophy-fill text-warning me-2" }), "Cursos más pedidos"),
+      h("span", { class: "small text-muted" }, `${total} ${total === 1 ? "voto" : "votos"} en total · cada estudiante puede apoyar hasta 3 ideas`),
+    ),
+    h(
+      "div",
+      { class: "card-body" },
+      ideas.length === 0
+        ? h("p", { class: "text-muted mb-0" }, "Todavía no hay ideas. Cuando los estudiantes propongan o voten, aparecen acá.")
+        : h(
+            "ol",
+            { class: "ideas-lista" },
+            ideas.map((idea, i) => {
+              const origen = ORIGEN_IDEA_RESULTADOS[idea.origen] || ORIGEN_IDEA_RESULTADOS.nuevo;
+              const porcentaje = total ? Math.round((idea.votos / total) * 100) : 0;
+              return h(
+                "li",
+                { class: "idea-fila", style: "grid-template-columns: 2rem 1fr auto" },
+                h("span", { class: `idea-puesto ${i === 0 && idea.votos > 0 ? "primero" : ""}` }, i === 0 && idea.votos > 0 ? h("i", { class: "bi bi-trophy-fill" }) : i + 1),
+                h(
+                  "div",
+                  { class: "idea-info" },
+                  h("div", { class: "idea-titulo" }, idea.titulo),
+                  h("div", { class: "idea-origen" }, h("i", { class: `bi ${origen.icono} me-1` }), origen.texto),
+                  h("div", { class: "idea-barra" }, h("span", { style: `width: ${Math.round((idea.votos / max) * 100)}%` })),
+                ),
+                h("span", { class: "idea-votos text-end" }, h("strong", {}, idea.votos), idea.votos === 1 ? " voto" : " votos", h("br"), h("small", {}, `${porcentaje}%`)),
+              );
+            }),
+          ),
+    ),
+  );
 }
 
 // ------------------------------------------------------------

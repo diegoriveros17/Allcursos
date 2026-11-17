@@ -42,6 +42,15 @@ function formatearFecha(fecha) {
   return isNaN(d) ? "" : d.toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" });
 }
 
+// Sólo el día (dd/mm/aaaa). Las fechas "AAAA-MM-DD" se leen tal cual, sin correrse por la zona horaria.
+function formatearDia(fecha) {
+  if (!fecha) return "";
+  const m = String(fecha).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  const d = new Date(fecha);
+  return isNaN(d) ? "" : d.toLocaleDateString("es-AR");
+}
+
 function tiempoRelativo(fecha) {
   const d = new Date(fecha);
   if (isNaN(d)) return "";

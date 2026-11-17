@@ -21,7 +21,7 @@ export const personasModel = sequelize.define(
     dni: {
       type: DataTypes.STRING(20),
       allowNull: false,
-      unique: true
+      unique: "dni"
     },
     dni_verificado: {
       type: DataTypes.ENUM("Verificado", "No_verificado", "Sin_verificar"),

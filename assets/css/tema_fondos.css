@@ -1,0 +1,226 @@
+/* ============================================================
+   AllCursos — Tema "Petróleo y porcelana"
+   ============================================================
+   Reemplaza el blanco puro por tonos gris azulado y porcelana,
+   con detalles en el azul petróleo y el verde de la marca.
+
+   PARA VOLVER A LOS COLORES ANTERIORES (todo blanco):
+   borrá (o comentá) la línea
+       <link rel="stylesheet" href="assets/css/tema_fondos.css" />
+   en las páginas de /views. No hace falta tocar nada más.
+   Para ajustar los tonos, alcanza con cambiar las variables de :root.
+   ============================================================ */
+
+:root {
+  --fondo-pagina: #e4eaf1;          /* Fondo general: gris azulado */
+  --fondo-pagina-alto: #d9e2ec;     /* Parte de arriba del degradé del fondo */
+  --fondo-tarjeta: #f7f9fc;         /* Tarjetas y paneles: porcelana */
+  --fondo-tarjeta-hover: #fbfcfe;
+  --fondo-hundido: #e9eff5;         /* Zonas internas: conversaciones, cabeceras */
+  --fondo-pie: #d6dfe9;             /* Pie de página */
+  --borde-suave: #d3dce7;
+  --borde-fuerte: #bfcbd8;
+  --sombra-tarjeta: 0 1px 2px rgba(16, 24, 40, 0.05), 0 8px 24px -12px rgba(30, 58, 95, 0.18);
+
+  --brand-bg: var(--fondo-pagina);
+  --bs-body-bg: var(--fondo-pagina);
+  --bs-light-rgb: 228, 234, 241;
+  --brand-border: var(--borde-suave);
+  --bs-border-color: var(--borde-suave);
+}
+
+body {
+  background: linear-gradient(180deg, var(--fondo-pagina-alto) 0, var(--fondo-pagina) 480px) no-repeat, var(--fondo-pagina);
+}
+
+/* ---------- Tarjetas de Bootstrap ---------- */
+.card {
+  --bs-card-bg: var(--fondo-tarjeta);
+  --bs-card-cap-bg: var(--fondo-hundido);
+  border-color: var(--borde-suave);
+}
+.card.shadow-sm {
+  box-shadow: var(--sombra-tarjeta) !important;
+}
+.card-header.bg-white {
+  background: var(--fondo-hundido) !important;
+}
+
+/* ---------- Paneles del dashboard ---------- */
+/* Franja superior con los colores de la marca (dibujada como fondo, así no recorta los menús desplegables) */
+.panel-card {
+  background:
+    linear-gradient(90deg, var(--brand-primary) 0%, var(--brand-accent) 100%) top / 100% 4px no-repeat,
+    var(--fondo-tarjeta);
+  border-color: var(--borde-suave);
+  box-shadow: var(--sombra-tarjeta);
+}
+.panel-card-cabecera {
+  background: linear-gradient(180deg, rgba(var(--brand-primary-rgb), 0.06) 0%, rgba(var(--brand-primary-rgb), 0) 100%);
+}
+.panel-card-icono {
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand-primary) 0%, #2c5282 100%);
+  box-shadow: 0 4px 10px -4px rgba(var(--brand-primary-rgb), 0.6);
+}
+.panel-card-icono.icono-verde {
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand-accent) 0%, #3a9a84 100%);
+  box-shadow: 0 4px 10px -4px rgba(var(--brand-accent-rgb), 0.6);
+}
+
+/* Pestañas Cursos / Encuestas / Consultas */
+.panel-secciones {
+  background: rgba(247, 249, 252, 0.85);
+  border-color: var(--borde-suave);
+  box-shadow: 0 6px 18px -10px rgba(30, 58, 95, 0.35);
+}
+
+/* ---------- Métricas, filtros y estados vacíos ---------- */
+.stats-box,
+.panel-filtros {
+  background: var(--fondo-tarjeta);
+  border-color: var(--borde-suave);
+  box-shadow: var(--sombra-tarjeta);
+}
+.estado-vacio {
+  background: var(--fondo-hundido);
+}
+
+/* ---------- Consultas (chat) ---------- */
+.barra-consultas {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+/* Filtro "Todas / Sólo nuevas" como control segmentado */
+.filtro-consultas {
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--fondo-hundido);
+  border: 1px solid var(--borde-suave);
+}
+.filtro-consultas > .btn {
+  border: 0 !important;
+  border-radius: 999px !important;
+  padding: 0.3rem 0.9rem;
+  font-weight: 600;
+  color: #475467;
+  background: transparent;
+}
+.filtro-consultas > .btn:hover {
+  color: var(--brand-primary);
+  background: rgba(var(--brand-primary-rgb), 0.06);
+}
+.filtro-consultas > .btn-dark {
+  color: #fff !important;
+  background: var(--brand-primary) !important;
+  box-shadow: 0 2px 6px -2px rgba(var(--brand-primary-rgb), 0.6);
+}
+/* Botón "Vaciar" */
+.btn-vaciar-consultas {
+  border-radius: 999px;
+  font-weight: 600;
+  color: var(--bs-danger);
+  background: rgba(var(--bs-danger-rgb), 0.07);
+  border: 1px solid rgba(var(--bs-danger-rgb), 0.25);
+  padding: 0.3rem 0.9rem;
+}
+.btn-vaciar-consultas:hover,
+.btn-vaciar-consultas.show {
+  color: #fff;
+  background: var(--bs-danger);
+  border-color: var(--bs-danger);
+}
+.btn-vaciar-consultas:disabled {
+  color: #98a2b3;
+  background: transparent;
+  border-color: var(--borde-suave);
+}
+
+/* Cada consulta lleva a la izquierda una franja del color de su estado */
+.consulta-item {
+  background: var(--fondo-tarjeta);
+  border: 1px solid var(--borde-suave);
+  border-left: 4px solid var(--borde-fuerte);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+.consulta-item.estado-nueva {
+  border-left-color: var(--bs-danger);
+}
+.consulta-item.estado-leida {
+  border-left-color: #8a9bb0;
+}
+.consulta-item.estado-respondida {
+  border-left-color: var(--brand-accent);
+}
+.consulta-item:hover {
+  background: var(--fondo-tarjeta-hover);
+  border-color: var(--borde-fuerte);
+}
+.consulta-item[open] {
+  background: #fdfeff;
+  border-color: rgba(var(--brand-accent-rgb), 0.45);
+  box-shadow: 0 12px 28px -14px rgba(var(--brand-primary-rgb), 0.35);
+}
+.consulta-item[open] > summary {
+  border-bottom: 1px solid var(--borde-suave);
+  margin-bottom: 0.85rem;
+}
+
+/* Fondo del chat con un punteado muy sutil */
+.conversacion {
+  background-color: var(--fondo-hundido);
+  background-image: radial-gradient(rgba(var(--brand-primary-rgb), 0.07) 1px, transparent 1px);
+  background-size: 14px 14px;
+  border: 1px solid var(--borde-suave);
+}
+.burbuja-fila:not(.propia) .burbuja {
+  background: #fff; /* El mensaje del otro queda blanco para que resalte */
+  border-color: var(--borde-suave);
+}
+.burbuja-fila.propia .burbuja {
+  background: linear-gradient(135deg, var(--brand-primary) 0%, #2c5282 100%);
+  box-shadow: 0 6px 14px -8px rgba(var(--brand-primary-rgb), 0.8);
+}
+.consulta-acciones {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+.consulta-acciones .btn-link {
+  text-decoration: none;
+  font-weight: 600;
+}
+.consulta-acciones .btn-link:hover {
+  text-decoration: underline;
+}
+
+/* ---------- Ventanas emergentes y menús ---------- */
+.modal-content {
+  background-color: var(--fondo-tarjeta);
+}
+.modal-header,
+.modal-footer {
+  border-color: var(--borde-suave);
+}
+.dropdown-menu {
+  --bs-dropdown-bg: var(--fondo-tarjeta);
+  --bs-dropdown-link-hover-bg: var(--fondo-hundido);
+  --bs-dropdown-border-color: var(--borde-suave);
+}
+
+/* ---------- Pie de página ---------- */
+footer.bg-white {
+  background-color: var(--fondo-pie) !important;
+  border-color: var(--borde-fuerte) !important;
+}
+
+/* Los campos de texto quedan blancos: se leen mejor sobre el fondo porcelana */
+.form-control,
+.form-select {
+  background-color: #fff;
+}

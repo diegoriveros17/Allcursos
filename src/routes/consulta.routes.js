@@ -1,11 +1,13 @@
 import { Router } from "express";
 import {
+  borrarConsulta,
   cambiarEstadoConsulta,
   crearConsulta,
   enviarMensajeConsulta,
   marcarConsultaVista,
   verConsultasEnviadas,
   verMisConsultas,
+  vaciarMisConsultas,
 } from "../controllers/consulta.controller.js";
 import { verificarRol, verificarToken } from "../middlewares/auth.middleware.js";
 import { consultaLimiter, mensajeConsultaLimiter } from "../middlewares/rateLimit.middleware.js";
@@ -31,6 +33,12 @@ consultasRoutes.post(
   verificarRol("ciudadano", "representante"),
   enviarMensajeConsulta,
 );
+
+// Vaciar la bandeja del representante (va ANTES de "/consultas/:id" para que "mias" no se tome como un id)
+consultasRoutes.delete("/consultas/mias", verificarToken, verificarRol("representante"), vaciarMisConsultas);
+
+// Cualquiera de los dos lados puede borrar la conversación de su panel
+consultasRoutes.delete("/consultas/:id", verificarToken, verificarRol("ciudadano", "representante"), borrarConsulta);
 
 // Panel del representante
 consultasRoutes.get("/consultas/mias", verificarToken, verificarRol("representante"), verMisConsultas);

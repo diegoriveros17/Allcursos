@@ -9,6 +9,7 @@ import { institucionesModel } from "../models/instituciones.model.js";
 import { certificadosModel } from "../models/certificado.model.js";
 import { representanteInstituModel } from "../models/representante_institucion.model.js";
 import { construirUrl } from "../config/appUrl.js";
+import { crearNotificacionUsuario } from "../utils/notificaciones.service.js";
 
 const generarCodigoVerificacion = () =>
   crypto.randomBytes(6).toString("hex").toUpperCase();
@@ -51,20 +52,16 @@ export const descargarCertificado = async (req, res) => {
         .json({ mensaje: "No tienes permisos para ver este certificado" });
     }
 
-    if (inscripcion.estado !== "Finalizado") {
-      return res.status(400).json({
-        mensaje: "El certificado sólo está disponible cuando el curso fue finalizado",
-      });
-    }
-
-    let certificado = await certificadosModel.findOne({
+    // El certificado sólo existe si la institución lo emitió: terminar la cursada no alcanza,
+    // el representante tiene que confirmar que el alumno cumplió (asistencia, evaluaciones, etc.)
+    const certificado = await certificadosModel.findOne({
       where: { inscripcion_id: inscripcion.id },
     });
-    if (!certificado) {
-      certificado = await certificadosModel.create({
-        inscripcion_id: inscripcion.id,
-        fecha_emision: new Date(),
-        codigo_verificacion: generarCodigoVerificacion(),
+    if (!certificado || certificado.anulado) {
+      return res.status(400).json({
+        mensaje: certificado?.anulado
+          ? "La institución anuló este certificado. Si creés que es un error, escribile desde Consultas."
+          : "Tu certificado todavía no fue emitido. La institución lo emite cuando confirma que completaste el curso.",
       });
     }
 
@@ -217,6 +214,13 @@ export const verificarCertificadoPublico = async (req, res) => {
         mensaje: "No se encontró ningún certificado con ese código.",
       });
     }
+    if (certificado.anulado) {
+      return res.status(200).json({
+        valido: false,
+        anulado: true,
+        mensaje: "Este certificado fue anulado por la institución que lo emitió y ya no es válido.",
+      });
+    }
 
     const persona = certificado.inscripcion.usuario.persona;
     const curso = certificado.inscripcion.curso;
@@ -237,5 +241,101 @@ export const verificarCertificadoPublico = async (req, res) => {
     return res
       .status(500)
       .json({ mensaje: "Error al verificar el certificado", error: error.message });
+  }
+};
+
+// ------------------------------------------------------------
+// EMISIÓN Y ANULACIÓN (sólo el representante de la institución del curso)
+// ------------------------------------------------------------
+
+// Busca la inscripción y confirma que el usuario logueado representa a la institución del curso
+async function inscripcionDelRepresentante(req) {
+  const inscripcion = await inscripcionesModel.findByPk(req.params.id, {
+    include: [
+      { model: cursosModel, as: "curso" },
+      { model: usuariosModel, as: "usuario", attributes: ["id"], include: [{ model: personasModel, as: "persona", attributes: ["nombre", "apellido"] }] },
+    ],
+  });
+  if (!inscripcion) return { error: [404, "Inscripción no encontrada"] };
+  const representacion = await representanteInstituModel.findOne({
+    where: { usuario_id: req.usuario.id, institucion_id: inscripcion.curso.institucion_id },
+  });
+  if (!representacion) return { error: [403, "Sólo la institución que dicta el curso puede gestionar sus certificados"] };
+  return { inscripcion };
+}
+
+// El representante confirma que el alumno cumplió con el curso y le emite el certificado.
+// También pasa la inscripción a "Finalizado". Si el certificado estaba anulado, lo vuelve a habilitar con el mismo código.
+export const emitirCertificado = async (req, res) => {
+  try {
+    const { inscripcion, error } = await inscripcionDelRepresentante(req);
+    if (error) return res.status(error[0]).json({ mensaje: error[1] });
+
+    if (!["Inscripto", "Cursando", "Finalizado"].includes(inscripcion.estado)) {
+      return res.status(400).json({
+        mensaje: inscripcion.estado === "Cancelado"
+          ? "No se puede certificar a un alumno que se dio de baja"
+          : "No se puede certificar a alguien que está en lista de espera",
+      });
+    }
+
+    let certificado = await certificadosModel.findOne({ where: { inscripcion_id: inscripcion.id } });
+    if (certificado && !certificado.anulado) {
+      return res.status(400).json({ mensaje: "Este alumno ya tiene su certificado emitido" });
+    }
+    if (certificado) {
+      await certificado.update({ anulado: false, fecha_anulacion: null, emitido_por: req.usuario.id, fecha_emision: new Date() });
+    } else {
+      certificado = await certificadosModel.create({
+        inscripcion_id: inscripcion.id,
+        fecha_emision: new Date(),
+        codigo_verificacion: generarCodigoVerificacion(),
+        emitido_por: req.usuario.id,
+      });
+    }
+    if (inscripcion.estado !== "Finalizado") await inscripcion.update({ estado: "Finalizado" });
+
+    // Aviso al alumno en su campanita
+    crearNotificacionUsuario({
+      usuario_id: inscripcion.usuario_id,
+      tipo: "inscripcion",
+      titulo: "¡Tu certificado está listo!",
+      mensaje: `La institución emitió tu certificado de "${inscripcion.curso.titulo}". Descargalo desde Mi Panel.`,
+      url: "dashboard.html#mis-cursos",
+    }).catch((e) => console.error("Error notificando el certificado:", e.message));
+
+    return res.status(200).json({
+      mensaje: "Certificado emitido",
+      certificado: { id: certificado.id, fecha_emision: certificado.fecha_emision, anulado: false, codigo_verificacion: certificado.codigo_verificacion },
+    });
+  } catch (error) {
+    return res.status(500).json({ mensaje: "Error al emitir el certificado", error: error.message });
+  }
+};
+
+// El representante anula un certificado emitido por error: el alumno ya no lo puede descargar
+// y el QR pasa a indicar que fue anulado (no se borra, así queda el registro).
+export const anularCertificado = async (req, res) => {
+  try {
+    const { inscripcion, error } = await inscripcionDelRepresentante(req);
+    if (error) return res.status(error[0]).json({ mensaje: error[1] });
+
+    const certificado = await certificadosModel.findOne({ where: { inscripcion_id: inscripcion.id } });
+    if (!certificado || certificado.anulado) {
+      return res.status(400).json({ mensaje: "Este alumno no tiene un certificado vigente" });
+    }
+    await certificado.update({ anulado: true, fecha_anulacion: new Date() });
+
+    crearNotificacionUsuario({
+      usuario_id: inscripcion.usuario_id,
+      tipo: "inscripcion",
+      titulo: "Certificado anulado",
+      mensaje: `La institución anuló tu certificado de "${inscripcion.curso.titulo}". Si creés que es un error, escribile desde Consultas.`,
+      url: "dashboard.html#mis-cursos",
+    }).catch((e) => console.error("Error notificando la anulación:", e.message));
+
+    return res.status(200).json({ mensaje: "Certificado anulado", certificado: { id: certificado.id, anulado: true } });
+  } catch (error) {
+    return res.status(500).json({ mensaje: "Error al anular el certificado", error: error.message });
   }
 };

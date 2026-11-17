@@ -65,6 +65,11 @@ export const cursosModel = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: true
     },
+    // Ubicación PROPIA de cada curso (antes se guardaba en la institución y
+    // al cambiarla se cambiaba en todos los cursos). null = sin ubicación propia.
+    ubicacion_maps: { type: DataTypes.TEXT, allowNull: true }, // Dirección, coordenadas o código de Google Maps
+    latitud: { type: DataTypes.DECIMAL(10, 7), allowNull: true }, // Latitud del pin (-90 a 90)
+    longitud: { type: DataTypes.DECIMAL(10, 7), allowNull: true }, // Longitud del pin (-180 a 180)
   },
   {
     tableName: "cursos",

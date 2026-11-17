@@ -70,6 +70,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
               </div>
             </div>
+      ${htmlEquipoDocente(curso.docentes)}
       ${
         curso.mapa_embed_url || curso.latitud != null // NUEVO: si la institución cargó ubicación (pin o Google Maps)...
           ? `
@@ -131,17 +132,15 @@ document.addEventListener("DOMContentLoaded", async () => {
                   </div>
                   <div class="ocupacion-barra ${porcentajeOcupado(curso) >= 100 ? "llena" : porcentajeOcupado(curso) >= 75 ? "alta" : ""}"><span style="width: ${porcentajeOcupado(curso)}%"></span></div>
                   <p class="small text-muted mt-2 mb-0">${sinCupos ? "No quedan cupos: podés anotarte en la lista de espera." : curso.cupos_disponibles <= 5 ? "¡Quedan pocos lugares!" : "Inscripción abierta."}</p>
-            <div class="d-flex align-items-center justify-content-between border-top pt-3 mt-3">
-              ${
-                sesion?.rol === "representante"
-                  ? "<span></span>" /* El representante no da me gusta: sólo ve el curso */
-                  : `<button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" id="btnLikeCurso">
+            ${
+              sesion?.rol === "representante"
+                ? "" /* El representante no da me gusta ni comparte: es su propio curso, sólo ve la vista previa */
+                : `<div class="d-flex align-items-center justify-content-between border-top pt-3 mt-3">
+              <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" id="btnLikeCurso">
                 <i class="bi bi-hand-thumbs-up" id="iconoLike"></i>
                 <span id="contadorLikes">${curso.likes_count || 0}</span>
                 <span class="d-none d-sm-inline">Me gusta</span>
-              </button>`
-              }
-
+              </button>
               <div class="dropdown">
                 <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                   <i class="bi bi-share me-1"></i>Compartir
@@ -156,7 +155,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                   <li><button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#modalRecomendar"><i class="bi bi-envelope me-2"></i>Recomendar por email</button></li>
                 </ul>
               </div>
-            </div>
+            </div>`
+            }
 
                   ${
                     sesion?.rol === "representante"
@@ -720,6 +720,53 @@ function escaparDetalle(texto) {
     .replace(/'/g, "&#39;");
 }
 
+// ============================================================
+// EQUIPO DOCENTE (lo carga la institución al publicar o editar el curso)
+// ============================================================
+const COLORES_DOCENTE = ["#1e3a5f", "#2f7d6b", "#24566e", "#6b4fa0", "#b45309", "#9f1d4a"];
+
+function htmlEquipoDocente(docentes) {
+  if (!Array.isArray(docentes) || docentes.length === 0) return "";
+  const tarjetas = docentes.map((d, i) => {
+    const iniciales = String(d.nombre || "").trim().split(/\s+/).slice(0, 2).map((p) => p[0] || "").join("").toUpperCase();
+    const avatar = d.foto_url
+      ? `<img class="docente-avatar" src="${escaparDetalle(d.foto_url)}" alt="Foto de ${escaparDetalle(d.nombre)}" loading="lazy" />`
+      : `<span class="docente-avatar docente-iniciales" style="background:${COLORES_DOCENTE[i % COLORES_DOCENTE.length]}" aria-hidden="true">${escaparDetalle(iniciales)}</span>`;
+    const bio = String(d.biografia || "").trim();
+    return `
+      <div class="col-md-6">
+        <article class="docente-tarjeta">
+          <div class="docente-cabecera">
+            ${avatar}
+            <div class="min-w-0">
+              <h3 class="docente-nombre">${escaparDetalle(d.nombre)}</h3>
+              <p class="docente-cargo">${escaparDetalle(d.cargo || "Profesor")}</p>
+            </div>
+          </div>
+          ${bio ? `<p class="docente-bio" id="docenteBio${i}">${escaparDetalle(bio)}</p>` : ""}
+          ${bio.length > 150 ? `<button type="button" class="docente-ver-mas" aria-expanded="false" aria-controls="docenteBio${i}">Ver más</button>` : ""}
+        </article>
+      </div>`;
+  }).join("");
+  return `
+      <div class="card curso-seccion mt-4">
+        <div class="card-body p-4">
+          <h2 class="curso-seccion-titulo"><i class="bi bi-person-video3"></i>Equipo docente</h2>
+          <div class="row g-3">${tarjetas}</div>
+        </div>
+      </div>`;
+}
+
+// "Ver más" / "Ver menos" en la presentación de cada docente
+document.addEventListener("click", (e) => {
+  const boton = e.target.closest(".docente-ver-mas");
+  if (!boton) return;
+  const bio = document.getElementById(boton.getAttribute("aria-controls"));
+  const abierta = bio.classList.toggle("abierta");
+  boton.setAttribute("aria-expanded", String(abierta));
+  boton.textContent = abierta ? "Ver menos" : "Ver más";
+});
+
 const TEXTO_MODALIDAD = {
   Presencial: "Clases en la sede de la institución, con acompañamiento docente.",
   Virtual: "100% a distancia: cursás desde donde estés.",
@@ -771,7 +818,7 @@ function htmlZonaInscripcion(estado, curso, sesion, sinCupos) {
     "En espera": { icono: "bi-hourglass-split", titulo: "Tu inscripción está en espera", texto: "La institución la va a confirmar pronto.", clase: "espera" },
     Inscripto: { icono: "bi-check-lg", titulo: "¡Ya estás inscripto en este curso!", texto: "Seguí tu inscripción y las novedades desde Mi Panel.", clase: "" },
     Cursando: { icono: "bi-play-fill", titulo: "Estás cursando este curso", texto: "¡Éxitos! Las novedades te llegan a Mi Panel.", clase: "" },
-    Finalizado: { icono: "bi-award-fill", titulo: "¡Completaste este curso!", texto: "Descargá tu certificado desde Mi Panel.", clase: "" },
+    Finalizado: { icono: "bi-award-fill", titulo: "¡Completaste este curso!", texto: "Cuando la institución emita tu certificado, lo descargás desde Mi Panel.", clase: "" },
   };
   const e = estados[estado.estado] || estados.Inscripto;
   return `
@@ -803,7 +850,7 @@ function mostrarGraciasInscripcion(curso, resp, conSesion) {
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content modal-gracias">
           <div class="confeti" aria-hidden="true">${confeti}</div>
-          <button type="button" class="btn-close position-absolute top-0 end-0 m-3" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+          <button type="button" class="btn-close gracias-cerrar" data-bs-dismiss="modal" aria-label="Cerrar" title="Cerrar"></button>
           <div class="modal-body text-center p-4 p-md-5">
             <div class="gracias-icono ${enEspera ? "espera" : ""}"><i class="bi ${enEspera ? "bi-hourglass-split" : "bi-check-lg"}"></i></div>
             <h3 class="gracias-titulo" id="graciasTitulo">${enEspera ? "¡Te anotamos en la lista de espera!" : "¡Gracias por inscribirte!"}</h3>
@@ -815,7 +862,7 @@ function mostrarGraciasInscripcion(curso, resp, conSesion) {
             <ul class="gracias-pasos">
               <li><i class="bi bi-bell"></i><span>${enEspera ? "Te avisamos en cuanto se libere un lugar." : "Te avisamos las novedades del curso por la campanita y por email."}</span></li>
               <li><i class="bi bi-speedometer2"></i><span>Seguí tu inscripción desde <strong>Mi Panel</strong>.</span></li>
-              <li><i class="bi bi-award"></i><span>Al terminar, descargás tu certificado con código QR.</span></li>
+              <li><i class="bi bi-award"></i><span>Si cumplís con el curso, la institución te emite el certificado con código QR.</span></li>
             </ul>
             ${resp.aviso ? `<div class="alert alert-info small text-start py-2">${escaparDetalle(resp.aviso)}</div>` : ""}
             <div class="d-grid gap-2 mt-4">

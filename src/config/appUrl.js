@@ -26,7 +26,11 @@ export function obtenerBaseUrlConfigurada() {
   const puerto = PORT || 3000;
 
   if (APP_URL && APP_URL.trim()) return APP_URL.trim().replace(/\/+$/, "");
-  if (HOST_IP && HOST_IP.trim()) return `http://${HOST_IP.trim()}:${puerto}`;
+  if (HOST_IP && HOST_IP.trim()) {
+    // Acepta "10.0.0.5", "10.0.0.5:3000" o "http://10.0.0.5:3000" (sin duplicar http:// ni el puerto)
+    const ip = HOST_IP.trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+    return /:\d+$/.test(ip) ? `http://${ip}` : `http://${ip}:${puerto}`;
+  }
   if (FRONTEND_URL && FRONTEND_URL.trim() && !ES_LOCAL.test(FRONTEND_URL.trim()))
     return FRONTEND_URL.trim().replace(/\/+$/, "");
   return null;

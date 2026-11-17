@@ -8,7 +8,7 @@ import {
   verPorIdInscripciones,
   verTodasInscripciones,
 } from "../controllers/inscripciones.controller.js";
-import { descargarCertificado } from "../controllers/certificado.controller.js";
+import { descargarCertificado, emitirCertificado, anularCertificado } from "../controllers/certificado.controller.js";
 import {
   tokenOpcional,
   verificarRol,
@@ -27,11 +27,24 @@ inscripcionesRoutes.get(
   verMisInscripciones,
 );
 
-// Certificado en PDF de una inscripción finalizada
+// Certificado en PDF (sólo si la institución lo emitió)
 inscripcionesRoutes.get(
   "/inscripciones/:id/certificado",
   verificarToken,
   descargarCertificado,
+);
+// El representante emite o anula el certificado de un alumno de su curso
+inscripcionesRoutes.post(
+  "/inscripciones/:id/certificado",
+  verificarToken,
+  verificarRol("representante"),
+  emitirCertificado,
+);
+inscripcionesRoutes.delete(
+  "/inscripciones/:id/certificado",
+  verificarToken,
+  verificarRol("representante"),
+  anularCertificado,
 );
 
 inscripcionesRoutes.get(

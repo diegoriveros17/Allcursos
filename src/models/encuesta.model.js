@@ -15,7 +15,12 @@ export const encuestasModel = sequelize.define(
       type: DataTypes.ENUM("Interes", "Satisfaccion"),
       defaultValue: "Interes",
     },
+    // Las encuestas son temporales: activo = false cuando el representante la finaliza.
     activo: { type: DataTypes.BOOLEAN, defaultValue: true },
+    // Hasta cuándo se puede responder. null = hasta que el representante la finalice.
+    fecha_cierre: { type: DataTypes.DATEONLY, allowNull: true },
+    // Sólo encuestas generales: los estudiantes pueden proponer ideas de cursos
+    permite_propuestas: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
   },
   { tableName: "encuestas", timestamps: true, createdAt: "fecha_creacion", updatedAt: false },
 );

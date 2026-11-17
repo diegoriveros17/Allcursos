@@ -235,7 +235,7 @@ async function cargarTablaCiudadano() {
   misInscripciones = data.inscripciones || [];
   const cuenta = (estados) => misInscripciones.filter((i) => estados.includes(i.estado)).length;
   const activos = cuenta(["En espera", "Inscripto", "Cursando"]);
-  const finalizados = cuenta(["Finalizado"]);
+  const finalizados = misInscripciones.filter((i) => certificadoVigente(i)).length; // Certificados que la institución ya emitió
   actualizarMetrica("activos", activos);
   actualizarMetrica("finalizados", finalizados);
 
@@ -287,10 +287,13 @@ function dibujarMisCursos() {
   lista.replaceChildren(...visibles.map(tarjetaMiCurso));
 }
 
-// Pasos del cursado: Inscripto → Cursando → Finalizado
-function pasosDelCurso(estado) {
-  const pasos = ["Inscripto", "Cursando", "Finalizado"];
-  const actual = pasos.indexOf(estado);
+// El certificado sólo existe si la institución lo emitió (y no lo anuló)
+const certificadoVigente = (item) => !!item.certificado && !item.certificado.anulado;
+
+// Pasos del cursado: Inscripto → Cursando → Finalizado → Certificado (lo emite la institución)
+function pasosDelCurso(estado, certificado = false) {
+  const pasos = ["Inscripto", "Cursando", "Finalizado", "Certificado"];
+  const actual = certificado ? 3 : pasos.indexOf(estado);
   return h("ol", { class: "pasos-curso", "aria-label": "Avance del curso" },
     pasos.map((p, i) => h("li", { class: [i <= actual && "hecho", i === actual && "actual"].filter(Boolean).join(" ") }, p)),
   );
@@ -303,7 +306,7 @@ function tarjetaMiCurso(item) {
   const fecha = item.fecha_inscripcion ? new Date(item.fecha_inscripcion) : null;
 
   const acciones = [];
-  if (item.estado === "Finalizado") {
+  if (certificadoVigente(item)) {
     acciones.push(h("button", { type: "button", class: "btn btn-sm btn-success", onClick: (e) => descargarCertificado(item.id, e.currentTarget) },
       h("i", { class: "bi bi-file-earmark-arrow-down me-1" }), "Certificado"));
   }
@@ -318,7 +321,15 @@ function tarjetaMiCurso(item) {
     avance = h("p", { class: "mi-curso-aviso" }, h("i", { class: "bi bi-info-circle me-1" }),
       "Te diste de baja de este curso.", item.motivo_baja && ` Motivo: ${item.motivo_baja}.`);
   else if (item.estado === "En espera") avance = h("p", { class: "mi-curso-aviso" }, h("i", { class: "bi bi-hourglass-split me-1" }), "Tu inscripción está pendiente de confirmación.");
-  else avance = pasosDelCurso(item.estado);
+  else if (item.estado === "Finalizado" && !certificadoVigente(item))
+    avance = [
+      pasosDelCurso(item.estado),
+      h("p", { class: "mi-curso-aviso" }, h("i", { class: "bi bi-hourglass-split me-1" }),
+        item.certificado?.anulado
+          ? "La institución anuló tu certificado. Si creés que es un error, escribile desde Consultas."
+          : "Terminaste la cursada. La institución está revisando la asistencia y te avisa cuando emita tu certificado."),
+    ];
+  else avance = pasosDelCurso(item.estado, certificadoVigente(item));
 
   return h("article", { class: `mi-curso estado-${estilo.clase}` },
     h("a", { href: enlace, class: "mi-curso-imagen", "aria-hidden": "true", tabindex: "-1" },
@@ -574,14 +585,8 @@ async function cargarTablaRepresentante() {
 
   dibujarTablaCursos();
 
-  // Recargamos las opciones de "curso a evaluar" del modal de encuestas
-  const selectCurso = document.getElementById("encuestaCurso");
-  if (selectCurso) {
-    selectCurso.replaceChildren(
-      h("option", { value: "" }, "Seleccionar..."),
-      ...cursos.map((c) => h("option", { value: c.id }, c.titulo)),
-    );
-  }
+  // Cursos del modal de encuestas (abiertos y terminados por separado)
+  cargarCursosEnModalEncuesta(cursos);
 }
 
 function barraOcupacion(inscriptos, cupo) {
@@ -797,29 +802,283 @@ async function cargarRequisitosEnFormulario(textos = []) {
   dibujarRequisitosCurso();
 }
 
-let institucionIdModal = null; // NUEVO: id de la institución del representante (para guardar su ubicación)
-let ubicacionGuardada = ""; // NUEVO: texto de ubicación que ya estaba guardado (para saber si el usuario lo cambió)
-let pinGuardado = null; // NUEVO: pin que ya estaba guardado { latitud, longitud } o null (para saber si lo cambió)
+// ==========================================
+// REPRESENTANTE: equipo docente del curso (en el modal de publicar/editar)
+// ==========================================
+const MAX_DOCENTES = 20;
+const MAX_BIO_DOCENTE = 1500;
+// Cada docente: { nombre, cargo, biografia, foto_url (la que ya tenía guardada), archivo (foto nueva elegida), vista (URL para previsualizarla) }
+let docentesCurso = [];
 
-// NUEVO: carga la ubicación guardada de la institución y dibuja su mapa en el modal
-async function cargarUbicacionEnModal() { // Función async porque consulta al backend
-  const campo = document.getElementById("cursoUbicacionMaps"); // Busca el campo de texto de la ubicación
-  if (!campo) return; // Si el modal no tiene el campo, no hace nada
-  const { ok, data } = await apiFetch("/auth/me"); // Pide los datos del usuario logueado (incluye su institución)
-  if (!ok || !data.usuario?.institucion) return; // Si falló o no tiene institución, corta
-  institucionIdModal = data.usuario.institucion.id; // Guarda el id de la institución
-  ubicacionGuardada = data.usuario.institucion.ubicacion_maps || ""; // Guarda el texto de ubicación actual
-  campo.value = ubicacionGuardada; // Lo muestra en el campo
-  const inst = data.usuario.institucion; // Atajo a los datos de la institución
-  pinGuardado = inst.latitud != null ? { latitud: inst.latitud, longitud: inst.longitud } : null; // Recuerda el pin guardado (o null si no hay)
-  iniciarSelectorPin("cursoSelectorPin", inst.latitud, inst.longitud, (la, lo) => { // Crea el mapa con pin y define qué hacer cuando cambia
-    document.getElementById("cursoPinCoordenadas").textContent = textoCoordenadas(la, lo); // Actualiza el texto de coordenadas
-  }); // Cierra la llamada
-  document.getElementById("cursoPinCoordenadas").textContent = textoCoordenadas(inst.latitud, inst.longitud); // Muestra las coordenadas iniciales
-  setTimeout(() => refrescarMapaLeaflet("cursoSelectorPin"), 400); // Redibuja el mapa por si el modal todavía se estaba abriendo (tamaño 0)
-  const respuesta = await apiFetch(`/instituciones/${institucionIdModal}/ubicacion`, { auth: false }); // Pide la URL segura del mapa
-  mostrarMapa("cursoMapaPreview", respuesta.ok ? respuesta.data.mapa_embed_url : null); // Dibuja el mapa (o el aviso si no hay)
-} // Cierra la función
+const inicialesDocente = (nombre) =>
+  String(nombre || "").trim().split(/\s+/).slice(0, 2).map((p) => p[0] || "").join("").toUpperCase() || "?";
+
+function cargarDocentesEnFormulario(docentes = []) {
+  docentesCurso.forEach((d) => d.vista && URL.revokeObjectURL(d.vista));
+  docentesCurso = docentes.map((d) => ({
+    nombre: d.nombre || "",
+    cargo: d.cargo || "Profesor",
+    biografia: d.biografia || "",
+    foto_url: d.foto_url || null,
+    archivo: null,
+    vista: null,
+  }));
+  dibujarDocentesCurso();
+}
+
+function moverDocente(indice, salto) {
+  const destino = indice + salto;
+  if (destino < 0 || destino >= docentesCurso.length) return;
+  [docentesCurso[indice], docentesCurso[destino]] = [docentesCurso[destino], docentesCurso[indice]];
+  dibujarDocentesCurso();
+}
+
+function elegirFotoDocente(indice, archivo) {
+  if (!archivo) return;
+  if (!/^image\/(jpeg|png|webp)$/.test(archivo.type)) return mostrarToast("La foto tiene que ser JPG, PNG o WEBP", "error");
+  if (archivo.size > 3 * 1024 * 1024) return mostrarToast("La foto puede pesar hasta 3 MB", "error");
+  const d = docentesCurso[indice];
+  if (d.vista) URL.revokeObjectURL(d.vista);
+  Object.assign(d, { archivo, vista: URL.createObjectURL(archivo) });
+  dibujarDocentesCurso();
+}
+
+function quitarFotoDocente(indice) {
+  const d = docentesCurso[indice];
+  if (d.vista) URL.revokeObjectURL(d.vista);
+  Object.assign(d, { archivo: null, vista: null, foto_url: null });
+  dibujarDocentesCurso();
+}
+
+function filaDocente(d, i) {
+  const idBase = `docente${i}`;
+  const foto = d.vista || d.foto_url;
+  const inputFoto = h("input", { type: "file", class: "visually-hidden", id: `${idBase}Foto`, accept: "image/png, image/jpeg, image/webp" });
+  inputFoto.addEventListener("change", () => elegirFotoDocente(i, inputFoto.files[0]));
+  const avatar = h("span", { class: "docente-form-avatar", "data-iniciales": inicialesDocente(d.nombre) },
+    foto ? h("img", { src: foto, alt: "" }) : inicialesDocente(d.nombre));
+
+  const campo = (clave, el) => {
+    el.addEventListener("input", () => {
+      d[clave] = el.value;
+      if (clave === "nombre" && !foto) avatar.textContent = inicialesDocente(el.value);
+      if (clave === "biografia") contador.textContent = `${el.value.length}/${MAX_BIO_DOCENTE}`;
+    });
+    return el;
+  };
+  const contador = h("span", { class: "form-text m-0" }, `${d.biografia.length}/${MAX_BIO_DOCENTE}`);
+
+  return h("div", { class: "docente-form" },
+    h("div", { class: "docente-form-foto" },
+      h("label", { for: `${idBase}Foto`, class: "docente-form-elegir", title: "Elegir foto" }, avatar,
+        h("span", { class: "docente-form-camara" }, h("i", { class: "bi bi-camera" }))),
+      inputFoto,
+      foto && h("button", { type: "button", class: "btn btn-link btn-sm p-0 text-danger", onClick: () => quitarFotoDocente(i) }, "Quitar foto"),
+    ),
+    h("div", { class: "docente-form-datos" },
+      h("div", { class: "row g-2" },
+        h("div", { class: "col-sm-6" },
+          h("label", { class: "form-label small mb-1", for: `${idBase}Nombre` }, "Nombre y apellido *"),
+          campo("nombre", h("input", { type: "text", class: "form-control form-control-sm", id: `${idBase}Nombre`, maxlength: "100", value: d.nombre, placeholder: "Ej: Ana Gómez" })),
+        ),
+        h("div", { class: "col-sm-6" },
+          h("label", { class: "form-label small mb-1", for: `${idBase}Cargo` }, "Rol en el curso"),
+          campo("cargo", h("input", { type: "text", class: "form-control form-control-sm", id: `${idBase}Cargo`, maxlength: "100", value: d.cargo, list: "sugerenciasCargoDocente", placeholder: "Profesor" })),
+        ),
+        h("div", { class: "col-12" },
+          h("div", { class: "d-flex justify-content-between align-items-end" },
+            h("label", { class: "form-label small mb-1", for: `${idBase}Bio` }, "Presentación (formación y experiencia)"),
+            contador),
+          campo("biografia", (() => {
+            const t = h("textarea", { class: "form-control form-control-sm", id: `${idBase}Bio`, rows: "3", maxlength: String(MAX_BIO_DOCENTE), placeholder: "Ej: Analista de Sistemas con 10 años de experiencia en desarrollo web..." });
+            t.value = d.biografia;
+            return t;
+          })()),
+        ),
+      ),
+    ),
+    h("div", { class: "docente-form-acciones" },
+      h("button", { type: "button", class: "btn btn-sm btn-light", title: "Subir", "aria-label": "Mover arriba", disabled: i === 0 || undefined, onClick: () => moverDocente(i, -1) }, h("i", { class: "bi bi-arrow-up" })),
+      h("button", { type: "button", class: "btn btn-sm btn-light", title: "Bajar", "aria-label": "Mover abajo", disabled: i === docentesCurso.length - 1 || undefined, onClick: () => moverDocente(i, 1) }, h("i", { class: "bi bi-arrow-down" })),
+      h("button", { type: "button", class: "btn btn-sm btn-light text-danger", title: "Quitar docente", "aria-label": "Quitar docente", onClick: () => {
+        if (d.vista) URL.revokeObjectURL(d.vista);
+        docentesCurso.splice(i, 1);
+        dibujarDocentesCurso();
+      } }, h("i", { class: "bi bi-trash" })),
+    ),
+  );
+}
+
+function dibujarDocentesCurso() {
+  const lista = document.getElementById("listaDocentesCurso");
+  if (!lista) return;
+  lista.replaceChildren(
+    ...(docentesCurso.length
+      ? docentesCurso.map(filaDocente)
+      : [h("p", { class: "text-muted small mb-0" }, h("i", { class: "bi bi-person-video3 me-1" }), "Todavía no agregaste docentes.")]),
+  );
+  const boton = document.getElementById("btnAgregarDocente");
+  if (boton) boton.disabled = docentesCurso.length >= MAX_DOCENTES;
+}
+
+function prepararEquipoDocente() {
+  document.getElementById("btnAgregarDocente")?.addEventListener("click", () => {
+    if (docentesCurso.length >= MAX_DOCENTES) return;
+    docentesCurso.push({ nombre: "", cargo: "Profesor", biografia: "", foto_url: null, archivo: null, vista: null });
+    dibujarDocentesCurso();
+    document.getElementById(`docente${docentesCurso.length - 1}Nombre`)?.focus();
+  });
+  dibujarDocentesCurso();
+}
+
+// Agrega los docentes al formulario que se envía. Devuelve un texto de error si falta algo.
+function agregarDocentesAlFormulario(formData) {
+  const completos = docentesCurso.filter((d) => d.nombre.trim() || d.biografia.trim() || d.archivo || d.foto_url);
+  const sinNombre = completos.findIndex((d) => !d.nombre.trim());
+  if (sinNombre !== -1) return `Falta el nombre del docente ${sinNombre + 1}.`;
+  let fotosNuevas = 0;
+  const lista = completos.map((d) => {
+    const item = { nombre: d.nombre.trim(), cargo: d.cargo.trim() || "Profesor", biografia: d.biografia.trim() };
+    if (d.archivo) {
+      formData.append("fotos_docentes", d.archivo);
+      item.foto_nueva = fotosNuevas++;
+    } else {
+      item.foto_url = d.foto_url;
+    }
+    return item;
+  });
+  formData.append("docentes", JSON.stringify(lista));
+  return null;
+}
+
+// ---------- Ubicación del curso ----------
+// Cada curso tiene SU PROPIA ubicación (se guarda junto con el curso).
+// Así, cambiar el lugar de un curso no cambia el de los demás.
+let institucionUbicacion = null; // Ubicación vieja de la institución: sólo se usa para precargar cursos que todavía no tienen una propia
+
+async function obtenerUbicacionInstitucion() {
+  if (institucionUbicacion) return institucionUbicacion;
+  const { ok, data } = await apiFetch("/auth/me");
+  const inst = ok ? data.usuario?.institucion : null;
+  institucionUbicacion = {
+    ubicacion_maps: inst?.ubicacion_maps || "",
+    latitud: inst?.latitud ?? null,
+    longitud: inst?.longitud ?? null,
+  };
+  return institucionUbicacion;
+}
+
+// Lee coordenadas pegadas desde Google Maps. Acepta:
+//   "-26.079947, -58.277096"  |  "-26.079947 -58.277096"
+//   26°04'47.8"S 58°16'37.6"W (grados, minutos, segundos)
+//   links de Google Maps con "@lat,lng", "q=lat,lng" o "!3dlat!4dlng"
+// Devuelve { latitud, longitud } o null si no se entiende.
+function leerCoordenadas(entrada) {
+  const texto = String(entrada || "").trim();
+  if (!texto) return null;
+  const valido = (la, lo) =>
+    Number.isFinite(la) && Number.isFinite(lo) && la >= -90 && la <= 90 && lo >= -180 && lo <= 180 && !(la === 0 && lo === 0)
+      ? { latitud: Number(la.toFixed(7)), longitud: Number(lo.toFixed(7)) }
+      : null;
+
+  const g3d = texto.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/);
+  if (g3d) return valido(Number(g3d[1]), Number(g3d[2]));
+  const enLink = texto.match(/[@=](-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/);
+  if (enLink) return valido(Number(enLink[1]), Number(enLink[2]));
+
+  const gms = [...texto.matchAll(/(\d+(?:\.\d+)?)\s*°\s*(\d+(?:\.\d+)?)\s*['′]\s*(\d+(?:\.\d+)?)?\s*(?:["″]|'')?\s*([NSEOW])/gi)];
+  if (gms.length === 2) {
+    const aDecimal = (m) => {
+      const v = Number(m[1]) + Number(m[2]) / 60 + Number(m[3] || 0) / 3600;
+      return /[SWO]/i.test(m[4]) ? -v : v;
+    };
+    return valido(aDecimal(gms[0]), aDecimal(gms[1]));
+  }
+
+  const dec = texto.match(/^\(?\s*(-?\d+(?:[.,]\d+)?)\s*[,;\s]\s*(-?\d+(?:[.,]\d+)?)\s*\)?$/);
+  if (dec) return valido(Number(dec[1].replace(",", ".")), Number(dec[2].replace(",", ".")));
+  return null;
+}
+
+let ubicacionTextoOriginal = ""; // Texto viejo de Google Maps del curso (sólo se conserva si el curso no tiene pin)
+
+// Carga en el modal la ubicación del curso que se edita (o vacía si es un curso nuevo)
+async function cargarUbicacionEnModal(curso = null) {
+  const campo = document.getElementById("cursoCoordenadas");
+  if (!campo) return;
+  let ubic = { ubicacion_maps: "", latitud: null, longitud: null };
+  if (curso) {
+    const tienePropia = curso.ubicacion_maps || curso.latitud != null;
+    ubic = tienePropia
+      ? { ubicacion_maps: curso.ubicacion_maps || "", latitud: curso.latitud, longitud: curso.longitud }
+      : await obtenerUbicacionInstitucion(); // Curso viejo sin ubicación propia: se precarga la que veían los alumnos
+    if (cursoEditandoId !== curso.id) return; // Si mientras tanto se abrió otro curso, no pisa nada
+  }
+  let lat = ubic.latitud == null ? null : Number(ubic.latitud);
+  let lng = ubic.longitud == null ? null : Number(ubic.longitud);
+  ubicacionTextoOriginal = ubic.ubicacion_maps || "";
+  if (lat == null) {
+    // Cursos viejos que tenían coordenadas pegadas como texto: se convierten en pin
+    const desdeTexto = leerCoordenadas(ubicacionTextoOriginal);
+    if (desdeTexto) ({ latitud: lat, longitud: lng } = desdeTexto);
+  }
+  iniciarSelectorPin("cursoSelectorPin", lat, lng, (la, lo) => {
+    document.getElementById("cursoPinCoordenadas").textContent = textoCoordenadas(la, lo);
+    // El campo de coordenadas siempre refleja dónde está el pin
+    if (document.activeElement !== campo) campo.value = la == null ? "" : `${Number(la).toFixed(6)}, ${Number(lo).toFixed(6)}`;
+  });
+  campo.value = lat == null ? "" : `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+  campo.classList.remove("is-invalid", "is-valid");
+  document.getElementById("cursoPinCoordenadas").textContent = textoCoordenadas(lat, lng);
+  setTimeout(() => {
+    refrescarMapaLeaflet("cursoSelectorPin");
+    if (lat != null) moverPin("cursoSelectorPin", lat, lng); // Centra el mapa en el pin una vez que el modal ya tiene tamaño
+  }, 400);
+}
+
+// Cuando se pegan o escriben coordenadas, mueve el pin ahí
+function prepararCampoCoordenadas() {
+  const campo = document.getElementById("cursoCoordenadas");
+  const ayuda = document.getElementById("cursoCoordenadasAyuda");
+  if (!campo) return;
+  const textoAyuda = ayuda?.textContent || "";
+  const aplicar = () => {
+    const texto = campo.value.trim();
+    if (!texto) {
+      campo.classList.remove("is-invalid", "is-valid");
+      if (ayuda) ayuda.textContent = textoAyuda;
+      return;
+    }
+    const coords = leerCoordenadas(texto);
+    campo.classList.toggle("is-invalid", !coords);
+    campo.classList.toggle("is-valid", !!coords);
+    if (!coords) {
+      if (ayuda) ayuda.textContent = "No entendemos esas coordenadas. Pegá algo como: -26.079947, -58.277096";
+      return;
+    }
+    if (ayuda) ayuda.textContent = textoAyuda;
+    moverPin("cursoSelectorPin", coords.latitud, coords.longitud);
+  };
+  campo.addEventListener("paste", () => setTimeout(aplicar, 0)); // Al pegar, se aplica enseguida
+  campo.addEventListener("change", aplicar); // Al escribir y salir del campo (o Enter)
+  campo.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault(); // Que Enter no envíe el formulario del curso
+      aplicar();
+    }
+  });
+}
+
+// Agrega la ubicación del curso al formulario que se envía (siempre, así también se puede borrar)
+function agregarUbicacionAlFormulario(formData) {
+  const pin = obtenerPin("cursoSelectorPin");
+  // Si hay pin, el pin es la ubicación (se borra cualquier texto viejo de Google Maps).
+  // Sin pin se conserva el texto viejo sólo si no eran coordenadas (ej. un mapa insertado de Google).
+  const textoViejo = !pin && !leerCoordenadas(ubicacionTextoOriginal) ? ubicacionTextoOriginal : "";
+  formData.append("ubicacion_maps", textoViejo);
+  formData.append("latitud", pin ? String(pin.latitud) : "");
+  formData.append("longitud", pin ? String(pin.longitud) : "");
+}
 
 // NUEVO: buscador de lugares con sugerencias; al elegir una, el pin se mueve ahí
 function prepararBuscadorLugares() { // Se llama una vez al preparar el formulario
@@ -840,7 +1099,7 @@ function prepararBuscadorLugares() { // Se llama una vez al preparar el formular
       if (!ok || !data.lugares?.length) { // Si no hubo resultados...
         const vacio = document.createElement("div"); // ...crea un aviso
         vacio.className = "list-group-item text-muted small"; // ...con estilo de item de lista
-        vacio.textContent = ok ? "No encontramos ese lugar. Probá con otra dirección o marcá el punto en el mapa." : (data.mensaje || "No se pudo buscar el lugar"); // ...texto del aviso (textContent evita inyectar HTML)
+        vacio.textContent = ok ? "No está en el mapa gratuito. Buscalo en Google Maps, copiá las coordenadas y pegalas en el campo de abajo." : (data.mensaje || "No se pudo buscar el lugar"); // ...texto del aviso (textContent evita inyectar HTML)
         lista.appendChild(vacio); // ...lo agrega a la lista
         lista.classList.remove("d-none"); // ...y muestra la lista
         return; // ...y termina
@@ -849,7 +1108,15 @@ function prepararBuscadorLugares() { // Se llama una vez al preparar el formular
         const item = document.createElement("button"); // ...crea un botón
         item.type = "button"; // ...que no envía el formulario
         item.className = "list-group-item list-group-item-action small"; // ...con estilo de item clickeable
-        item.textContent = lugar.nombre; // ...mostrando el nombre del lugar (textContent evita inyectar HTML)
+        const titulo = document.createElement("div"); // Nombre corto del lugar
+        titulo.className = "fw-semibold";
+        if (lugar.guardado) titulo.append(h("i", { class: "bi bi-bookmark-check-fill text-success me-1", title: "Lugar ya marcado en AllCursos" }));
+        titulo.append(lugar.nombre);
+        const detalle = document.createElement("div"); // Dirección completa, más chica
+        detalle.className = "text-muted text-truncate";
+        detalle.style.fontSize = "0.75rem";
+        detalle.textContent = lugar.detalle || "";
+        item.append(titulo, detalle);
         item.addEventListener("click", () => { // ...cuando el usuario lo elige...
           moverPin("cursoSelectorPin", lugar.latitud, lugar.longitud); // ...mueve el pin y centra el mapa en ese lugar
           campo.value = lugar.nombre; // ...deja el nombre elegido en el campo
@@ -864,28 +1131,6 @@ function prepararBuscadorLugares() { // Se llama una vez al preparar el formular
   document.addEventListener("click", (e) => { // Cuando se hace clic en cualquier parte de la página...
     if (!lista.contains(e.target) && e.target !== campo) ocultarLista(); // ...si fue fuera del buscador, esconde la lista
   }); // Cierra el listener
-} // Cierra la función
-
-// NUEVO: si el representante cambió la ubicación, la guarda; devuelve true si todo salió bien
-async function guardarUbicacionDelModal() { // Función async porque llama al backend
-  const campo = document.getElementById("cursoUbicacionMaps"); // Busca el campo de texto
-  if (!campo || !institucionIdModal) return true; // Sin campo o sin institución no hay nada que guardar
-  const texto = campo.value.trim(); // Lee el texto sin espacios sobrantes
-  const pin = obtenerPin("cursoSelectorPin"); // Lee el pin actual del mapa (o null)
-  const pinCambio = (pin?.latitud ?? null) !== (pinGuardado?.latitud ?? null) || (pin?.longitud ?? null) !== (pinGuardado?.longitud ?? null); // Compara con el pin guardado
-  if (texto === ubicacionGuardada.trim() && !pinCambio) return true; // Si ni el texto ni el pin cambiaron, no hace falta llamar al backend
-  const { ok, data } = await apiFetch(`/instituciones/${institucionIdModal}/ubicacion`, { // Llama al PUT de ubicación
-    method: "PUT", // Método PUT porque actualiza un dato
-    body: { ubicacion_maps: texto, latitud: pin?.latitud ?? null, longitud: pin?.longitud ?? null }, // Envía el texto escrito y el pin (null si no hay)
-  }); // Cierra la llamada
-  if (!ok) { // Si el backend rechazó la ubicación...
-    document.getElementById("msjNuevoCurso").innerHTML = `<div class="alert alert-danger py-2">${data.mensaje || "No se pudo guardar la ubicación"}</div>`; // ...muestra el error dentro del modal
-    return false; // ...e indica que hubo un problema
-  } // Cierra el if
-  ubicacionGuardada = texto; // Recuerda el nuevo texto guardado
-  pinGuardado = pin; // Recuerda el nuevo pin guardado
-  mostrarMapa("cursoMapaPreview", data.mapa_embed_url); // Actualiza el mapa del modal
-  return true; // Todo salió bien
 } // Cierra la función
 
 // ---------- Imagen del curso: vista previa + arrastrar y soltar ----------
@@ -955,7 +1200,7 @@ function actualizarFechasCurso() {
   // (el navegador avisa "cambio" con años a medio escribir, ej. 0002) reinicia
   // el campo y borra la fecha. La validación inicio <= fin la hace el formulario.
   const anioCompleto = (valor) => Number(String(valor).slice(0, 4)) >= 1900; // Año ya escrito del todo
-  const aviso = "Opcional. Cuando pase la fecha de finalización, las inscripciones se finalizan solas y los alumnos pueden descargar su certificado.";
+  const aviso = "Opcional. Cuando pase la fecha de finalización, te avisamos para que emitas los certificados a los alumnos que cumplieron.";
   let texto = aviso;
   let clase = "bi-info-circle";
   if (anioCompleto(inicio.value) && anioCompleto(fin.value)) {
@@ -996,8 +1241,9 @@ function resetearModalCurso() {
   actualizarContadorDescripcion();
   actualizarFechasCurso();
   cargarRequisitosEnFormulario([]);
+  cargarDocentesEnFormulario([]);
   document.getElementById("buscadorLugar").value = ""; // Vacía el buscador al abrir el modal
-  cargarUbicacionEnModal(); // Precarga la ubicación guardada y su mapa
+  cargarUbicacionEnModal(null); // Curso nuevo: mapa vacío centrado en Formosa
 }
 
 // Se llama desde el botón "Editar" de cada fila de la tabla de cursos
@@ -1028,7 +1274,9 @@ async function abrirModalEditarCurso(id) {
   mostrarVistaPreviaImagen(curso.imagen_url || null, curso.imagen_url ? "Imagen actual · cambiar imagen" : null);
 
   await cargarRequisitosEnFormulario((curso.requisitos || []).map((r) => r.descripcion));
-  cargarUbicacionEnModal(); // También al editar un curso, muestra la ubicación de la institución
+  cargarDocentesEnFormulario(curso.docentes || []);
+  document.getElementById("buscadorLugar").value = "";
+  cargarUbicacionEnModal(curso); // Muestra la ubicación propia de este curso
 
   bootstrap.Modal.getOrCreateInstance(document.getElementById("modalNuevoCurso")).show();
 }
@@ -1036,7 +1284,9 @@ async function abrirModalEditarCurso(id) {
 async function prepararFormularioNuevoCurso() {
   await cargarCategoriasEnSelect();
   await cargarRequisitosEnFormulario();
-  cargarUbicacionEnModal(); // Precarga la ubicación al preparar el formulario
+  prepararEquipoDocente();
+  cargarUbicacionEnModal(null); // Mapa vacío centrado en Formosa
+  prepararCampoCoordenadas(); // Pegar coordenadas de Google Maps mueve el pin
 
   const selectCategoria = document.getElementById("cursoCategoria");
   const inputCategoriaNueva = document.getElementById("cursoCategoriaNueva");
@@ -1047,7 +1297,6 @@ async function prepararFormularioNuevoCurso() {
   });
 
   document.getElementById("modalNuevoCurso").addEventListener("shown.bs.modal", () => refrescarMapaLeaflet("cursoSelectorPin")); // Al abrirse el modal, redibuja el mapa para que tome su tamaño real
-  document.querySelector("#modalNuevoCurso details.detalle-alternativa")?.addEventListener("toggle", () => refrescarMapaLeaflet("cursoSelectorPin"));
   prepararBuscadorLugares(); // Activa el buscador de lugares con sugerencias
   prepararZonaImagen();
   document.getElementById("cursoDescripcion")?.addEventListener("input", actualizarContadorDescripcion);
@@ -1099,8 +1348,6 @@ async function prepararFormularioNuevoCurso() {
         categoriaId = dataCat.categoria.id;
       }
 
-      if (!(await guardarUbicacionDelModal())) return; // Guarda la ubicación primero; si falla, no sigue con el curso
-
 
       const formData = new FormData();
       formData.append("titulo", document.getElementById("cursoTitulo").value.trim());
@@ -1114,9 +1361,17 @@ async function prepararFormularioNuevoCurso() {
       formData.append("fecha_fin", fechaFin);
       // Siempre se manda (incluso vacío) para poder sacar requisitos al editar
       formData.append("requisitos", JSON.stringify(requisitosCurso)); // Textos de los requisitos de este curso
+      agregarUbicacionAlFormulario(formData); // Ubicación propia de ESTE curso
 
       const archivoImagen = document.getElementById("cursoImagen").files[0];
       if (archivoImagen) formData.append("imagen", archivoImagen);
+
+      // Equipo docente (siempre se manda, así al editar también se pueden sacar docentes)
+      const errorDocentes = agregarDocentesAlFormulario(formData);
+      if (errorDocentes) {
+        mostrarError(errorDocentes);
+        return;
+      }
 
       const { ok, data } = await apiFetchForm(
         editando ? `/cursos/${cursoEditandoId}` : "/cursos",
@@ -1140,19 +1395,107 @@ async function prepararFormularioNuevoCurso() {
 
 // ==========================================
 // REPRESENTANTE: encuestas
+// - "Para un curso" (Satisfaccion): sólo la ven los alumnos de ese curso.
+// - "General" (Interes): la ven todos; tiene ideas de cursos para votar.
+// - Duran hasta que el representante las finaliza o hasta una fecha.
 // ==========================================
+let ideasEncuesta = []; // Ideas de cursos cargadas en el modal: { titulo, origen: "nuevo"|"volver", curso_id? }
+
+const hoyLocalISO = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+const cursoTerminado = (c) => !!c.fecha_fin && String(c.fecha_fin).slice(0, 10) < hoyLocalISO();
+
+// Llena los selectores de cursos del modal: abiertos y terminados por separado
+function cargarCursosEnModalEncuesta(cursos) {
+  const selectCurso = document.getElementById("encuestaCurso");
+  const selectVolver = document.getElementById("ideaVolverCurso");
+  const abiertos = cursos.filter((c) => !cursoTerminado(c));
+  const terminados = cursos.filter(cursoTerminado);
+  const opcion = (c) =>
+    h("option", { value: c.id }, c.titulo, c.fecha_fin ? ` (${cursoTerminado(c) ? "terminó" : "hasta"} el ${formatearDia(c.fecha_fin)})` : "");
+  if (selectCurso) {
+    selectCurso.replaceChildren(
+      h("option", { value: "" }, cursos.length ? "Elegí el curso..." : "Todavía no tenés cursos publicados"),
+      abiertos.length ? h("optgroup", { label: "Cursos abiertos (se están dictando)" }, abiertos.map(opcion)) : null,
+      terminados.length ? h("optgroup", { label: "Cursos terminados" }, terminados.map(opcion)) : null,
+    );
+  }
+  if (selectVolver) {
+    selectVolver.replaceChildren(
+      h("option", { value: "" }, "Traer de vuelta un curso..."),
+      terminados.length ? h("optgroup", { label: "Cursos terminados" }, terminados.map((c) => h("option", { value: c.id }, c.titulo))) : null,
+      abiertos.length ? h("optgroup", { label: "Otros cursos tuyos" }, abiertos.map((c) => h("option", { value: c.id }, c.titulo))) : null,
+    );
+  }
+}
+
+function dibujarIdeasEncuesta() {
+  const lista = document.getElementById("listaIdeasEncuesta");
+  if (!lista) return;
+  if (ideasEncuesta.length === 0) {
+    lista.replaceChildren(h("p", { class: "text-muted small mb-0" }, "Todavía no agregaste ideas."));
+    return;
+  }
+  lista.replaceChildren(
+    h("div", { class: "ideas-chips" },
+      ideasEncuesta.map((idea, i) =>
+        h("span", { class: `idea-chip ${idea.origen === "volver" ? "volver" : ""}` },
+          h("i", { class: `bi ${idea.origen === "volver" ? "bi-arrow-repeat" : "bi-stars"}` }),
+          idea.titulo,
+          idea.origen === "volver" ? h("small", {}, "vuelve") : null,
+          h("button", { type: "button", class: "idea-chip-quitar", title: "Quitar", "aria-label": `Quitar ${idea.titulo}`, onClick: () => { ideasEncuesta.splice(i, 1); dibujarIdeasEncuesta(); } },
+            h("i", { class: "bi bi-x" })),
+        ),
+      ),
+    ),
+  );
+}
+
+function agregarIdeaEncuesta(idea) {
+  const titulo = idea.titulo.trim();
+  if (!titulo) return;
+  if (ideasEncuesta.some((i) => i.titulo.toLowerCase() === titulo.toLowerCase())) {
+    mostrarToast("Esa idea ya está en la lista", "advertencia");
+    return;
+  }
+  if (ideasEncuesta.length >= 20) {
+    mostrarToast("Podés cargar hasta 20 ideas", "advertencia");
+    return;
+  }
+  ideasEncuesta.push({ ...idea, titulo });
+  dibujarIdeasEncuesta();
+}
+
 function prepararFormularioNuevaEncuesta() {
   const radios = document.querySelectorAll('input[name="tipoEncuesta"]');
+  const radiosDuracion = document.querySelectorAll('input[name="duracionEncuesta"]');
   const grupoCategoria = document.getElementById("grupoEncuestaCategoria");
   const grupoCurso = document.getElementById("grupoEncuestaCurso");
+  const seccionIdeas = document.getElementById("seccionIdeasEncuesta");
+  const grupoFecha = document.getElementById("grupoFechaCierre");
+  const inputFecha = document.getElementById("encuestaFechaCierre");
+  const tipoActual = () => document.querySelector('input[name="tipoEncuesta"]:checked').value;
 
   const actualizarVisibilidad = () => {
-    const tipo = document.querySelector('input[name="tipoEncuesta"]:checked').value;
-    grupoCategoria.classList.toggle("d-none", tipo !== "Interes");
-    grupoCurso.classList.toggle("d-none", tipo !== "Satisfaccion");
+    const general = tipoActual() === "Interes";
+    grupoCategoria.classList.toggle("d-none", !general);
+    grupoCurso.classList.toggle("d-none", general);
+    seccionIdeas.classList.toggle("d-none", !general);
+    document.getElementById("numeroSeccionPreguntas").textContent = general ? "4" : "3";
+    document.getElementById("tituloSeccionPreguntas").textContent = general ? "Preguntas (opcional)" : "Preguntas de la encuesta";
+    document.getElementById("encuestaTitulo").placeholder = general
+      ? "Ej: ¿Qué curso te gustaría que traigamos el año que viene?"
+      : "Ej: ¿Cómo te está yendo en el curso?";
+    EncuestaBuilder.setPermitirVacio(general);
   };
-  radios.forEach((r) => r.addEventListener("change", actualizarVisibilidad));
-  actualizarVisibilidad();
+  const actualizarDuracion = () => {
+    const conFecha = document.querySelector('input[name="duracionEncuesta"]:checked').value === "fecha";
+    grupoFecha.classList.toggle("d-none", !conFecha);
+    inputFecha.required = conFecha;
+    inputFecha.min = hoyLocalISO();
+  };
 
   const selectCategoria = document.getElementById("encuestaCategoria");
   if (selectCategoria) {
@@ -1168,25 +1511,63 @@ function prepararFormularioNuevaEncuesta() {
 
   // Constructor dinámico de preguntas (selección múltiple / texto abierto / rating)
   EncuestaBuilder.init("#constructorPreguntas");
+  radios.forEach((r) => r.addEventListener("change", actualizarVisibilidad));
+  radiosDuracion.forEach((r) => r.addEventListener("change", actualizarDuracion));
+  actualizarVisibilidad();
+  actualizarDuracion();
+  dibujarIdeasEncuesta();
+
+  // Ideas de cursos: nuevas (texto) o traer de vuelta un curso propio
+  const inputIdea = document.getElementById("nuevaIdeaEncuesta");
+  const agregarIdeaNueva = () => {
+    agregarIdeaEncuesta({ titulo: inputIdea.value, origen: "nuevo" });
+    inputIdea.value = "";
+    inputIdea.focus();
+  };
+  document.getElementById("btnAgregarIdea").addEventListener("click", agregarIdeaNueva);
+  inputIdea.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      agregarIdeaNueva();
+    }
+  });
+  document.getElementById("btnAgregarIdeaVolver").addEventListener("click", () => {
+    const select = document.getElementById("ideaVolverCurso");
+    if (!select.value) return mostrarToast("Elegí el curso que querés traer de vuelta", "advertencia");
+    agregarIdeaEncuesta({ titulo: select.selectedOptions[0].textContent, origen: "volver", curso_id: Number(select.value) });
+    select.value = "";
+  });
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const tipo = document.querySelector('input[name="tipoEncuesta"]:checked').value;
+    const tipo = tipoActual();
+    const general = tipo === "Interes";
     const msj = document.getElementById("msjNuevaEncuesta");
+    const avisar = (texto) => {
+      msj.replaceChildren(h("div", { class: "alert alert-warning py-2" }, texto));
+      msj.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    };
 
     const { errores, preguntas } = EncuestaBuilder.obtenerPreguntas();
-    if (errores.length > 0) {
-      msj.replaceChildren(h("div", { class: "alert alert-warning py-2" }, errores[0]));
-      msj.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      return;
+    if (errores.length > 0) return avisar(errores[0]);
+    if (!general && !document.getElementById("encuestaCurso").value) return avisar("Elegí el curso al que va dirigida la encuesta.");
+    const conFecha = document.querySelector('input[name="duracionEncuesta"]:checked').value === "fecha";
+    if (conFecha && !inputFecha.value) return avisar("Elegí hasta qué día se puede responder.");
+    if (conFecha && inputFecha.value < hoyLocalISO()) return avisar("La fecha de cierre no puede ser anterior a hoy.");
+    const permitePropuestas = document.getElementById("encuestaPermitePropuestas").checked;
+    if (general && preguntas.length === 0 && ideasEncuesta.length === 0 && !permitePropuestas) {
+      return avisar("Agregá ideas de cursos, alguna pregunta, o dejá que los estudiantes propongan ideas.");
     }
 
     const cuerpo = {
       titulo: document.getElementById("encuestaTitulo").value.trim(),
       descripcion: document.getElementById("encuestaDescripcion").value.trim(),
       tipo,
-      categoria_id: tipo === "Interes" ? document.getElementById("encuestaCategoria").value || null : null,
-      curso_id: tipo === "Satisfaccion" ? document.getElementById("encuestaCurso").value : null,
+      categoria_id: general ? document.getElementById("encuestaCategoria").value || null : null,
+      curso_id: general ? null : document.getElementById("encuestaCurso").value,
+      fecha_cierre: conFecha ? inputFecha.value : null,
+      ideas: general ? ideasEncuesta : [],
+      permite_propuestas: general ? permitePropuestas : false,
       preguntas,
     };
 
@@ -1197,16 +1578,26 @@ function prepararFormularioNuevaEncuesta() {
 
     if (ok) {
       form.reset();
+      ideasEncuesta = [];
+      dibujarIdeasEncuesta();
       actualizarVisibilidad();
+      actualizarDuracion();
       EncuestaBuilder.reset();
       msj.replaceChildren();
       bootstrap.Modal.getInstance(document.getElementById("modalNuevaEncuesta"))?.hide();
-      mostrarToast("Encuesta publicada", "exito");
+      mostrarToast(general ? "Encuesta publicada para todos los estudiantes" : "Encuesta publicada para los alumnos del curso", "exito");
       cargarEncuestasRepresentante();
     } else {
       msj.replaceChildren(h("div", { class: "alert alert-danger py-2" }, data.mensaje || "No se pudo crear la encuesta"));
     }
   });
+}
+
+// Texto de vigencia: "Hasta que la finalices" / "Hasta el 20/12/2026" / "Finalizada"
+function vigenciaEncuesta(enc) {
+  if (!enc.vigente) return { clase: "cancelado", icono: "bi-lock", texto: "Finalizada", detalle: enc.fecha_cierre && String(enc.fecha_cierre).slice(0, 10) < hoyLocalISO() ? `Cerró el ${formatearDia(enc.fecha_cierre)}` : "La finalizaste" };
+  if (enc.fecha_cierre) return { clase: "finalizado", icono: "bi-broadcast", texto: "Activa", detalle: `Hasta el ${formatearDia(enc.fecha_cierre)}` };
+  return { clase: "finalizado", icono: "bi-broadcast", texto: "Activa", detalle: "Hasta que la finalices" };
 }
 
 async function cargarEncuestasRepresentante() {
@@ -1220,44 +1611,56 @@ async function cargarEncuestasRepresentante() {
   }
 
   const encuestas = data.encuestas || [];
-  actualizarMetrica("encuestas", encuestas.filter((e) => e.activo).length);
+  actualizarMetrica("encuestas", encuestas.filter((e) => e.vigente).length);
   if (encuestas.length === 0) {
     contenedor.replaceChildren(
       h("div", { class: "panel-card-cuerpo" },
         estadoVacioPanel("bi-clipboard2-plus", "Todavía no creaste ninguna encuesta",
-          "Las encuestas te ayudan a saber qué cursos ofrecer y cómo mejorarlos.",
+          "Preguntale a los alumnos de un curso cómo les va, o a todos qué curso quieren que traigas.",
           h("button", { type: "button", class: "btn btn-outline-primary btn-sm mt-3", "data-bs-toggle": "modal", "data-bs-target": "#modalNuevaEncuesta" },
             h("i", { class: "bi bi-plus-circle me-1" }), "Crear encuesta"))),
     );
     return;
   }
 
+  // Activas primero
+  encuestas.sort((a, b) => Number(b.vigente) - Number(a.vigente));
+
   contenedor.replaceChildren(
     h("div", { class: "table-responsive tabla-contenedor" },
       h("table", { class: "table align-middle tabla-panel" },
-        h("thead", {}, h("tr", {}, h("th", {}, "Encuesta"), h("th", {}, "Tipo"), h("th", { class: "text-center" }, "Respuestas"), h("th", {}, "Estado"), h("th", { class: "text-end" }, "Acciones"))),
+        h("thead", {}, h("tr", {}, h("th", {}, "Encuesta"), h("th", {}, "Para"), h("th", { class: "text-center" }, "Participación"), h("th", {}, "Vigencia"), h("th", { class: "text-end" }, "Acciones"))),
         h("tbody", {},
           encuestas.map((enc) => {
-            const satisfaccion = enc.tipo === "Satisfaccion";
-            return h("tr", {},
+            const deCurso = enc.tipo === "Satisfaccion";
+            const vigencia = vigenciaEncuesta(enc);
+            return h("tr", { class: enc.vigente ? "" : "fila-encuesta-finalizada" },
               h("td", {},
                 h("span", { class: "fw-semibold d-block" }, enc.titulo),
-                h("span", { class: "small text-muted" }, satisfaccion ? `Curso: ${enc.curso?.titulo || "-"}` : `Categoría: ${enc.categoria?.nombre || "General"}`),
+                !deCurso && enc.idea_top
+                  ? h("span", { class: "small text-success" }, h("i", { class: "bi bi-trophy-fill me-1" }), `Más votada: ${enc.idea_top.titulo} (${enc.idea_top.votos})`)
+                  : h("span", { class: "small text-muted" }, `Creada el ${formatearDia(enc.fecha_creacion)}`),
               ),
               h("td", {},
-                h("span", { class: `tipo-chip ${satisfaccion ? "satisfaccion" : "interes"}` },
-                  h("i", { class: `bi ${satisfaccion ? "bi-star-fill" : "bi-lightbulb-fill"}` }), satisfaccion ? "Satisfacción" : "Interés"),
+                h("span", { class: `tipo-chip ${deCurso ? "satisfaccion" : "interes"}` },
+                  h("i", { class: `bi ${deCurso ? "bi-mortarboard-fill" : "bi-people-fill"}` }), deCurso ? "Alumnos del curso" : "Todos (general)"),
+                deCurso && h("span", { class: "small text-muted d-block mt-1" }, enc.curso?.titulo || "-"),
               ),
-              h("td", { class: "text-center" }, h("span", { class: "respuestas-cantidad" }, h("i", { class: "bi bi-people" }), enc.total_respuestas ?? 0)),
+              h("td", { class: "text-center" },
+                h("span", { class: "respuestas-cantidad", title: "Respuestas" }, h("i", { class: "bi bi-people" }), enc.total_respuestas ?? 0),
+                !deCurso && enc.total_ideas > 0
+                  ? h("span", { class: "small text-muted d-block mt-1" }, `${enc.total_ideas} ideas · ${enc.total_votos} votos`)
+                  : null,
+              ),
               h("td", {},
-                h("span", { class: `estado-chip ${enc.activo ? "finalizado" : "cancelado"}` },
-                  h("i", { class: `bi ${enc.activo ? "bi-broadcast" : "bi-lock"}` }), enc.activo ? "Activa" : "Cerrada"),
+                h("span", { class: `estado-chip ${vigencia.clase}` }, h("i", { class: `bi ${vigencia.icono}` }), vigencia.texto),
+                h("span", { class: "small text-muted d-block mt-1" }, vigencia.detalle),
               ),
               h("td", { class: "text-end text-nowrap" },
                 h("a", { class: "btn btn-sm btn-outline-primary me-1", href: `estadisticas_encuesta.html?id=${encodeURIComponent(enc.id)}` },
-                  h("i", { class: "bi bi-bar-chart-line me-1" }), "Estadísticas"),
-                enc.activo && h("button", { type: "button", class: "btn btn-sm btn-icono btn-outline-secondary", title: "Cerrar encuesta", "aria-label": "Cerrar encuesta", onClick: () => cerrarEncuesta(enc.id) },
-                  h("i", { class: "bi bi-lock" })),
+                  h("i", { class: "bi bi-bar-chart-line me-1" }), "Resultados"),
+                enc.vigente && h("button", { type: "button", class: "btn btn-sm btn-outline-danger", title: "Finalizar encuesta", onClick: () => cerrarEncuesta(enc.id) },
+                  h("i", { class: "bi bi-flag-fill me-1" }), "Finalizar"),
               ),
             );
           }),
@@ -1269,15 +1672,15 @@ async function cargarEncuestasRepresentante() {
 
 async function cerrarEncuesta(id) {
   const confirmado = await confirmarAccion(
-    "¿Cerrar esta encuesta? Ya no se podrán enviar más respuestas.",
-    { titulo: "Cerrar encuesta", textoConfirmar: "Sí, cerrar", peligroso: false },
+    "Al finalizarla, los estudiantes dejan de verla y ya no se pueden enviar respuestas ni votos. Vos vas a seguir viendo los resultados.",
+    { titulo: "¿Finalizar encuesta?", textoConfirmar: "Sí, finalizar", peligroso: false },
   );
   if (!confirmado) return;
   const { ok, data } = await apiFetch(`/encuestas/${id}/cerrar`, { method: "PUT" });
   if (ok) {
-    mostrarToast("Encuesta cerrada", "info");
+    mostrarToast("Encuesta finalizada", "info");
     cargarEncuestasRepresentante();
   } else {
-    mostrarToast(data.mensaje || "No se pudo cerrar la encuesta", "error");
+    mostrarToast(data.mensaje || "No se pudo finalizar la encuesta", "error");
   }
 }

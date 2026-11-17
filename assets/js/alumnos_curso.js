@@ -11,12 +11,19 @@ const ESTADOS_ALUMNO = {
   Cancelado: { texto: "Dado de baja", clase: "cancelado", icono: "bi-box-arrow-right" },
 };
 
+// El certificado sólo existe si la institución lo emitió (y no lo anuló)
+const tieneCertificado = (ins) => !!ins.certificado && !ins.certificado.anulado;
+// Se puede certificar a quien está cursando o terminó, mientras no tenga un certificado vigente
+const puedeCertificarse = (ins) => ["Inscripto", "Cursando", "Finalizado"].includes(ins.estado) && !tieneCertificado(ins);
+
 const FILTROS_ALUMNOS = [
   { clave: "todos", texto: "Todos", estados: null },
   { clave: "activos", texto: "Activos", estados: ["En espera", "Inscripto", "Cursando"] },
-  { clave: "finalizados", texto: "Finalizados", estados: ["Finalizado"] },
+  { clave: "por_certificar", texto: "Por certificar", prueba: (a) => a.estado === "Finalizado" && !tieneCertificado(a) },
+  { clave: "certificados", texto: "Certificados", prueba: tieneCertificado },
   { clave: "bajas", texto: "Dados de baja", estados: ["Cancelado"] },
 ];
+const pasaFiltro = (f, ins) => (f.prueba ? f.prueba(ins) : !f.estados || f.estados.includes(ins.estado));
 
 let alumnos = []; // Inscripciones del curso (con usuario y persona)
 let filtroAlumnos = "todos";
@@ -47,9 +54,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   alumnos = (data.inscripciones || []).filter((ins) => ins.usuario?.persona);
   cursoActual = data.curso;
   dibujarCabeceraCurso(data.curso);
-  dibujarMetricasAlumnos(data.curso);
-  dibujarFiltrosAlumnos();
-  dibujarAlumnos();
+  redibujarAlumnos();
   document.getElementById("buscarAlumno").addEventListener("input", dibujarAlumnos);
 });
 
@@ -125,7 +130,7 @@ function dibujarMetricasAlumnos(curso) {
   const metricas = [
     { icono: "bi-people", etiqueta: "Alumnos activos", valor: activos, color: "primario" },
     { icono: "bi-door-open", etiqueta: "Cupos libres", valor: `${Math.max(0, (curso.cupo_maximo || 0) - activos - cuenta(["Finalizado"]))} de ${curso.cupo_maximo}`, color: "azul" },
-    { icono: "bi-award", etiqueta: "Finalizaron", valor: cuenta(["Finalizado"]), color: "verde" },
+    { icono: "bi-award", etiqueta: "Certificados emitidos", valor: alumnos.filter(tieneCertificado).length, color: "verde" },
     { icono: "bi-box-arrow-right", etiqueta: "Dados de baja", valor: cuenta(["Cancelado"]), color: "ambar" },
   ];
   document.getElementById("metricasAlumnos").replaceChildren(
@@ -146,7 +151,7 @@ function dibujarMetricasAlumnos(curso) {
 function dibujarFiltrosAlumnos() {
   document.getElementById("filtrosAlumnos").replaceChildren(
     ...FILTROS_ALUMNOS.map((f) => {
-      const cantidad = f.estados ? alumnos.filter((a) => f.estados.includes(a.estado)).length : alumnos.length;
+      const cantidad = alumnos.filter((a) => pasaFiltro(f, a)).length;
       return h("button", {
         type: "button",
         role: "tab",
@@ -179,7 +184,7 @@ function dibujarAlumnos() {
   const filtro = FILTROS_ALUMNOS.find((f) => f.clave === filtroAlumnos);
   const texto = (document.getElementById("buscarAlumno").value || "").trim().toLowerCase();
   const visibles = alumnos.filter((ins) => {
-    if (filtro.estados && !filtro.estados.includes(ins.estado)) return false;
+    if (!pasaFiltro(filtro, ins)) return false;
     if (!texto) return true;
     const p = ins.usuario.persona;
     return `${nombreCompleto(p)} ${p.dni || ""} ${ins.usuario.email_login || ""}`.toLowerCase().includes(texto);
@@ -192,9 +197,23 @@ function dibujarAlumnos() {
   lista.replaceChildren(...visibles.map(tarjetaAlumno));
 }
 
+// Franja con el estado del certificado del alumno
+function estadoCertificado(ins) {
+  if (tieneCertificado(ins)) {
+    return h("div", { class: "tarjeta-alumno-certificado emitido" },
+      h("i", { class: "bi bi-patch-check-fill" }),
+      h("span", {}, `Certificado emitido el ${fechaCortaAlumno(ins.certificado.fecha_emision)}`));
+  }
+  if (ins.estado === "Finalizado") {
+    return h("div", { class: "tarjeta-alumno-certificado pendiente" },
+      h("i", { class: "bi bi-hourglass-split" }),
+      h("span", {}, ins.certificado?.anulado ? "Certificado anulado" : "Terminó la cursada: falta decidir si se certifica"));
+  }
+  return null;
+}
+
 function tarjetaAlumno(ins) {
   const p = ins.usuario.persona;
-  const activo = !["Finalizado", "Cancelado"].includes(ins.estado);
   return h("div", { class: "col-md-6 col-xl-4" },
     h("article", { class: `tarjeta-alumno${ins.estado === "Cancelado" ? " de-baja" : ""}` },
       h("div", { class: "tarjeta-alumno-cabecera" },
@@ -214,14 +233,15 @@ function tarjetaAlumno(ins) {
         h("div", { class: "tarjeta-alumno-baja" },
           h("strong", {}, "Motivo de la baja: "), ins.motivo_baja,
           ins.comentario_baja && h("em", { class: "d-block mt-1" }, `"${ins.comentario_baja}"`)),
+      estadoCertificado(ins),
       h("div", { class: "tarjeta-alumno-pie" },
         h("button", { type: "button", class: "btn btn-sm btn-primary", onClick: () => mostrarModalContacto(ins.id) },
           h("i", { class: "bi bi-person-lines-fill me-1" }), "Ver perfil"),
         h("a", { class: "btn btn-sm btn-outline-secondary", href: `mailto:${ins.usuario.email_login}`, title: "Escribirle un email" },
           h("i", { class: "bi bi-envelope" })),
-        activo &&
-          h("button", { type: "button", class: "btn btn-sm btn-outline-success ms-auto", onClick: () => marcarFinalizado(ins.id, nombreCompleto(p)) },
-            h("i", { class: "bi bi-award me-1" }), "Finalizar"),
+        puedeCertificarse(ins) &&
+          h("button", { type: "button", class: "btn btn-sm btn-success ms-auto", onClick: () => emitirCertificado(ins.id, nombreCompleto(p)) },
+            h("i", { class: "bi bi-award me-1" }), "Certificar"),
       ),
     ),
   );
@@ -261,7 +281,7 @@ function mostrarModalContacto(inscripcionId) {
     }
   });
 
-  const activo = !["Finalizado", "Cancelado"].includes(ins.estado);
+  const activo = ["Inscripto", "Cursando"].includes(ins.estado);
   const contenido = document.getElementById("cuerpoModalContacto");
   contenido.replaceChildren(
     h("div", { class: "perfil-alumno-cabecera" },
@@ -291,6 +311,10 @@ function mostrarModalContacto(inscripcionId) {
       filaPerfil("bi-calendar-check", "Fecha de inscripción", fechaCortaAlumno(ins.fecha_inscripcion)),
       filaPerfil("bi-patch-check", "Contacto verificado",
         ins.contacto_verificado ? "Sí: confirmó un código enviado a su email o teléfono" : "No: se inscribió con su cuenta, sin código adicional"),
+      filaPerfil("bi-award", "Certificado",
+        tieneCertificado(ins)
+          ? `Emitido el ${fechaCortaAlumno(ins.certificado.fecha_emision)} · código ${ins.certificado.codigo_verificacion}`
+          : ins.certificado?.anulado ? "Anulado: ya no es válido" : "Todavía no emitido"),
 
       ins.motivo_baja && [
         h("p", { class: "seccion-perfil" }, "Baja del curso"),
@@ -303,21 +327,88 @@ function mostrarModalContacto(inscripcionId) {
         h("i", { class: "bi bi-lock" }),
         h("span", {}, "Estos datos son privados del alumno. Usalos sólo para comunicarte por temas de este curso: horarios, cambios, avisos o su certificado.")),
     ),
-    h("div", { class: "modal-footer" },
-      activo && h("button", { type: "button", class: "btn btn-outline-success me-auto", onClick: () => marcarFinalizado(ins.id, nombreCompleto(p)) },
-        h("i", { class: "bi bi-award me-1" }), "Marcar como finalizado"),
-      h("button", { type: "button", class: "btn btn-secondary", "data-bs-dismiss": "modal" }, "Cerrar"),
+    h("div", { class: "modal-footer flex-wrap" },
+      puedeCertificarse(ins) && h("button", { type: "button", class: "btn btn-success", onClick: () => emitirCertificado(ins.id, nombreCompleto(p)) },
+        h("i", { class: "bi bi-award me-1" }), "Emitir certificado"),
+      activo && h("button", { type: "button", class: "btn btn-outline-secondary", title: "Por ejemplo, si no asistió o no aprobó", onClick: () => marcarFinalizado(ins.id, nombreCompleto(p)) },
+        h("i", { class: "bi bi-flag me-1" }), "Cerrar sin certificado"),
+      tieneCertificado(ins) && h("button", { type: "button", class: "btn btn-outline-danger", onClick: () => anularCertificado(ins.id, nombreCompleto(p)) },
+        h("i", { class: "bi bi-x-octagon me-1" }), "Anular certificado"),
+      h("button", { type: "button", class: "btn btn-secondary ms-auto", "data-bs-dismiss": "modal" }, "Cerrar"),
     ),
   );
 
   bootstrap.Modal.getOrCreateInstance(document.getElementById("modalContactoAlumno")).show();
 }
 
+// Vuelve a dibujar todo lo que depende del estado de los alumnos
+function redibujarAlumnos() {
+  dibujarMetricasAlumnos(cursoActual);
+  dibujarAvisoCertificados();
+  dibujarFiltrosAlumnos();
+  dibujarAlumnos();
+}
+
+// Aviso fijo: cómo funcionan los certificados y cuántos alumnos esperan uno
+function dibujarAvisoCertificados() {
+  const pendientes = alumnos.filter((a) => a.estado === "Finalizado" && !tieneCertificado(a) && !a.certificado?.anulado).length;
+  const aviso = document.getElementById("avisoCertificados");
+  aviso.className = `aviso-certificados mt-4${pendientes ? " con-pendientes" : ""}`;
+  aviso.replaceChildren(
+    h("i", { class: `bi ${pendientes ? "bi-exclamation-circle-fill" : "bi-shield-check"}` }),
+    h("div", {},
+      h("strong", { class: "d-block" },
+        pendientes
+          ? `${pendientes} ${pendientes === 1 ? "alumno terminó" : "alumnos terminaron"} la cursada y ${pendientes === 1 ? "espera" : "esperan"} tu decisión`
+          : "Vos decidís quién recibe el certificado"),
+      h("span", { class: "d-block" }, "Terminar la cursada no da el certificado automáticamente: emitilo sólo a quienes cumplieron (asistencia, trabajos, evaluaciones). Cada certificado tiene un código QR que cualquiera puede verificar."),
+      pendientes > 0 &&
+        h("button", { type: "button", class: "btn btn-sm btn-warning mt-2", onClick: () => {
+          filtroAlumnos = "por_certificar";
+          dibujarFiltrosAlumnos();
+          dibujarAlumnos();
+          document.getElementById("listaAlumnos").scrollIntoView({ behavior: "smooth", block: "start" });
+        } }, h("i", { class: "bi bi-funnel me-1" }), "Ver alumnos por certificar"),
+    ),
+  );
+}
+
+async function emitirCertificado(inscripcionId, nombre = "este alumno") {
+  bootstrap.Modal.getInstance(document.getElementById("modalContactoAlumno"))?.hide();
+  const confirmado = await confirmarAccion(
+    `¿Confirmás que ${nombre} cumplió con el curso (asistencia y evaluaciones)? Se le va a emitir el certificado con código QR y va a poder descargarlo.`,
+    { titulo: "Emitir certificado", textoConfirmar: "Sí, emitir certificado", peligroso: false },
+  );
+  if (!confirmado) return;
+  const { ok, data } = await apiFetch(`/inscripciones/${inscripcionId}/certificado`, { method: "POST" });
+  if (!ok) return mostrarToast(data.mensaje || "No se pudo emitir el certificado", "error");
+  mostrarToast(`Certificado emitido para ${nombre}`, "exito");
+  const ins = alumnos.find((a) => a.id === inscripcionId);
+  if (ins) Object.assign(ins, { estado: "Finalizado", certificado: data.certificado });
+  redibujarAlumnos();
+}
+
+async function anularCertificado(inscripcionId, nombre = "este alumno") {
+  bootstrap.Modal.getInstance(document.getElementById("modalContactoAlumno"))?.hide();
+  const confirmado = await confirmarAccion(
+    `¿Anular el certificado de ${nombre}? Ya no va a poder descargarlo y, si alguien escanea el QR, va a figurar como anulado. Podés volver a emitirlo después.`,
+    { titulo: "Anular certificado", textoConfirmar: "Sí, anular", peligroso: true },
+  );
+  if (!confirmado) return;
+  const { ok, data } = await apiFetch(`/inscripciones/${inscripcionId}/certificado`, { method: "DELETE" });
+  if (!ok) return mostrarToast(data.mensaje || "No se pudo anular el certificado", "error");
+  mostrarToast(`Se anuló el certificado de ${nombre}`, "exito");
+  const ins = alumnos.find((a) => a.id === inscripcionId);
+  if (ins?.certificado) ins.certificado.anulado = true;
+  redibujarAlumnos();
+}
+
+// Cierra la cursada SIN certificado (por ejemplo, si no asistió o no aprobó)
 async function marcarFinalizado(inscripcionId, nombre = "este alumno") {
   bootstrap.Modal.getInstance(document.getElementById("modalContactoAlumno"))?.hide();
   const confirmado = await confirmarAccion(
-    `¿Marcar a ${nombre} como Finalizado? Va a poder descargar su certificado.`,
-    { titulo: "Finalizar cursada", textoConfirmar: "Sí, finalizar", peligroso: false },
+    `¿Cerrar la cursada de ${nombre} sin certificado? Queda como "Finalizado" pero no va a poder descargar un certificado. Si después cambiás de idea, podés emitírselo.`,
+    { titulo: "Cerrar sin certificado", textoConfirmar: "Sí, cerrar", peligroso: false },
   );
   if (!confirmado) return;
   const { ok, data } = await apiFetch(`/inscripciones/${inscripcionId}`, {
@@ -325,12 +416,10 @@ async function marcarFinalizado(inscripcionId, nombre = "este alumno") {
     body: { estado: "Finalizado" },
   });
   if (ok) {
-    mostrarToast(`${nombre} fue marcado como Finalizado`, "exito");
+    mostrarToast(`Se cerró la cursada de ${nombre}`, "exito");
     const ins = alumnos.find((a) => a.id === inscripcionId);
     if (ins) ins.estado = "Finalizado";
-    dibujarMetricasAlumnos(cursoActual);
-    dibujarFiltrosAlumnos();
-    dibujarAlumnos();
+    redibujarAlumnos();
   } else {
     mostrarToast(data.mensaje || "No se pudo actualizar el estado", "error");
   }

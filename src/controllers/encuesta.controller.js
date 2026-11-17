@@ -1,11 +1,16 @@
+import { Op } from "sequelize";
 import { sequelize } from "../config/database.js";
 import {
+  encuestasIdeasModel,
+  encuestasIdeasVotosModel,
+  inscripcionesModel,
   encuestasModel,
   encuestasPreguntasModel,
   encuestasRespuestasModel,
   encuestasRespuestasDetalleModel,
   categoriasModel,
   cursosModel,
+  institucionesModel,
   representanteInstituModel,
   usuariosModel,
 } from "../models/index.js";
@@ -87,59 +92,132 @@ export function validarPreguntas(entrada) {
   return { errores, limpias };
 }
 
-// El representante crea una encuesta. Puede ser:
-//  - tipo "Interes": para preguntar, antes de lanzar cursos, qué categoría de
-//    capacitación le interesaría a la gente (categoria_id opcional).
-//  - tipo "Satisfaccion": ligada a un curso puntual ya finalizado, para medir
-//    si convendría relanzar esa capacitación (curso_id obligatorio).
-// Ahora la encuesta trae un arreglo `preguntas` (selección múltiple / texto abierto / rating).
-// Si no se manda ninguna, se arma una sola pregunta de texto libre con el título
-// (así el formulario viejo sigue funcionando).
+// ============================================================
+// VIGENCIA Y ALCANCE
+// - Las encuestas son temporales: se pueden responder mientras estén activas
+//   y (si tienen fecha_cierre) hasta esa fecha inclusive.
+// - "Satisfaccion" = encuesta DE UN CURSO: sólo la ven los alumnos de ese curso.
+// - "Interes"      = encuesta GENERAL: la ven todos los estudiantes y puede
+//   tener ideas de cursos para votar (nuevos o para traer de vuelta).
+// ============================================================
+const hoyISO = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+export const estaVigente = (e) => !!e.activo && (!e.fecha_cierre || String(e.fecha_cierre).slice(0, 10) >= hoyISO());
+const condicionVigente = () => ({
+  activo: true,
+  [Op.or]: [{ fecha_cierre: null }, { fecha_cierre: { [Op.gte]: hoyISO() } }],
+});
+// Alumnos que pueden responder la encuesta de su curso (los que lo están cursando o lo terminaron)
+const ESTADOS_ALUMNO = ["Inscripto", "Cursando", "Finalizado"];
+
+const idsCursosDelAlumno = async (usuario_id) => {
+  const inscripciones = await inscripcionesModel.findAll({
+    where: { usuario_id, estado: { [Op.in]: ESTADOS_ALUMNO } },
+    attributes: ["curso_id"],
+  });
+  return [...new Set(inscripciones.map((i) => i.curso_id))];
+};
+
+// ¿Este ciudadano puede ver/responder esta encuesta?
+const puedeParticipar = async (encuesta, usuarioReq) => {
+  if (!estaVigente(encuesta)) return false;
+  if (encuesta.tipo !== "Satisfaccion") return true;
+  const inscripto = await inscripcionesModel.findOne({
+    where: { usuario_id: usuarioReq.id, curso_id: encuesta.curso_id, estado: { [Op.in]: ESTADOS_ALUMNO } },
+    attributes: ["id"],
+  });
+  return !!inscripto;
+};
+
+const MAX_IDEAS = 20;
+const MAX_VOTOS_POR_PERSONA = 3; // Cada estudiante puede apoyar hasta 3 ideas por encuesta
+const MAX_PROPUESTAS_POR_PERSONA = 2;
+
+// Normaliza las ideas que manda el representante: [{ titulo, origen: "nuevo"|"volver", curso_id? }]
+const validarIdeas = async (entrada, institucion_id) => {
+  if (entrada === undefined || entrada === null) return { ideas: [] };
+  if (!Array.isArray(entrada)) return { error: "Las ideas de cursos no tienen un formato válido" };
+  if (entrada.length > MAX_IDEAS) return { error: `Podés cargar hasta ${MAX_IDEAS} ideas de cursos` };
+  const ideas = [];
+  const vistos = new Set();
+  for (const i of entrada) {
+    const origen = i?.origen === "volver" ? "volver" : "nuevo";
+    let titulo = String(i?.titulo ?? "").trim();
+    let curso_id = null;
+    if (origen === "volver") {
+      const curso = await cursosModel.findOne({ where: { id: i?.curso_id, institucion_id }, attributes: ["id", "titulo"] });
+      if (!curso) return { error: "Uno de los cursos para traer de vuelta no pertenece a tu institución" };
+      curso_id = curso.id;
+      titulo = titulo || curso.titulo;
+    }
+    if (!titulo) continue;
+    if (titulo.length > 150) return { error: "Cada idea de curso puede tener hasta 150 caracteres" };
+    const clave = titulo.toLowerCase();
+    if (vistos.has(clave)) continue;
+    vistos.add(clave);
+    ideas.push({ titulo, origen, curso_id });
+  }
+  return { ideas };
+};
+
+const leerFechaCierre = (valor) => {
+  if (valor === undefined || valor === null || String(valor).trim() === "") return { fecha: null };
+  const texto = String(valor).trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(texto) || isNaN(new Date(texto))) return { error: "La fecha de cierre no es válida" };
+  if (texto < hoyISO()) return { error: "La fecha de cierre no puede ser anterior a hoy" };
+  return { fecha: texto };
+};
+
+// El representante crea una encuesta:
+//  - "Satisfaccion" (de un curso): curso_id obligatorio (abierto o terminado). Sólo la ven sus alumnos.
+//  - "Interes" (general): la ven todos los estudiantes. Puede llevar ideas de cursos para votar
+//    y permitir que los estudiantes propongan las suyas. Las preguntas son opcionales.
+// fecha_cierre opcional: si no viene, dura hasta que el representante la finalice.
 export const crearEncuesta = async (req, res) => {
   const t = await sequelize.transaction();
+  const cortar = async (estado, mensaje) => {
+    await t.rollback();
+    return res.status(estado).json({ mensaje });
+  };
   try {
     const { titulo, descripcion, categoria_id, curso_id, tipo } = req.body;
     const tituloLimpio = String(titulo ?? "").trim();
-    if (!tituloLimpio) {
-      await t.rollback();
-      return res.status(400).json({ mensaje: "El título/pregunta es obligatorio" });
-    }
-    if (tituloLimpio.length > 150) {
-      await t.rollback();
-      return res.status(400).json({ mensaje: "El título no puede superar los 150 caracteres" });
-    }
+    if (!tituloLimpio) return cortar(400, "El título de la encuesta es obligatorio");
+    if (tituloLimpio.length > 150) return cortar(400, "El título no puede superar los 150 caracteres");
 
     const institucion_id = await obtenerInstitucionDeRepresentante(req.usuario);
-    if (!institucion_id) {
-      await t.rollback();
-      return res
-        .status(400)
-        .json({ mensaje: "Tu usuario no está vinculado a ninguna institución" });
-    }
+    if (!institucion_id) return cortar(400, "Tu usuario no está vinculado a ninguna institución");
 
     const tipoFinal = tipo === "Satisfaccion" ? "Satisfaccion" : "Interes";
+    const cierre = leerFechaCierre(req.body.fecha_cierre);
+    if (cierre.error) return cortar(400, cierre.error);
 
+    let curso = null;
     if (tipoFinal === "Satisfaccion") {
-      if (!curso_id) {
-        await t.rollback();
-        return res
-          .status(400)
-          .json({ mensaje: "Una encuesta de satisfacción necesita un curso_id" });
-      }
-      const curso = await cursosModel.findOne({ where: { id: curso_id, institucion_id } });
-      if (!curso) {
-        await t.rollback();
-        return res.status(404).json({ mensaje: "Ese curso no pertenece a tu institución" });
-      }
+      if (!curso_id) return cortar(400, "Elegí el curso al que va dirigida la encuesta");
+      curso = await cursosModel.findOne({ where: { id: curso_id, institucion_id }, attributes: ["id", "titulo"] });
+      if (!curso) return cortar(404, "Ese curso no pertenece a tu institución");
     }
 
+    const ideasLeidas = tipoFinal === "Interes" ? await validarIdeas(req.body.ideas, institucion_id) : { ideas: [] };
+    if (ideasLeidas.error) return cortar(400, ideasLeidas.error);
+    const permitePropuestas = tipoFinal === "Interes" && (req.body.permite_propuestas === undefined || aBooleano(req.body.permite_propuestas));
+
     const hayPreguntas = Array.isArray(req.body.preguntas) && req.body.preguntas.length > 0;
-    const { errores, limpias } = validarPreguntas(
-      hayPreguntas ? req.body.preguntas : [{ texto: tituloLimpio, tipo: "texto_abierto" }],
-    );
-    if (errores.length > 0) {
-      await t.rollback();
-      return res.status(400).json({ mensaje: errores[0], errores });
+    let limpias = [];
+    if (hayPreguntas) {
+      const validacion = validarPreguntas(req.body.preguntas);
+      if (validacion.errores.length > 0) {
+        await t.rollback();
+        return res.status(400).json({ mensaje: validacion.errores[0], errores: validacion.errores });
+      }
+      limpias = validacion.limpias;
+    } else if (tipoFinal === "Satisfaccion") {
+      return cortar(400, "Agregá al menos una pregunta");
+    } else if (ideasLeidas.ideas.length === 0 && !permitePropuestas) {
+      return cortar(400, "Agregá preguntas, ideas de cursos para votar o permití que los estudiantes propongan ideas");
     }
 
     const encuesta = await encuestasModel.create(
@@ -147,41 +225,54 @@ export const crearEncuesta = async (req, res) => {
         titulo: tituloLimpio,
         descripcion: descripcion ? String(descripcion).trim().slice(0, 1000) : null,
         institucion_id,
-        curso_id: tipoFinal === "Satisfaccion" ? curso_id : null,
-        categoria_id: categoria_id || null,
+        curso_id: curso ? curso.id : null,
+        categoria_id: tipoFinal === "Interes" ? categoria_id || null : null,
         tipo: tipoFinal,
+        fecha_cierre: cierre.fecha,
+        permite_propuestas: permitePropuestas,
       },
       { transaction: t },
     );
-    await encuestasPreguntasModel.bulkCreate(
-      limpias.map((p) => ({ ...p, encuesta_id: encuesta.id })),
-      { transaction: t },
-    );
+    if (limpias.length) {
+      await encuestasPreguntasModel.bulkCreate(limpias.map((p) => ({ ...p, encuesta_id: encuesta.id })), { transaction: t });
+    }
+    if (ideasLeidas.ideas.length) {
+      await encuestasIdeasModel.bulkCreate(ideasLeidas.ideas.map((i) => ({ ...i, encuesta_id: encuesta.id })), { transaction: t });
+    }
     await t.commit();
 
-    // Avisamos a los ciudadanos que la encuesta está disponible (mismo canal
-    // de notificaciones que se usa para los cursos nuevos).
-    usuariosModel
-      .findAll({
-        where: { activo: true, acepta_notificaciones: true },
-        include: [{ association: "rol", where: { nombre: "ciudadano" } }],
-      })
-      .then((ciudadanos) =>
+    // Aviso en la campanita: la de un curso sólo a sus alumnos; la general a todos los estudiantes
+    const destinatarios =
+      tipoFinal === "Satisfaccion"
+        ? inscripcionesModel
+            .findAll({ where: { curso_id: curso.id, estado: { [Op.in]: ESTADOS_ALUMNO } }, attributes: ["usuario_id"] })
+            .then((ins) =>
+              usuariosModel.findAll({ where: { id: [...new Set(ins.map((i) => i.usuario_id))], activo: true, acepta_notificaciones: true } }),
+            )
+        : usuariosModel.findAll({
+            where: { activo: true, acepta_notificaciones: true },
+            include: [{ association: "rol", where: { nombre: "ciudadano" } }],
+          });
+    destinatarios
+      .then((usuarios) =>
         notificarAUsuarios({
-          usuarios: ciudadanos,
+          usuarios,
           titulo: `Nueva encuesta: ${encuesta.titulo}`,
           mensaje:
             tipoFinal === "Interes"
-              ? `Queremos saber qué capacitaciones te interesan. Respondé la encuesta "${encuesta.titulo}" desde la plataforma.`
-              : `Contanos qué te pareció el curso respondiendo la encuesta "${encuesta.titulo}".`,
+              ? `¿Qué curso querés que traigamos? Votá y dejá tu idea en "${encuesta.titulo}".`
+              : `Contanos cómo te va en "${curso.titulo}" respondiendo la encuesta "${encuesta.titulo}".`,
           tipo: "encuesta_nueva",
-          url: "dashboard.html",
+          url: "dashboard.html#mis-encuestas",
         }),
       )
       .catch((e) => console.error("Error notificando encuesta:", e.message));
 
     const completa = await encuestasModel.findByPk(encuesta.id, {
-      include: [{ model: encuestasPreguntasModel, as: "preguntas" }],
+      include: [
+        { model: encuestasPreguntasModel, as: "preguntas" },
+        { model: encuestasIdeasModel, as: "ideas" },
+      ],
       order: [[{ model: encuestasPreguntasModel, as: "preguntas" }, "orden", "ASC"]],
     });
     return res.status(201).json({ mensaje: "Encuesta creada", encuesta: completa });
@@ -193,13 +284,61 @@ export const crearEncuesta = async (req, res) => {
   }
 };
 
-// Encuestas activas, pensadas para que el ciudadano las responda (login opcional
-// para verlas, pero se necesita estar logueado para responder).
+// Ideas de una o varias encuestas con su cantidad de votos (ordenadas: más votadas primero)
+const ideasConVotos = async (encuestaIds, persona_id = null) => {
+  if (!encuestaIds.length) return new Map();
+  const ideas = await encuestasIdeasModel.findAll({
+    where: { encuesta_id: encuestaIds },
+    include: [{ model: cursosModel, as: "curso", attributes: ["id", "titulo"] }],
+    order: [["id", "ASC"]],
+  });
+  const conteos = ideas.length
+    ? await encuestasIdeasVotosModel.count({ where: { idea_id: ideas.map((i) => i.id) }, group: ["idea_id"] })
+    : [];
+  const votosPorIdea = new Map(conteos.map((c) => [c.idea_id, Number(c.count)]));
+  const mios =
+    persona_id && ideas.length
+      ? new Set(
+          (await encuestasIdeasVotosModel.findAll({ where: { persona_id, idea_id: ideas.map((i) => i.id) }, attributes: ["idea_id"] })).map(
+            (v) => v.idea_id,
+          ),
+        )
+      : new Set();
+
+  const porEncuesta = new Map();
+  for (const i of ideas) {
+    const item = {
+      id: i.id,
+      titulo: i.titulo,
+      origen: i.origen,
+      curso: i.curso ? { id: i.curso.id, titulo: i.curso.titulo } : null,
+      votos: votosPorIdea.get(i.id) || 0,
+      yaVote: mios.has(i.id),
+      esMia: !!persona_id && i.persona_id === persona_id,
+    };
+    if (!porEncuesta.has(i.encuesta_id)) porEncuesta.set(i.encuesta_id, []);
+    porEncuesta.get(i.encuesta_id).push(item);
+  }
+  for (const lista of porEncuesta.values()) lista.sort((a, b) => b.votos - a.votos || a.id - b.id);
+  return porEncuesta;
+};
+
+// Encuestas que el ESTUDIANTE puede responder ahora:
+//  - generales vigentes de cualquier institución
+//  - de un curso, sólo si es alumno de ese curso
+// Sin sesión se muestran sólo las generales.
 export const verEncuestasActivas = async (req, res) => {
   try {
+    const esCiudadano = req.usuario?.rol === "ciudadano";
+    const cursosDelAlumno = esCiudadano ? await idsCursosDelAlumno(req.usuario.id) : [];
+    const alcance = cursosDelAlumno.length
+      ? { [Op.or]: [{ tipo: "Interes" }, { tipo: "Satisfaccion", curso_id: { [Op.in]: cursosDelAlumno } }] }
+      : { tipo: "Interes" };
+
     const encuestas = await encuestasModel.findAll({
-      where: { activo: true },
+      where: { [Op.and]: [condicionVigente(), alcance] },
       include: [
+        { model: institucionesModel, as: "institucion", attributes: ["id", "nombre"] },
         { model: categoriasModel, as: "categoria", attributes: ["id", "nombre"] },
         { model: cursosModel, as: "curso", attributes: ["id", "titulo"] },
         { model: encuestasPreguntasModel, as: "preguntas" },
@@ -210,20 +349,32 @@ export const verEncuestasActivas = async (req, res) => {
       ],
     });
 
-    // Si hay sesión, marcamos cuáles ya respondió para no mostrárselas de nuevo
+    // Si hay sesión, marcamos cuáles ya respondió para no mostrarle de nuevo las preguntas
     let idsRespondidas = new Set();
-    if (req.usuario) {
+    if (req.usuario?.persona_id) {
       const respondidas = await encuestasRespuestasModel.findAll({
         where: { persona_id: req.usuario.persona_id },
         attributes: ["encuesta_id"],
       });
       idsRespondidas = new Set(respondidas.map((r) => r.encuesta_id));
     }
+    const ideas = await ideasConVotos(
+      encuestas.filter((e) => e.tipo === "Interes").map((e) => e.id),
+      req.usuario?.persona_id || null,
+    );
 
-    const salida = encuestas.map((e) => ({
-      ...e.toJSON(),
-      yaRespondida: idsRespondidas.has(e.id),
-    }));
+    const salida = encuestas.map((e) => {
+      const lista = ideas.get(e.id) || [];
+      return {
+        ...e.toJSON(),
+        ideas: lista,
+        misVotos: lista.filter((i) => i.yaVote).length,
+        maxVotos: MAX_VOTOS_POR_PERSONA,
+        misPropuestas: lista.filter((i) => i.esMia).length,
+        maxPropuestas: MAX_PROPUESTAS_POR_PERSONA,
+        yaRespondida: idsRespondidas.has(e.id),
+      };
+    });
     return res.status(200).json({ mensaje: "Encuestas activas", encuestas: salida });
   } catch (error) {
     return res
@@ -231,6 +382,100 @@ export const verEncuestasActivas = async (req, res) => {
       .json({ mensaje: "Error al obtener encuestas", error: error.message });
   }
 };
+
+// ESTUDIANTE: apoya (o quita el apoyo a) una idea de curso. POST /encuestas/:id/ideas/:ideaId/voto
+export const votarIdea = async (req, res) => {
+  try {
+    const encuesta = await encuestasModel.findByPk(req.params.id);
+    if (!encuesta || encuesta.tipo !== "Interes" || !(await puedeParticipar(encuesta, req.usuario))) {
+      return res.status(404).json({ mensaje: "La encuesta ya no está disponible" });
+    }
+    const idea = await encuestasIdeasModel.findOne({ where: { id: req.params.ideaId, encuesta_id: encuesta.id } });
+    if (!idea) return res.status(404).json({ mensaje: "Idea no encontrada" });
+
+    const persona_id = req.usuario.persona_id;
+    const existente = await encuestasIdeasVotosModel.findOne({ where: { idea_id: idea.id, persona_id } });
+    if (existente) {
+      await existente.destroy();
+      return res.status(200).json({ mensaje: "Quitaste tu voto", votado: false });
+    }
+    const misVotos = await encuestasIdeasVotosModel.count({ where: { encuesta_id: encuesta.id, persona_id } });
+    if (misVotos >= MAX_VOTOS_POR_PERSONA) {
+      return res.status(400).json({ mensaje: `Podés apoyar hasta ${MAX_VOTOS_POR_PERSONA} ideas. Quitá un voto para elegir otra.` });
+    }
+    await encuestasIdeasVotosModel.create({ idea_id: idea.id, encuesta_id: encuesta.id, persona_id });
+    return res.status(201).json({ mensaje: "¡Voto registrado!", votado: true });
+  } catch (error) {
+    if (error.name === "SequelizeUniqueConstraintError") return res.status(200).json({ mensaje: "Ya votaste esta idea", votado: true });
+    return res.status(500).json({ mensaje: "No se pudo registrar el voto", error: error.message });
+  }
+};
+
+// ESTUDIANTE: propone una idea de curso (y la vota). POST /encuestas/:id/ideas { titulo }
+export const proponerIdea = async (req, res) => {
+  try {
+    const encuesta = await encuestasModel.findByPk(req.params.id);
+    if (!encuesta || encuesta.tipo !== "Interes" || !(await puedeParticipar(encuesta, req.usuario))) {
+      return res.status(404).json({ mensaje: "La encuesta ya no está disponible" });
+    }
+    if (!encuesta.permite_propuestas) return res.status(400).json({ mensaje: "Esta encuesta no acepta propuestas" });
+
+    const titulo = String(req.body.titulo ?? "").trim().replace(/\s+/g, " ");
+    if (titulo.length < 3) return res.status(400).json({ mensaje: "Escribí el nombre del curso que te gustaría" });
+    if (titulo.length > 150) return res.status(400).json({ mensaje: "La idea puede tener hasta 150 caracteres" });
+
+    const persona_id = req.usuario.persona_id;
+    const ideas = await encuestasIdeasModel.findAll({ where: { encuesta_id: encuesta.id }, attributes: ["id", "titulo", "persona_id"] });
+    const igual = ideas.find((i) => i.titulo.toLowerCase() === titulo.toLowerCase());
+    const misVotos = await encuestasIdeasVotosModel.count({ where: { encuesta_id: encuesta.id, persona_id } });
+
+    // Si alguien ya la propuso, en vez de duplicarla se suma el voto
+    if (igual) {
+      const yaVoto = await encuestasIdeasVotosModel.findOne({ where: { idea_id: igual.id, persona_id } });
+      if (yaVoto) return res.status(200).json({ mensaje: "Esa idea ya está en la lista y ya la apoyaste" });
+      if (misVotos >= MAX_VOTOS_POR_PERSONA) {
+        return res.status(400).json({ mensaje: `Esa idea ya está en la lista. Ya usaste tus ${MAX_VOTOS_POR_PERSONA} votos: quitá uno para apoyarla.` });
+      }
+      await encuestasIdeasVotosModel.create({ idea_id: igual.id, encuesta_id: encuesta.id, persona_id });
+      return res.status(200).json({ mensaje: "Esa idea ya estaba en la lista: le sumamos tu voto" });
+    }
+
+    if (ideas.filter((i) => i.persona_id === persona_id).length >= MAX_PROPUESTAS_POR_PERSONA) {
+      return res.status(400).json({ mensaje: `Podés proponer hasta ${MAX_PROPUESTAS_POR_PERSONA} ideas por encuesta` });
+    }
+    if (ideas.length >= 100) return res.status(400).json({ mensaje: "Esta encuesta ya recibió muchas ideas. Votá alguna de la lista." });
+
+    const idea = await encuestasIdeasModel.create({ encuesta_id: encuesta.id, titulo, origen: "propuesta", persona_id });
+    let mensaje = "¡Gracias! Tu idea quedó en la lista para que otros la voten";
+    if (misVotos < MAX_VOTOS_POR_PERSONA) {
+      await encuestasIdeasVotosModel.create({ idea_id: idea.id, encuesta_id: encuesta.id, persona_id });
+      mensaje = "¡Gracias! Tu idea quedó en la lista con tu voto";
+    }
+
+    notificarRepresentantes(encuesta.institucion_id, {
+      tipo: "encuesta_respuesta",
+      titulo: `Nueva idea de curso: ${titulo}`,
+      mensaje: `Un estudiante propuso "${titulo}" en la encuesta "${encuesta.titulo}".`,
+      url: `estadisticas_encuesta.html?id=${encuesta.id}`,
+      agrupar: true,
+      mensajeAgrupado: (n) => `${n} ideas nuevas de cursos en "${encuesta.titulo}".`,
+    }).catch((e) => console.error("Error notificando idea:", e.message));
+
+    return res.status(201).json({ mensaje });
+  } catch (error) {
+    return res.status(500).json({ mensaje: "No se pudo guardar tu idea", error: error.message });
+  }
+};
+
+// Finaliza solas las encuestas cuya fecha de cierre ya pasó (lo llama el cron todos los días)
+export async function finalizarEncuestasVencidas() {
+  const [cantidad] = await encuestasModel.update(
+    { activo: false },
+    { where: { activo: true, fecha_cierre: { [Op.lt]: hoyISO() } } },
+  );
+  if (cantidad) console.log(`🗳️ ${cantidad} encuesta(s) llegaron a su fecha de cierre y se finalizaron.`);
+  return cantidad;
+}
 
 // Encuestas creadas por el representante logueado (para su panel)
 export const verMisEncuestas = async (req, res) => {
@@ -253,11 +498,19 @@ export const verMisEncuestas = async (req, res) => {
         })
       : [];
     const porEncuesta = new Map(conteos.map((c) => [c.encuesta_id, c.count]));
+    const ideas = await ideasConVotos(encuestas.filter((e) => e.tipo === "Interes").map((e) => e.id));
 
-    const salida = encuestas.map((e) => ({
-      ...e.toJSON(),
-      total_respuestas: porEncuesta.get(e.id) || 0,
-    }));
+    const salida = encuestas.map((e) => {
+      const lista = ideas.get(e.id) || [];
+      return {
+        ...e.toJSON(),
+        vigente: estaVigente(e),
+        total_respuestas: porEncuesta.get(e.id) || 0,
+        total_ideas: lista.length,
+        total_votos: lista.reduce((acc, i) => acc + i.votos, 0),
+        idea_top: lista[0] && lista[0].votos > 0 ? { titulo: lista[0].titulo, votos: lista[0].votos } : null,
+      };
+    });
     return res.status(200).json({ mensaje: "Tus encuestas", encuestas: salida });
   } catch (error) {
     return res
@@ -277,9 +530,13 @@ export const responderEncuesta = async (req, res) => {
       order: [[{ model: encuestasPreguntasModel, as: "preguntas" }, "orden", "ASC"]],
       transaction: t,
     });
-    if (!encuesta || !encuesta.activo) {
+    if (!encuesta || !(await puedeParticipar(encuesta, req.usuario))) {
       await t.rollback();
-      return res.status(404).json({ mensaje: "Encuesta no encontrada o inactiva" });
+      return res.status(404).json({ mensaje: "Esta encuesta ya finalizó o no está disponible para vos" });
+    }
+    if (encuesta.preguntas.length === 0) {
+      await t.rollback();
+      return res.status(400).json({ mensaje: "Esta encuesta no tiene preguntas: votá las ideas de cursos" });
     }
 
     const yaRespondio = await encuestasRespuestasModel.findOne({
@@ -527,11 +784,17 @@ export const verResultadosEncuesta = async (req, res) => {
         descripcion: encuesta.descripcion,
         tipo: encuesta.tipo,
         activo: encuesta.activo,
+        vigente: estaVigente(encuesta),
+        fecha_cierre: encuesta.fecha_cierre,
+        permite_propuestas: encuesta.permite_propuestas,
         curso: encuesta.curso,
         categoria: encuesta.categoria,
         fecha_creacion: encuesta.fecha_creacion,
       },
       totalRespuestas: participaciones.length,
+      // Ranking de ideas de cursos (encuestas generales): más votadas primero
+      ideas: (await ideasConVotos([encuesta.id])).get(encuesta.id) || [],
+      totalVotantes: await encuestasIdeasVotosModel.count({ where: { encuesta_id: encuesta.id }, distinct: true, col: "persona_id" }),
       preguntas: armarResultados(encuesta.preguntas, detalles, fechaPorParticipacion),
       // Compatibilidad con el formato viejo (sin datos personales)
       respuestas: participaciones.map((r) => ({ id: r.id, respuesta: r.respuesta, fecha: r.fecha })),
@@ -552,7 +815,7 @@ export const cerrarEncuesta = async (req, res) => {
     );
     if (!actualizados)
       return res.status(404).json({ mensaje: "Encuesta no encontrada en tu institución" });
-    return res.status(200).json({ mensaje: "Encuesta cerrada" });
+    return res.status(200).json({ mensaje: "Encuesta finalizada: los estudiantes ya no la ven" });
   } catch (error) {
     return res
       .status(500)

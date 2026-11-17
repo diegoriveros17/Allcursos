@@ -12,7 +12,7 @@ export const rolesModel = sequelize.define(
     nombre: {
       type: DataTypes.STRING(50),
       allowNull: false,
-      unique: true,
+      unique: "nombre",
     },
   },
   {

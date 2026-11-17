@@ -15,6 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" /> <!-- Adelanta la conexión con Google Fonts para que las letras carguen antes -->
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="assets/css/style.css" /> <!-- Tema visual común (colores, tipografías, animaciones) -->
+    <link rel="stylesheet" href="assets/css/tema_fondos.css" /> <!-- Fondos en tonos suaves (borrar esta línea para volver al blanco) -->
   </head>
   <body class="d-flex flex-column h-100 bg-light">
     <header data-bs-theme="light">
@@ -58,12 +59,15 @@
         <!-- Métricas del curso -->
         <div class="row g-3 panel-metricas" id="metricasAlumnos"></div>
 
+        <!-- Cómo funcionan los certificados (y cuántos faltan emitir) -->
+        <div class="aviso-certificados mt-4" id="avisoCertificados"></div>
+
         <section class="panel-card mt-4">
           <div class="panel-card-cabecera">
             <span class="panel-card-icono"><i class="bi bi-people-fill"></i></span>
             <div class="flex-grow-1">
               <h2 class="panel-card-titulo">Alumnos inscriptos</h2>
-              <p class="panel-card-sub">Mirá el perfil de cada alumno, contactalo y marcá quién terminó el curso.</p>
+              <p class="panel-card-sub">Mirá el perfil de cada alumno, contactalo y emitile el certificado a quien cumplió con el curso.</p>
             </div>
           </div>
           <div class="barra-herramientas">

@@ -2,6 +2,8 @@ import { Router } from "express";
 import {
   cerrarEncuesta,
   crearEncuesta,
+  proponerIdea,
+  votarIdea,
   responderEncuesta,
   verEncuestasActivas,
   verMisEncuestas,
@@ -45,4 +47,18 @@ encuestasRoutes.put(
   verificarToken,
   verificarRol("representante"),
   cerrarEncuesta,
+);
+
+// Encuestas generales: los estudiantes proponen y votan ideas de cursos
+encuestasRoutes.post(
+  "/encuestas/:id/ideas",
+  verificarToken,
+  verificarRol("ciudadano"),
+  proponerIdea,
+);
+encuestasRoutes.post(
+  "/encuestas/:id/ideas/:ideaId/voto",
+  verificarToken,
+  verificarRol("ciudadano"),
+  votarIdea,
 );

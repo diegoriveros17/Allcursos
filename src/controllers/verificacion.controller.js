@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { Op } from "sequelize";
 import { codigosVerificacionModel } from "../models/codigo_verificacion.model.js";
-import { enviarEmail, enviarSMS } from "../utils/email.service.js";
+import { enviarEmail, enviarSMS, mostrarCodigoEnTerminal } from "../utils/email.service.js";
 
 const generarCodigo = () => crypto.randomInt(100000, 999999).toString();
 
@@ -32,6 +32,8 @@ export const solicitarCodigo = async (req, res) => {
       codigo,
       fecha_expiracion,
     });
+
+    mostrarCodigoEnTerminal({ para: valor, codigo, motivo: `Verificar ${medio === "Email" ? "email" : "teléfono"}` });
 
     if (medio === "Email") {
       await enviarEmail({

@@ -38,11 +38,23 @@ const filtroImagen = (req, file, cb) => { // Recibe la petición, el archivo y l
 const carpetaCursos = path.join(__dirname, "..", "..", "uploads", "cursos"); // Ruta de la carpeta uploads/cursos
 asegurarCarpeta(carpetaCursos); // Se asegura de que la carpeta exista
 
+const carpetaDocentes = path.join(__dirname, "..", "..", "uploads", "docentes"); // Fotos del equipo docente
+asegurarCarpeta(carpetaDocentes);
+const storageCursos = crearStorage(carpetaCursos, "curso");
+const storageDocentes = crearStorage(carpetaDocentes, "docente");
+
 const multerCurso = multer({ // Crea el procesador de archivos para cursos
-  storage: crearStorage(carpetaCursos, "curso"), // Guarda en uploads/cursos con nombres tipo curso-123.jpg
+  // La portada va a uploads/cursos y las fotos de docentes a uploads/docentes
+  storage: {
+    _handleFile: (req, file, cb) => (file.fieldname === "fotos_docentes" ? storageDocentes : storageCursos)._handleFile(req, file, cb),
+    _removeFile: (req, file, cb) => (file.fieldname === "fotos_docentes" ? storageDocentes : storageCursos)._removeFile(req, file, cb),
+  },
   fileFilter: filtroImagen, // Usa el filtro de imágenes
-  limits: { fileSize: 3 * 1024 * 1024 }, // Tamaño máximo: 3 MB
-}).single("imagen"); // Espera un solo archivo en el campo "imagen" del formulario
+  limits: { fileSize: 3 * 1024 * 1024, files: 21 }, // Tamaño máximo: 3 MB por imagen
+}).fields([
+  { name: "imagen", maxCount: 1 }, // Portada del curso
+  { name: "fotos_docentes", maxCount: 20 }, // Fotos del equipo docente (en el orden que indica el campo "docentes")
+]);
 
 // Middleware que se usa en las rutas de cursos
 export const uploadImagenCurso = (req, res, next) => { // Recibe petición, respuesta y la función para continuar
@@ -50,9 +62,11 @@ export const uploadImagenCurso = (req, res, next) => { // Recibe petición, resp
     if (error) { // Si hubo un error (tipo no permitido, archivo muy grande, etc.)...
       return res.status(400).json({ mensaje: error.message }); // ...responde 400 con el motivo
     } // Cierra el if
-    if (req.file) { // Si se subió un archivo...
-      req.imagen_url = `/uploads/cursos/${req.file.filename}`; // ...guarda en la petición la URL pública de la imagen
+    const portada = req.files?.imagen?.[0];
+    if (portada) { // Si se subió una portada...
+      req.imagen_url = `/uploads/cursos/${portada.filename}`; // ...guarda en la petición la URL pública de la imagen
     } // Cierra el if
+    req.fotos_docentes = (req.files?.fotos_docentes || []).map((f) => `/uploads/docentes/${f.filename}`); // URLs de las fotos nuevas de docentes
     next(); // Continúa con el siguiente paso (el controlador)
   }); // Cierra la llamada a multer
 }; // Cierra el middleware

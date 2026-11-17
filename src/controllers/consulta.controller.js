@@ -143,7 +143,7 @@ export const verConsultasEnviadas = async (req, res) => {
     if (!usuario) return res.status(404).json({ mensaje: "Usuario no encontrado" });
 
     const consultas = await consultasCursoModel.findAll({
-      where: condicionConsultasDelCiudadano(usuario),
+      where: { ...condicionConsultasDelCiudadano(usuario), oculta_ciudadano: false },
       include: incluirConversacion,
       order: ordenConversacion,
       limit: 100,
@@ -223,7 +223,8 @@ export const enviarMensajeConsulta = async (req, res) => {
     let aviso = "Mensaje enviado";
 
     if (esRepresentante) {
-      await consulta.update({ estado: "respondida", novedad_ciudadano: true });
+      // Si el ciudadano había borrado la conversación, vuelve a aparecerle con la respuesta nueva
+      await consulta.update({ estado: "respondida", novedad_ciudadano: true, oculta_ciudadano: false });
 
       // Si la consulta es vieja (de visitante), se busca una cuenta con ese email
       let destinatario = consulta.usuario_id;
@@ -247,7 +248,8 @@ export const enviarMensajeConsulta = async (req, res) => {
       }
     } else {
       // Al vincular una consulta vieja por email, queda asociada a la cuenta
-      await consulta.update({ estado: "nueva", novedad_ciudadano: false, usuario_id: usuario.id });
+      // Si la institución había borrado la conversación, vuelve a aparecerle con el mensaje nuevo
+      await consulta.update({ estado: "nueva", novedad_ciudadano: false, usuario_id: usuario.id, oculta_representante: false });
       notificarRepresentantes(consulta.institucion_id, {
         tipo: "consulta",
         titulo: `Nuevo mensaje en la consulta sobre "${tituloCurso}"`,
@@ -271,7 +273,7 @@ export const enviarMensajeConsulta = async (req, res) => {
 export const verMisConsultas = async (req, res) => {
   try {
     const institucion_id = await obtenerInstitucionDeRepresentante(req.usuario);
-    const where = { institucion_id };
+    const where = { institucion_id, oculta_representante: false };
     if (["nueva", "leida", "respondida"].includes(req.query.estado)) where.estado = req.query.estado;
 
     const consultas = await consultasCursoModel.findAll({
@@ -280,7 +282,7 @@ export const verMisConsultas = async (req, res) => {
       order: ordenConversacion,
       limit: 100,
     });
-    const nuevas = await consultasCursoModel.count({ where: { institucion_id, estado: "nueva" } });
+    const nuevas = await consultasCursoModel.count({ where: { institucion_id, estado: "nueva", oculta_representante: false } });
     return res.status(200).json({ mensaje: "Consultas recibidas", nuevas, consultas });
   } catch (error) {
     return res
@@ -306,5 +308,79 @@ export const cambiarEstadoConsulta = async (req, res) => {
     return res
       .status(500)
       .json({ mensaje: "Error al actualizar la consulta", error: error.message });
+  }
+};
+
+// ============================================================
+// CIUDADANO o REPRESENTANTE: borra la conversación de SU panel
+// DELETE /api/consultas/:id
+// El otro lado la sigue viendo. Si ya la había borrado también, se elimina del todo.
+// ============================================================
+export const borrarConsulta = async (req, res) => {
+  try {
+    const consulta = await consultasCursoModel.findByPk(req.params.id);
+    if (!consulta) return res.status(404).json({ mensaje: "Consulta no encontrada" });
+
+    const esRepresentante = req.usuario.rol === "representante";
+    if (esRepresentante) {
+      const institucion_id = await obtenerInstitucionDeRepresentante(req.usuario);
+      if (consulta.institucion_id !== institucion_id) {
+        return res.status(404).json({ mensaje: "Consulta no encontrada en tu institución" });
+      }
+    } else {
+      const usuario = await obtenerUsuarioConPersona(req.usuario.id);
+      const esDuenio =
+        usuario &&
+        (consulta.usuario_id === usuario.id ||
+          (consulta.usuario_id === null && consulta.email === usuario.email_login));
+      if (!esDuenio) return res.status(404).json({ mensaje: "Consulta no encontrada" });
+    }
+
+    const yaOcultaDelOtroLado = esRepresentante ? consulta.oculta_ciudadano : consulta.oculta_representante;
+    if (yaOcultaDelOtroLado) {
+      await mensajesConsultaModel.destroy({ where: { consulta_id: consulta.id } });
+      await consulta.destroy();
+    } else {
+      await consulta.update(esRepresentante ? { oculta_representante: true } : { oculta_ciudadano: true });
+    }
+    return res.status(200).json({ mensaje: "Conversación borrada" });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ mensaje: "No se pudo borrar la conversación", error: error.message });
+  }
+};
+
+// ============================================================
+// REPRESENTANTE: vacía su bandeja de consultas
+// DELETE /api/consultas/mias?estado=respondida   (sin estado = todas)
+// Igual que borrar una: los ciudadanos las siguen viendo en su panel,
+// y si el ciudadano ya la había borrado, se elimina del todo.
+// ============================================================
+export const vaciarMisConsultas = async (req, res) => {
+  try {
+    const institucion_id = await obtenerInstitucionDeRepresentante(req.usuario);
+    if (!institucion_id) return res.status(400).json({ mensaje: "Tu usuario no está vinculado a ninguna institución" });
+    const where = { institucion_id, oculta_representante: false };
+    if (["nueva", "leida", "respondida"].includes(req.query.estado)) where.estado = req.query.estado;
+
+    const consultas = await consultasCursoModel.findAll({ where, attributes: ["id", "oculta_ciudadano"] });
+    const aEliminar = consultas.filter((c) => c.oculta_ciudadano).map((c) => c.id);
+    const aOcultar = consultas.filter((c) => !c.oculta_ciudadano).map((c) => c.id);
+
+    if (aEliminar.length) {
+      await mensajesConsultaModel.destroy({ where: { consulta_id: aEliminar } });
+      await consultasCursoModel.destroy({ where: { id: aEliminar } });
+    }
+    if (aOcultar.length) {
+      await consultasCursoModel.update({ oculta_representante: true }, { where: { id: aOcultar } });
+    }
+    const total = consultas.length;
+    return res.status(200).json({
+      mensaje: total === 0 ? "No había consultas para borrar" : total === 1 ? "Se borró 1 conversación" : `Se borraron ${total} conversaciones`,
+      total,
+    });
+  } catch (error) {
+    return res.status(500).json({ mensaje: "No se pudieron borrar las consultas", error: error.message });
   }
 };

@@ -20,6 +20,7 @@ const EncuestaBuilder = (() => {
   let contenedor = null;
   let preguntas = [];
   let secuencia = 0;
+  let permitirVacio = false; // En la encuesta general las preguntas son opcionales (puede tener sólo ideas para votar)
 
   const nuevaPregunta = (tipo = "opcion_multiple") => ({
     uid: ++secuencia,
@@ -37,7 +38,16 @@ const EncuestaBuilder = (() => {
   }
 
   function reset() {
-    preguntas = [nuevaPregunta("opcion_multiple")];
+    preguntas = permitirVacio ? [] : [nuevaPregunta("opcion_multiple")];
+    render();
+  }
+
+  // true = se pueden quitar todas las preguntas (encuesta general)
+  function setPermitirVacio(valor) {
+    permitirVacio = !!valor;
+    if (!permitirVacio && preguntas.length === 0) preguntas = [nuevaPregunta("opcion_multiple")];
+    // Si sólo quedó la pregunta inicial sin tocar, en modo opcional se saca
+    if (permitirVacio && preguntas.length === 1 && !preguntas[0].texto.trim()) preguntas = [];
     render();
   }
 
@@ -230,7 +240,7 @@ const EncuestaBuilder = (() => {
               type: "button",
               class: "btn btn-outline-danger",
               title: "Eliminar pregunta",
-              disabled: total === 1,
+              disabled: total === 1 && !permitirVacio,
               onClick: () => {
                 preguntas.splice(indice, 1);
                 render();
@@ -270,6 +280,9 @@ const EncuestaBuilder = (() => {
   function render() {
     if (!contenedor) return;
     contenedor.replaceChildren(
+      preguntas.length === 0
+        ? h("p", { class: "text-muted small mb-2" }, h("i", { class: "bi bi-info-circle me-1" }), "Sin preguntas: los estudiantes sólo votan y proponen ideas de cursos. Si querés, agregá alguna pregunta.")
+        : null,
       ...preguntas.map(tarjetaPregunta),
       h(
         "div",
@@ -318,5 +331,5 @@ const EncuestaBuilder = (() => {
     return { errores, preguntas: limpias };
   }
 
-  return { init, reset, obtenerPreguntas };
+  return { init, reset, obtenerPreguntas, setPermitirVacio };
 })();

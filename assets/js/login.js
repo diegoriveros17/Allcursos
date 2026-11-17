@@ -131,7 +131,7 @@ const INFO_ROLES = {
       "Inscribirte gratis a los cursos publicados (si no hay cupo, quedás en lista de espera).",
       "Seguir tus cursos, consultas y encuestas desde Mi Panel.",
       "Hacerle preguntas a cada institución desde la página del curso.",
-      "Descargar tu certificado en PDF con código QR al terminar.",
+      "Descargar tu certificado en PDF con código QR cuando la institución confirme que completaste el curso.",
     ],
     necesita: ["Tu DNI", "Un email que uses (te enviamos un código)", "Una contraseña de al menos 8 caracteres"],
     importante: "Tu cuenta queda activa al instante. Usá tus datos reales: tu nombre y DNI aparecen en el certificado.",

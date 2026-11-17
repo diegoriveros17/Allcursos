@@ -52,8 +52,38 @@ export async function verificarConexionEmail() {
 // Importante: el SMTP envía igual desde cualquier IP/host donde corra el
 // servidor; lo que dependía de "localhost" eran los LINKS dentro del mail
 // (ver src/config/appUrl.js).
+// ---------- Códigos en la terminal (para pruebas) ----------
+// Con MOSTRAR_CODIGOS_EN_TERMINAL=true en el .env, cada código de verificación
+// o de recuperación se imprime en la terminal del servidor, además de enviarse.
+// Así podés registrar cuentas de prueba sin tener acceso a ese email.
+// En producción (NODE_ENV=production) nunca se muestran.
+export function codigosEnTerminal() {
+  return process.env.NODE_ENV !== "production" && process.env.MOSTRAR_CODIGOS_EN_TERMINAL === "true";
+}
+
+export function mostrarCodigoEnTerminal({ para, codigo, motivo }) {
+  if (!codigosEnTerminal()) return;
+  const hora = new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+  console.log("\n╔══════════════════════════════════════════════╗");
+  console.log(`║  🔑 CÓDIGO: ${codigo}   (${hora})`);
+  console.log(`║  Para:   ${para}`);
+  console.log(`║  Motivo: ${motivo}`);
+  console.log("╚══════════════════════════════════════════════╝\n");
+}
+
+// Dominios inventados que nunca reciben correo (ej: prueba1@allcursos.test).
+// A estos no se les intenta enviar por SMTP, para no generar rebotes.
+const esEmailDePrueba = (email) => /@[^@\s]+\.(test|example|invalid|localhost)$/i.test(String(email).trim());
+
 export async function enviarEmail({ to, subject, html, replyTo }) {
   const remitente = process.env.SMTP_FROM || "no-responder@allcursos.local";
+  const destinatarios = Array.isArray(to) ? to : [to];
+
+  if (destinatarios.every(esEmailDePrueba)) {
+    console.log(`📧 [Email de prueba, no se envía] Para: ${destinatarios.join(", ")} · Asunto: ${subject}`);
+    return { simulado: true };
+  }
+
   const transporte = obtenerTransportador();
 
   if (!transporte) {
